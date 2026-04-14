@@ -118,6 +118,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState("");
   const [localSelectorOpen, setLocalSelectorOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("erp-dark") === "true"
@@ -197,22 +198,19 @@ export default function AppLayout() {
     }
   }, [activeModuleSlugs, location.pathname, modulesLoaded, navigate, user?.role]);
 
-  const visibleItems = NAV_ITEMS.filter((item) => {
-    // En modo cliente (EXE de empresa) ocultar rutas de administración de plataforma
-    if (isClientMode && ADMIN_ONLY_ROUTES.includes(item.to)) return false;
-    // MEGAADMIN ve absolutamente todo (super-usuario de la plataforma)
-    if (user?.role === 'MEGAADMIN') return true;
-    // Si el item tiene módulo y ese módulo está activo para este usuario (el backend
-    // ya aplicó modules_override al filtrar), omitir chequeo de rol — el admin
-    // explícitamente habilitó el módulo para este usuario
-    if (item.module && modulesLoaded && activeModuleSlugs.has(item.module)) return true;
-    if (item.roles && !item.roles.includes(user?.role)) return false;
-    // Si el item no tiene módulo asociado (Dashboard, Config, etc.) siempre visible
-    if (!item.module) return true;
-    // Hasta cargar módulos preferimos ocultar para no mostrar pantallas no habilitadas
-    if (!modulesLoaded) return false;
-    return activeModuleSlugs.has(item.module);
-  });
+  const visibleItems = useMemo(() => {
+    const filtered = NAV_ITEMS.filter((item) => {
+      if (isClientMode && ADMIN_ONLY_ROUTES.includes(item.to)) return false;
+      if (user?.role === 'MEGAADMIN') return true;
+      if (item.module && modulesLoaded && activeModuleSlugs.has(item.module)) return true;
+      if (item.roles && !item.roles.includes(user?.role)) return false;
+      if (!item.module) return true;
+      if (!modulesLoaded) return false;
+      return activeModuleSlugs.has(item.module);
+    });
+    filtered.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    return filtered;
+  }, [isClientMode, user?.role, modulesLoaded, activeModuleSlugs]);
 
   // Dark mode
   useEffect(() => {
@@ -304,9 +302,25 @@ export default function AppLayout() {
           </button>
         </div>
 
+        {/* Nav search */}
+        {!collapsed && (
+          <div className="px-2 pt-2 pb-1 shrink-0">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar módulo..."
+                value={navSearch}
+                onChange={e => setNavSearch(e.target.value)}
+                className="w-full bg-slate-800 text-slate-200 placeholder-slate-500 text-[12px] rounded-lg pl-7 pr-2 py-1.5 outline-none border border-slate-700 focus:border-slate-500 transition"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full" style={{scrollbarWidth:'thin',scrollbarColor:'#475569 transparent'}}>
-          {visibleItems.map((item) => (
+        <nav className="flex-1 overflow-y-auto py-1 px-2 space-y-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full" style={{scrollbarWidth:'thin',scrollbarColor:'#475569 transparent'}}>
+          {visibleItems.filter(item => !navSearch || item.label.toLowerCase().includes(navSearch.toLowerCase())).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

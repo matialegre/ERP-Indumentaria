@@ -1,5 +1,23 @@
 # ERP Mundo Outdoor — Copilot Instructions
 
+## ⚠️ REGLA OBLIGATORIA: Deploy automático al terminar
+
+**Después de completar CUALQUIER tarea que modifique archivos del frontend (`erp/frontend/src/`):**
+
+1. Ejecutar build y deploy con este comando PowerShell:
+```powershell
+cd "D:\ERP MUNDO OUTDOOR\erp\frontend" && npx vite build
+$ids = Get-Process | Where-Object { $_.Name -like '*ERP Mundo*' } | Select-Object -ExpandProperty Id; foreach($id in $ids){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+cd "D:\ERP MUNDO OUTDOOR\erp\electron-cliente" && node_modules\.bin\electron-packager . "ERP Mundo Outdoor - Cliente" --platform=win32 --arch=x64 --out=dist --overwrite
+$src="D:\ERP MUNDO OUTDOOR\erp\electron-cliente\dist\ERP Mundo Outdoor - Cliente-win32-x64"; $dst="D:\ERP MUNDO OUTDOOR\DISTRIBUIBLES\ERP Mundo Outdoor - Cliente"; $zip="D:\ERP MUNDO OUTDOOR\DISTRIBUIBLES\ERP Mundo Outdoor - Cliente.zip"; if(Test-Path $dst){Remove-Item $dst -Recurse -Force}; Copy-Item $src $dst -Recurse; if(Test-Path $zip){Remove-Item $zip -Force}; Compress-Archive -Path "$dst\*" -DestinationPath $zip -Force
+Start-Process "D:\ERP MUNDO OUTDOOR\DISTRIBUIBLES\ERP Mundo Outdoor - Cliente\ERP Mundo Outdoor - Cliente.exe"
+```
+
+2. O simplemente ejecutar: `D:\ERP MUNDO OUTDOOR\DEPLOY_RAPIDO.bat`
+
+**NO marcar la tarea como completa sin haber hecho el build y deploy.**
+**El backend con `--reload` toma cambios automáticamente — no reiniciar.**
+
 ## Proyecto
 ERP enterprise multi-tenant para Mundo Outdoor (indumentaria/outdoor). Construido desde cero. PWA instalable.
 

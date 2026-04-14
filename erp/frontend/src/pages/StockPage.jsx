@@ -36,10 +36,13 @@ export default function StockPage() {
   const [adjustNotes, setAdjustNotes] = useState("");
   const [stockPage, setStockPage] = useState(1);
   const [movPage, setMovPage] = useState(1);
+  const [checked, setChecked] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("stock_ctrl") || "[]")); } catch { return new Set(); }
+  });
+  const [brandMap, setBrandMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stock_ctrl_brands") || "{}"); } catch { return {}; }
+  });
 
-  useEffect(() => { setStockPage(1); }, [search, filter]);
-
-  // Stock: online usa API, offline usa IndexedDB
   const { data: stockData, isLoading } = useQuery({
     queryKey: ["stock", search, filter, stockPage, online],
     queryFn: async () => {
@@ -71,6 +74,43 @@ export default function StockPage() {
   const stock = stockData?.items ?? [];
   const stockTotal = stockData?.total ?? 0;
 
+  useEffect(() => { setStockPage(1); }, [search, filter]);
+
+  useEffect(() => {
+    if (!stock.length) return;
+    setBrandMap(prev => {
+      const next = { ...prev };
+      stock.forEach(item => { if (item.variant_id) next[item.variant_id] = item.brand || "Sin marca"; });
+      localStorage.setItem("stock_ctrl_brands", JSON.stringify(next));
+      return next;
+    });
+  }, [stock]);
+
+  function toggleCheck(id) {
+    setChecked(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem("stock_ctrl", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function togglePageAll() {
+    const ids = stock.map(i => i.variant_id);
+    const allChecked = ids.every(id => checked.has(id));
+    setChecked(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => allChecked ? next.delete(id) : next.add(id));
+      localStorage.setItem("stock_ctrl", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function resetControl() {
+    setChecked(new Set());
+    localStorage.removeItem("stock_ctrl");
+  }
+
   const { data: movData } = useQuery({
     queryKey: ["stock-movements", movPage],
     queryFn: () => api.get(`/stock/movements?skip=${(movPage - 1) * PAGE_SIZE}&limit=${PAGE_SIZE}`),
@@ -95,6 +135,20 @@ export default function StockPage() {
     const items = lowStockData?.items ?? [];
     return items.filter(i => (i.stock ?? i.quantity ?? 0) > 0 && (i.stock ?? i.quantity ?? 0) <= 5);
   }, [lowStockData]);
+
+  const { data: brandsSummary } = useQuery({
+    queryKey: ["stock-brands-summary"],
+    queryFn: () => api.get("/stock/brands-summary"),
+  });
+
+  const brandCheckedCounts = useMemo(() => {
+    const counts = {};
+    checked.forEach(id => {
+      const brand = brandMap[id] || "Sin marca";
+      counts[brand] = (counts[brand] || 0) + 1;
+    });
+    return counts;
+  }, [checked, brandMap]);
 
   const adjustMut = useMutation({
     mutationFn: async (data) => {
@@ -215,6 +269,41 @@ export default function StockPage() {
         </div>
       )}
 
+      {brandsSummary && brandsSummary.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-semibold text-gray-700">Control de stock por marca</span>
+              <span className="ml-2 text-sm text-gray-500">{checked.size} / {summary?.total_variants ?? 0} variantes controladas</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-emerald-600">
+                {summary?.total_variants > 0 ? Math.round((checked.size / summary.total_variants) * 100) : 0}%
+              </span>
+              {checked.size > 0 && (
+                <button onClick={resetControl} className="text-xs text-gray-400 hover:text-red-500 underline transition">Reiniciar</button>
+              )}
+            </div>
+          </div>
+          {brandsSummary.map(({ brand, total_variants }) => {
+            const checkedCount = brandCheckedCounts[brand] || 0;
+            const pct = total_variants > 0 ? Math.min((checkedCount / total_variants) * 100, 100) : 0;
+            const barColor = pct >= 100 ? "#16a34a" : pct > 60 ? "#22c55e" : pct > 30 ? "#f59e0b" : "#94a3b8";
+            return (
+              <div key={brand}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium text-gray-700">{brand}</span>
+                  <span className="text-xs text-gray-500">{checkedCount}/{total_variants} · {Math.round(pct)}%</span>
+                </div>
+                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: barColor }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {view === "inventory" && (
         <>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -240,6 +329,14 @@ export default function StockPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                     <tr>
+                      <th className="px-4 py-3 text-center w-10">
+                        <input type="checkbox"
+                          checked={stock.length > 0 && stock.every(i => checked.has(i.variant_id))}
+                          onChange={togglePageAll}
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                          title="Marcar/desmarcar página"
+                        />
+                      </th>
                       <th className="px-4 py-3 text-left">Producto</th>
                       <th className="px-4 py-3 text-left">SKU</th>
                       <th className="px-4 py-3 text-left">Talle</th>
@@ -252,7 +349,14 @@ export default function StockPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {stock.map((item) => (
-                      <tr key={item.variant_id} className="hover:bg-gray-50">
+                      <tr key={item.variant_id} className={`hover:bg-gray-50 ${checked.has(item.variant_id) ? "bg-emerald-50/40" : ""}`}>
+                        <td className="px-4 py-3 text-center">
+                          <input type="checkbox"
+                            checked={checked.has(item.variant_id)}
+                            onChange={() => toggleCheck(item.variant_id)}
+                            className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                          />
+                        </td>
                         <td className="px-4 py-3 font-medium text-gray-900">
                           <div>{item.product_name}</div>
                           <div className="text-xs text-gray-400">{item.product_code}</div>

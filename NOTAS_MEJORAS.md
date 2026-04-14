@@ -1,5 +1,5 @@
 # Notas de Mejora — ERP Mundo Outdoor
-_Exportado: 2026-04-14 12:19_
+_Exportado: 2026-04-14 14:34_
 
 
 ## Dashboard 3.0
@@ -40,6 +40,12 @@ test debug
 
 ## deposito
 
+### 🟡 [NORMAL] Nota #19
+**Autor:** Administrador Mundo Outdoor | **Fecha:** 14/04/2026 14:21
+
+haceme una barra de estado en % para sabér cuánto voy de control de stock
+
+
 ### 🟡 [NORMAL] Nota #10
 **Autor:** Administrador Mundo Outdoor | **Fecha:** 13/04/2026 16:02
 
@@ -74,6 +80,26 @@ _(1 imagen(es) adjunta(s))_
 **Autor:** Administrador Mundo Outdoor | **Fecha:** 13/04/2026 17:08
 
 en el titulo socios montagne, quiero que se llame altas montagne
+
+
+## Stock
+
+### 🟡 [NORMAL] Nota #22
+**Autor:** Eber | **Fecha:** 14/04/2026 14:34
+
+No me deja ver la parte de stock con mi usuario, es necesario ya que soy de depósito y necesito hacer control de stock. Me dice "Algo salió mal" Cannot Access G before initialization
+
+
+### 🟡 [NORMAL] Nota #21
+**Autor:** Administrador Mundo Outdoor | **Fecha:** 14/04/2026 14:29
+
+ordená alfabeticamente los modulos de la izquierda y ponele un bsucador tambine, son muchos y se tarda en encontrar
+
+
+### 🟡 [NORMAL] Nota #20
+**Autor:** Administrador Mundo Outdoor | **Fecha:** 14/04/2026 14:27
+
+Me gustó la barra de control de stock pero me gustaría que esté separada por marcas ya que así tenemos dividida la mercadería físicamente
 
 
 ## Ingresos

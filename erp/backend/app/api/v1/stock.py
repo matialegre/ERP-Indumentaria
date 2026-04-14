@@ -62,6 +62,11 @@ class StockSummary(BaseModel):
     out_of_stock_count: int
 
 
+class BrandSummaryItem(BaseModel):
+    brand: str
+    total_variants: int
+
+
 router = APIRouter(prefix="/stock", tags=["stock"])
 
 
@@ -192,6 +197,24 @@ def stock_summary(
         low_stock_count=low_stock,
         out_of_stock_count=out_of_stock,
     )
+
+
+@router.get("/brands-summary")
+def stock_brands_summary(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = (
+        db.query(Product.brand, func.count(ProductVariant.id).label("total_variants"))
+        .join(ProductVariant, Product.id == ProductVariant.product_id)
+    )
+    if user.company_id:
+        q = q.filter(Product.company_id == user.company_id)
+    rows = q.group_by(Product.brand).order_by(Product.brand).all()
+    return [
+        BrandSummaryItem(brand=row.brand or "Sin marca", total_variants=row.total_variants)
+        for row in rows
+    ]
 
 
 @router.post("/adjust")

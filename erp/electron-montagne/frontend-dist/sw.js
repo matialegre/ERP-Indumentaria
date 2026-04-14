@@ -2,7 +2,7 @@
 // Service Worker — ERP Sistema (PWA offline-first, pro-level)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_NAME = "mo-erp-v6";
+const CACHE_NAME = "mo-erp-v7";
 const API_CACHE_NAME = "mo-erp-api-v2";
 const VALID_CACHES = new Set([CACHE_NAME, API_CACHE_NAME]);
 

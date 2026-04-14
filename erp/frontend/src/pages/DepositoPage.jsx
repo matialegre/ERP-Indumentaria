@@ -16,6 +16,12 @@ import {
   Warehouse,
   Search,
   X,
+  PackageOpen,
+  Truck,
+  FileText,
+  Trash2,
+  Check,
+  Ban,
 } from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -645,10 +651,383 @@ function TabAlertas() {
   );
 }
 
+// ─── Modal: Nuevo Ingreso de Stock ───────────────────────────────────────────
+
+function ModalNuevoIngreso({ onClose, onCreated }) {
+  const [form, setForm] = useState({
+    type: "REMITO",
+    number: "",
+    date: new Date().toISOString().split("T")[0],
+    provider_id: "",
+    notes: "",
+  });
+  const [items, setItems] = useState([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [qty, setQty] = useState(1);
+  const [cost, setCost] = useState("");
+
+  const { data: providers = [] } = useQuery({
+    queryKey: ["providers-deposito"],
+    queryFn: () => api.get("/providers/?limit=500"),
+    select: (d) => Array.isArray(d) ? d : d?.items ?? [],
+  });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products-deposito-search", productSearch],
+    queryFn: () => api.get(`/products/?${productSearch ? `search=${encodeURIComponent(productSearch)}&` : ""}limit=50`),
+    select: (d) => Array.isArray(d) ? d : d?.items ?? [],
+    enabled: productSearch.length >= 2,
+  });
+
+  const createMut = useMutation({
+    mutationFn: (payload) => api.post("/ingresos/", payload),
+    onSuccess: () => { onCreated(); onClose(); },
+  });
+
+  const addItem = () => {
+    if (!selectedVariant) return;
+    setItems([...items, {
+      variant_id: selectedVariant.id,
+      product_name: selectedVariant._productName,
+      sku: selectedVariant.sku,
+      size: selectedVariant.size,
+      color: selectedVariant.color,
+      quantity: Number(qty),
+      unit_cost: cost ? Number(cost) : null,
+    }]);
+    setSelectedVariant(null);
+    setProductSearch("");
+    setQty(1);
+    setCost("");
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (items.length === 0) return;
+    createMut.mutate({
+      ...form,
+      provider_id: Number(form.provider_id),
+      items: items.map(({ variant_id, quantity, unit_cost }) => ({ variant_id, quantity, unit_cost })),
+    });
+  };
+
+  const variants = products.flatMap((p) =>
+    (p.variants || []).map((v) => ({ ...v, _productName: p.name }))
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <PackageOpen size={20} className="text-indigo-600" /> Nuevo Ingreso de Stock
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo *</label>
+              <div className="flex gap-2">
+                {["REMITO", "FACTURA"].map((t) => (
+                  <button key={t} type="button"
+                    onClick={() => setForm({ ...form, type: t })}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition ${
+                      form.type === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >{t}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Número *</label>
+              <input required value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })}
+                placeholder="0001-00001234"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Proveedor *</label>
+              <select required value={form.provider_id} onChange={(e) => setForm({ ...form, provider_id: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">— Seleccionar —</option>
+                {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Fecha *</label>
+              <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-gray-50 px-4 py-2.5 border-b text-xs font-semibold text-gray-600">Agregar artículo</div>
+            <div className="p-4 space-y-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input value={productSearch} onChange={(e) => { setProductSearch(e.target.value); setSelectedVariant(null); }}
+                  placeholder="Buscar producto (mín. 2 letras)..."
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm" />
+              </div>
+              {variants.length > 0 && (
+                <div className="max-h-36 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {variants.map((v) => (
+                    <button key={v.id} type="button"
+                      onClick={() => setSelectedVariant(v)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 transition flex justify-between items-center ${
+                        selectedVariant?.id === v.id ? "bg-indigo-50 border-l-2 border-indigo-500" : ""
+                      }`}>
+                      <span>
+                        <span className="font-medium">{v._productName}</span>
+                        <span className="text-gray-500 ml-2 text-xs">{v.size} / {v.color}</span>
+                      </span>
+                      <span className="font-mono text-xs text-gray-400">{v.sku}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedVariant && (
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1 bg-indigo-50 rounded-lg px-3 py-2 text-sm border border-indigo-100">
+                    <span className="font-medium">{selectedVariant._productName}</span>
+                    <span className="text-gray-500 ml-2 text-xs">{selectedVariant.size} / {selectedVariant.color} · {selectedVariant.sku}</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Cant.</label>
+                    <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)}
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-sm text-center" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Costo</label>
+                    <input type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)}
+                      placeholder="Opc."
+                      className="w-24 border border-gray-200 rounded-lg px-2 py-2 text-sm" />
+                  </div>
+                  <button type="button" onClick={addItem}
+                    className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
+                    <Plus size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {items.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-50 px-4 py-2 border-b text-xs font-semibold text-gray-600">Ítems ({items.length})</div>
+              <table className="w-full text-sm">
+                <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Producto</th>
+                    <th className="px-4 py-2 text-left">Talle/Color</th>
+                    <th className="px-4 py-2 text-right">Cant.</th>
+                    <th className="px-4 py-2 text-right">Costo</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, idx) => (
+                    <tr key={idx} className="border-t border-gray-50">
+                      <td className="px-4 py-2 font-medium">{it.product_name}</td>
+                      <td className="px-4 py-2 text-gray-500 text-xs">{it.size} / {it.color}</td>
+                      <td className="px-4 py-2 text-right font-semibold">{it.quantity}</td>
+                      <td className="px-4 py-2 text-right text-gray-500">{it.unit_cost ? `$${it.unit_cost}` : "—"}</td>
+                      <td className="px-2">
+                        <button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                          className="p-1 hover:bg-red-50 rounded text-gray-300 hover:text-red-500">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {createMut.isError && (
+            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+              {createMut.error?.message ?? "Error al crear ingreso"}
+            </p>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancelar</button>
+            <button type="submit" disabled={createMut.isPending || items.length === 0 || !form.provider_id}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
+              {createMut.isPending ? "Guardando..." : "Crear Ingreso"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Ingresos de Stock ──────────────────────────────────────────────────
+
+function TabIngresos() {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState("TODOS");
+  const [expanded, setExpanded] = useState(null);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["deposito-ingresos", filtroStatus],
+    queryFn: () => api.get(`/ingresos/?limit=100${filtroStatus !== "TODOS" ? `&status=${filtroStatus}` : ""}`),
+    select: (d) => d?.items ?? [],
+  });
+
+  const { data: detalle } = useQuery({
+    queryKey: ["deposito-ingreso-detalle", expanded],
+    queryFn: () => api.get(`/ingresos/${expanded}`),
+    enabled: !!expanded,
+  });
+
+  const confirmarMut = useMutation({
+    mutationFn: (id) => api.post(`/ingresos/${id}/confirmar-recepcion`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["deposito-ingresos"] });
+      qc.invalidateQueries({ queryKey: ["deposito-ingreso-detalle", expanded] });
+      qc.invalidateQueries({ queryKey: ["deposito-resumen"] });
+      qc.invalidateQueries({ queryKey: ["deposito-stock"] });
+    },
+  });
+
+  const ingresos = data ?? [];
+  const fmtDate = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("es-AR") : "—";
+
+  const statusColors = {
+    BORRADOR:   "bg-yellow-100 text-yellow-700",
+    CONFIRMADO: "bg-green-100 text-green-700",
+    ANULADO:    "bg-red-100 text-red-700",
+  };
+  const typeColors = {
+    REMITO:   "bg-orange-100 text-orange-700",
+    FACTURA:  "bg-blue-100 text-blue-700",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {["TODOS", "BORRADOR", "CONFIRMADO", "ANULADO"].map((s) => (
+            <button key={s} onClick={() => setFiltroStatus(s)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition ${
+                filtroStatus === s ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}>
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => refetch()} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <RefreshCw size={16} />
+          </button>
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
+            <Plus size={16} /> Nuevo Ingreso
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-gray-400" /></div>
+      ) : ingresos.length === 0 ? (
+        <div className="py-16 text-center text-gray-400">
+          <PackageOpen size={40} className="mx-auto mb-3 opacity-30" />
+          <p>Sin ingresos registrados</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {ingresos.map((ing) => (
+            <div key={ing.id} className="border-b border-gray-100 last:border-0">
+              <div
+                className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 cursor-pointer"
+                onClick={() => setExpanded(expanded === ing.id ? null : ing.id)}
+              >
+                <div className="flex items-center gap-3">
+                  {expanded === ing.id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeColors[ing.type] ?? "bg-gray-100 text-gray-600"}`}>{ing.type}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">#{ing.number}</p>
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <Truck size={11} /> {ing.provider_name} · {fmtDate(ing.date)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[ing.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {ing.status}
+                  </span>
+                  {ing.status === "BORRADOR" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm("¿Confirmar recepción de mercadería? Se actualizará el stock."))
+                          confirmarMut.mutate(ing.id);
+                      }}
+                      disabled={confirmarMut.isPending}
+                      className="flex items-center gap-1 text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <PackageCheck size={13} /> Confirmar Recepción
+                    </button>
+                  )}
+                </div>
+              </div>
+              {expanded === ing.id && detalle && (
+                <div className="bg-gray-50 px-8 py-3 border-t border-gray-100">
+                  {detalle.notes && <p className="text-xs text-gray-500 mb-2">📝 {detalle.notes}</p>}
+                  {detalle.items?.length > 0 ? (
+                    <table className="w-full text-xs">
+                      <thead className="text-gray-400">
+                        <tr>
+                          <th className="text-left py-1">Producto</th>
+                          <th className="text-left">Talle/Color</th>
+                          <th className="text-left">SKU</th>
+                          <th className="text-right">Cantidad</th>
+                          <th className="text-right">Costo unit.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detalle.items.map((item) => (
+                          <tr key={item.id} className="border-t border-gray-100">
+                            <td className="py-1.5 font-medium">{item.product_name || "—"}</td>
+                            <td className="text-gray-500">{item.variant_size} / {item.variant_color}</td>
+                            <td className="font-mono text-gray-400">{item.variant_sku}</td>
+                            <td className="text-right font-semibold">{item.quantity}</td>
+                            <td className="text-right text-gray-500">{item.unit_cost ? `$${item.unit_cost}` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-3">Sin ítems</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <ModalNuevoIngreso
+          onClose={() => setShowModal(false)}
+          onCreated={() => qc.invalidateQueries({ queryKey: ["deposito-ingresos"] })}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "dashboard",      label: "Dashboard",           icon: Warehouse },
+  { id: "ingresos",       label: "Ingresos de Stock",   icon: PackageOpen },
   { id: "transferencias", label: "Transferencias",       icon: ArrowRightLeft },
   { id: "inventario",     label: "Inventario Físico",    icon: ClipboardCheck },
   { id: "alertas",        label: "Alertas",              icon: AlertTriangle },
@@ -692,6 +1071,7 @@ export default function DepositoPage() {
 
       {/* Content */}
       {tab === "dashboard"      && <TabDashboard />}
+      {tab === "ingresos"       && <TabIngresos />}
       {tab === "transferencias" && <TabTransferencias />}
       {tab === "inventario"     && <TabInventario />}
       {tab === "alertas"        && <TabAlertas />}
