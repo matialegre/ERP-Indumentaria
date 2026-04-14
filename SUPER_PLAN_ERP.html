@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP Platform — SuperAdmin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f172a;--bg2:#1e293b;--bg3:#334155;
+  --glass:rgba(30,41,59,.65);--glass2:rgba(51,65,85,.45);
+  --blue:#3b82f6;--blue2:#60a5fa;--blue3:#2563eb;
+  --cyan:#06b6d4;--green:#22c55e;--orange:#f97316;--red:#ef4444;--purple:#a855f7;--pink:#ec4899;--yellow:#eab308;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --border:rgba(148,163,184,.15);
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;
+}
+html{font-size:14px}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+
+/* LAYOUT */
+.app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr auto;min-height:100vh}
+.sidebar{grid-row:1/4;background:var(--glass);backdrop-filter:blur(20px);border-right:1px solid var(--border);padding:24px 20px;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
+.main-content{grid-column:2;padding:24px 28px;overflow-y:auto;display:flex;flex-direction:column;gap:28px}
+.footer{grid-column:1/3;padding:16px 28px;text-align:center;color:var(--text3);font-size:.8rem;border-top:1px solid var(--border);background:var(--glass)}
+
+/* SIDEBAR */
+.sidebar-header{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.sidebar-header .shield{width:42px;height:42px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 4px 15px rgba(59,130,246,.35)}
+.sidebar-header h1{font-size:1rem;font-weight:800;letter-spacing:1px;line-height:1.2}
+.sidebar-header h1 span{display:block;font-size:.7rem;font-weight:500;color:var(--blue2);letter-spacing:2px;margin-top:2px}
+
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--glass2);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 12px;transition:all .25s}
+.stat-card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 6px 20px rgba(59,130,246,.15)}
+.stat-card .label{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-card .value{font-size:1.35rem;font-weight:800;background:linear-gradient(135deg,var(--blue2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-card .sub{font-size:.6rem;color:var(--text3);margin-top:4px}
+
+.sidebar-section{margin-top:4px}
+.sidebar-section h3{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.nav-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.nav-list li{padding:10px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:.85rem;color:var(--text2);transition:all .2s;display:flex;align-items:center;gap:10px}
+.nav-list li:hover,.nav-list li.active{background:rgba(59,130,246,.12);color:var(--text)}
+.nav-list li.active{border-left:3px solid var(--blue);color:var(--blue2);font-weight:600}
+.nav-list li i{width:18px;height:18px;opacity:.7}
+
+.sidebar-arch{margin-top:auto;padding:16px;background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);font-size:.6rem;line-height:1.6;font-family:'Courier New',monospace;color:var(--text3);white-space:pre;overflow-x:auto}
+
+/* TOP BAR */
+.top-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.top-bar h2{font-size:1.5rem;font-weight:800}
+.top-bar h2 span{color:var(--blue2)}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;min-width:260px;transition:border-color .2s}
+.search-box:focus-within{border-color:var(--blue)}
+.search-box input{background:none;border:none;color:var(--text);font-size:.85rem;outline:none;width:100%;font-family:inherit}
+.search-box input::placeholder{color:var(--text3)}
+
+/* COMPANY CARDS GRID */
+.companies-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.company-card{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.company-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;transition:height .3s}
+.company-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3);border-color:rgba(148,163,184,.3)}
+.company-card:hover::before{height:4px}
+.company-card.selected{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue),0 12px 40px rgba(59,130,246,.2)}
+.cc-header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.cc-logo{width:48px;height:48px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
+.cc-info h3{font-size:1rem;font-weight:700;margin-bottom:2px}
+.cc-info .industry{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;font-weight:600;padding:2px 8px;border-radius:4px;display:inline-block}
+.cc-modules{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.cc-module{font-size:.65rem;padding:3px 8px;border-radius:4px;background:rgba(59,130,246,.12);color:var(--blue2);border:1px solid rgba(59,130,246,.2);white-space:nowrap}
+.cc-module.variant{background:rgba(168,85,247,.12);color:var(--purple);border-color:rgba(168,85,247,.2)}
+.cc-footer{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border)}
+.cc-plan{font-size:.7rem;font-weight:700;padding:3px 10px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px}
+.cc-stats{display:flex;gap:14px;font-size:.75rem;color:var(--text2)}
+.cc-stats span{display:flex;align-items:center;gap:4px}
+
+/* DETAIL PANEL OVERLAY */
+.detail-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.7);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.detail-overlay.open{opacity:1;pointer-events:all}
+.detail-panel{width:min(900px,92vw);max-height:88vh;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transform:translateY(20px) scale(.97);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.detail-overlay.open .detail-panel{transform:translateY(0) scale(1)}
+.dp-header{padding:20px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
+.dp-header-left{display:flex;align-items:center;gap:14px}
+.dp-header-left .logo{width:50px;height:50px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.6rem}
+.dp-header-left h3{font-size:1.15rem;font-weight:700}
+.dp-header-left .ind{font-size:.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.dp-close{width:36px;height:36px;border-radius:50%;background:var(--glass2);border:1px solid var(--border);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;transition:all .2s}
+.dp-close:hover{background:var(--red);color:#fff;border-color:var(--red)}
+
+.dp-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 24px;flex-shrink:0;overflow-x:auto}
+.dp-tab{padding:12px 18px;font-size:.8rem;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+.dp-tab:hover{color:var(--text)}
+.dp-tab.active{color:var(--blue2);border-bottom-color:var(--blue);font-weight:600}
+
+.dp-body{padding:24px;overflow-y:auto;flex:1}
+.dp-body h4{font-size:.95rem;font-weight:700;margin-bottom:16px}
+
+/* Info tab */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.info-item{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.info-item .lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px}
+.info-item .val{font-size:.95rem;font-weight:600}
+
+/* Modules tab */
+.mod-list{display:flex;flex-direction:column;gap:10px}
+.mod-row{display:flex;align-items:center;justify-content:space-between;background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;transition:all .2s}
+.mod-row:hover{border-color:rgba(148,163,184,.3)}
+.mod-left{display:flex;align-items:center;gap:12px}
+.mod-icon{font-size:1.2rem}
+.mod-name{font-size:.85rem;font-weight:600}
+.mod-variant-tag{font-size:.65rem;padding:2px 8px;border-radius:4px;background:rgba(168,85,247,.15);color:var(--purple);margin-left:8px;font-weight:500}
+.mod-right{display:flex;align-items:center;gap:12px}
+.mod-variant-select{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:.75rem;font-family:inherit;outline:none;cursor:pointer}
+.mod-variant-select:focus{border-color:var(--blue)}
+
+/* Toggle */
+.toggle{position:relative;width:42px;height:24px;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:var(--bg3);border-radius:24px;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.3s}
+.toggle input:checked+.slider{background:var(--blue)}
+.toggle input:checked+.slider::before{transform:translateX(18px)}
+
+/* Branding tab */
+.brand-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.brand-item{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px}
+.brand-item label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px}
+.brand-item input[type="text"],.brand-item input[type="color"]{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:.85rem;outline:none}
+.brand-item input[type="color"]{height:42px;padding:4px;cursor:pointer}
+.brand-preview{grid-column:1/3;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center}
+.brand-preview .preview-bar{height:48px;border-radius:var(--radius-sm);display:flex;align-items:center;padding:0 16px;gap:10px;margin-bottom:10px;font-weight:700;font-size:.9rem}
+.brand-preview .preview-label{font-size:.7rem;color:var(--text3)}
+
+/* Users tab */
+.users-table{width:100%;border-collapse:collapse}
+.users-table th{text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);padding:8px 12px;border-bottom:1px solid var(--border)}
+.users-table td{padding:10px 12px;font-size:.8rem;border-bottom:1px solid var(--border)}
+.users-table tr:hover td{background:rgba(59,130,246,.05)}
+.role-badge{font-size:.65rem;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase}
+
+/* Plan tab */
+.plan-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.plan-card{background:var(--glass2);border:2px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;transition:all .25s;cursor:pointer}
+.plan-card:hover{border-color:var(--blue)}
+.plan-card.current{border-color:var(--blue);background:rgba(59,130,246,.08);box-shadow:0 0 0 1px var(--blue)}
+.plan-card h5{font-size:1rem;font-weight:800;margin-bottom:4px}
+.plan-card .price{font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,var(--blue2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:10px 0}
+.plan-card .price span{font-size:.8rem;font-weight:500}
+.plan-card ul{list-style:none;text-align:left;font-size:.75rem;color:var(--text2)}
+.plan-card ul li{padding:4px 0;display:flex;align-items:center;gap:6px}
+.plan-card ul li::before{content:'✓';color:var(--green);font-weight:700}
+
+/* MODULE CATALOG */
+.section-title{font-size:1.15rem;font-weight:800;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.section-title .line{flex:1;height:1px;background:var(--border)}
+.section-sub{font-size:.8rem;color:var(--text3);margin-bottom:16px}
+.modules-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.mod-card{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:all .25s}
+.mod-card:hover{border-color:rgba(148,163,184,.3);transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.2)}
+.mod-card-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mod-card-header .icon{font-size:1.5rem}
+.mod-card-header h4{font-size:.9rem;font-weight:700}
+.mod-card p{font-size:.75rem;color:var(--text2);line-height:1.5;margin-bottom:10px}
+.mod-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.mod-card-tag{font-size:.6rem;padding:2px 6px;border-radius:3px;background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.2)}
+.mod-card-footer{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border)}
+.mod-type{font-size:.65rem;font-weight:600;padding:2px 8px;border-radius:4px}
+.mod-type.universal{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2)}
+.mod-type.variants{background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.2)}
+
+/* ARCHITECTURE */
+.arch-section{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;position:relative;overflow:hidden}
+.arch-section::before{content:'';position:absolute;top:0;right:0;width:200px;height:200px;background:radial-gradient(circle,rgba(59,130,246,.08),transparent);pointer-events:none}
+.arch-diagram{display:flex;flex-direction:column;align-items:center;gap:0;font-family:'Courier New',monospace;font-size:.75rem;color:var(--text2);position:relative}
+.arch-box{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 22px;text-align:center;position:relative;z-index:1;transition:all .3s}
+.arch-box:hover{border-color:var(--blue);box-shadow:0 4px 15px rgba(59,130,246,.15)}
+.arch-box.main{border-color:var(--blue);background:rgba(59,130,246,.1);min-width:320px}
+.arch-box.api{border-color:var(--cyan);background:rgba(6,182,212,.08);min-width:200px}
+.arch-box h5{font-family:'Inter',sans-serif;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:4px}
+.arch-box p{font-size:.7rem;color:var(--text3)}
+.arch-line{width:2px;height:28px;background:linear-gradient(to bottom,var(--blue),var(--cyan));margin:0 auto}
+.arch-line-h{height:2px;background:linear-gradient(to right,transparent,var(--cyan),transparent)}
+.arch-clients{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.arch-client{background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;text-align:center;transition:all .3s}
+.arch-client:hover{border-color:var(--green);transform:translateY(-2px)}
+.arch-client .emoji{font-size:1.4rem;margin-bottom:4px}
+.arch-client .name{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:600;color:var(--text)}
+.arch-client .type{font-size:.6rem;color:var(--text3)}
+.arch-branch{display:flex;justify-content:center;align-items:flex-end;gap:0;margin:-1px 0}
+.arch-branch-line{width:2px;height:20px;background:var(--cyan)}
+.arch-branch-h{height:2px;flex:1;max-width:100px;background:var(--cyan)}
+
+/* Animation */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.anim{animation:fadeInUp .5s ease both}
+.anim-d1{animation-delay:.05s}.anim-d2{animation-delay:.1s}.anim-d3{animation-delay:.15s}.anim-d4{animation-delay:.2s}.anim-d5{animation-delay:.25s}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 2s infinite}
+
+/* Responsive fallback */
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .footer{grid-column:1}
+  .info-grid,.brand-grid{grid-template-columns:1fr}
+  .plan-cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="shield">🛡️</div>
+      <h1>ERP PLATFORM<span>⚡ SuperAdmin</span></h1>
+    </div>
+
+    <div class="stat-cards">
+      <div class="stat-card anim anim-d1">
+        <div class="label">Empresas Activas</div>
+        <div class="value">8</div>
+        <div class="sub">+2 este mes</div>
+      </div>
+      <div class="stat-card anim anim-d2">
+        <div class="label">Módulos Disp.</div>
+        <div class="value">15</div>
+        <div class="sub">3 con variantes</div>
+      </div>
+      <div class="stat-card anim anim-d3">
+        <div class="label">Usuarios Total</div>
+        <div class="value">47</div>
+        <div class="sub">12 activos hoy</div>
+      </div>
+      <div class="stat-card anim anim-d4">
+        <div class="label">Ingresos Mes</div>
+        <div class="value">$2.4M</div>
+        <div class="sub">↑ 18% vs anterior</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>📋 Navegación</h3>
+      <ul class="nav-list">
+        <li class="active" onclick="showSection('companies')"><i data-lucide="building-2"></i> Empresas</li>
+        <li onclick="showSection('modules')"><i data-lucide="puzzle"></i> Módulos</li>
+        <li onclick="showSection('arch')"><i data-lucide="network"></i> Arquitectura</li>
+        <li><i data-lucide="credit-card"></i> Facturación SaaS</li>
+        <li><i data-lucide="bar-chart-3"></i> Analytics</li>
+        <li><i data-lucide="settings"></i> Config Platform</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>🔔 Actividad Reciente</h3>
+      <ul class="nav-list">
+        <li style="font-size:.75rem;color:var(--text3)">🟢 Mundo Outdoor — login admin</li>
+        <li style="font-size:.75rem;color:var(--text3)">🔵 TallerEuro — nueva OT creada</li>
+        <li style="font-size:.75rem;color:var(--text3)">🟡 Kiosco Don Pedro — stock bajo</li>
+        <li style="font-size:.75rem;color:var(--text3)">🟣 Ferreyra — venta registrada</li>
+      </ul>
+    </div>
+
+    <div class="sidebar-arch">┌───────────────────────┐
+│  SUPERADMIN PLATFORM  │
+│  Empresas · Módulos   │
+│  Planes · Branding    │
+└──────────┬────────────┘
+           │
+     ┌─────┴─────┐
+     │ API CENTRAL│
+     │  FastAPI   │
+     └─────┬─────┘
+           │
+   ┌───────┼───────┐
+   │       │       │
+ ┌─┴─┐  ┌─┴─┐  ┌─┴─┐
+ │ MO│  │TAL│  │KIO│
+ │EXE│  │APK│  │Web│
+ └───┘  └───┘  └───┘</div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="mainContent">
+
+    <!-- TOP BAR -->
+    <div class="top-bar anim">
+      <h2>Gestión de <span>Empresas</span></h2>
+      <div class="search-box">
+        <i data-lucide="search" style="width:16px;height:16px;color:var(--text3)"></i>
+        <input type="text" placeholder="Buscar empresa, módulo, industria..." id="searchInput" oninput="filterCompanies()">
+      </div>
+    </div>
+
+    <!-- COMPANIES GRID -->
+    <div class="companies-grid" id="companiesGrid"></div>
+
+    <!-- MODULE CATALOG SECTION -->
+    <div id="moduleCatalogSection">
+      <div style="margin-top:12px">
+        <div class="section-title">
+          <span>📦 Catálogo de Módulos</span>
+          <div class="line"></div>
+        </div>
+        <p class="section-sub">Todos los módulos disponibles en la plataforma. Los módulos con variantes se adaptan automáticamente a cada industria.</p>
+      </div>
+      <div class="modules-catalog" id="modulesCatalog"></div>
+    </div>
+
+    <!-- ARCHITECTURE SECTION -->
+    <div id="archSection" style="margin-top:8px">
+      <div class="section-title">
+        <span>🏗️ Arquitectura de la Plataforma</span>
+        <div class="line"></div>
+      </div>
+      <p class="section-sub">Multi-tenant, módulos dinámicos, variantes por industria, branding por empresa.</p>
+
+      <div class="arch-section">
+        <div class="arch-diagram">
+          <div class="arch-box main">
+            <h5>🛡️ SUPERADMIN PLATFORM</h5>
+            <p>Gestión de empresas, módulos, planes, branding, analytics</p>
+          </div>
+          <div class="arch-line"></div>
+          <div class="arch-box api">
+            <h5>⚡ API CENTRAL — FastAPI</h5>
+            <p>Multi-tenant · JWT · RBAC · PostgreSQL</p>
+          </div>
+          <div class="arch-line"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:0;width:100%">
+            <div style="flex:1;max-width:180px;height:2px;background:linear-gradient(to right,transparent,var(--cyan))"></div>
+            <div style="width:2px;height:20px;background:var(--cyan)"></div>
+            <div style="flex:1;max-width:180px;height:2px;background:linear-gradient(to left,transparent,var(--cyan))"></div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:0;width:100%;max-width:600px">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+              <div style="width:2px;height:16px;background:var(--cyan)"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+              <div style="width:2px;height:16px;background:var(--cyan)"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+              <div style="width:2px;height:16px;background:var(--cyan)"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+              <div style="width:2px;height:16px;background:var(--cyan)"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+              <div style="width:2px;height:16px;background:var(--cyan)"></div>
+            </div>
+          </div>
+          <div class="arch-clients">
+            <div class="arch-client">
+              <div class="emoji">🏔️</div>
+              <div class="name">Mundo Outdoor</div>
+              <div class="type">PWA / EXE</div>
+            </div>
+            <div class="arch-client">
+              <div class="emoji">🔧</div>
+              <div class="name">TallerEuro</div>
+              <div class="type">APK / Web</div>
+            </div>
+            <div class="arch-client">
+              <div class="emoji">👔</div>
+              <div class="name">Ferreyra Ropa</div>
+              <div class="type">Web</div>
+            </div>
+            <div class="arch-client">
+              <div class="emoji">🏪</div>
+              <div class="name">Kiosco Don Pedro</div>
+              <div class="type">PWA / POS</div>
+            </div>
+            <div class="arch-client">
+              <div class="emoji">🔨</div>
+              <div class="name">Ferretería Rodríguez</div>
+              <div class="type">Web / Tablet</div>
+            </div>
+          </div>
+
+          <div style="margin-top:28px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:650px">
+            <div style="background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center">
+              <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">Base de Datos</div>
+              <div style="font-size:.85rem;font-weight:700;color:var(--cyan)">PostgreSQL 18</div>
+              <div style="font-size:.6rem;color:var(--text3)">Multi-tenant · Puerto 2048</div>
+            </div>
+            <div style="background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center">
+              <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">Módulos</div>
+              <div style="font-size:.85rem;font-weight:700;color:var(--purple)">Dinámicos</div>
+              <div style="font-size:.6rem;color:var(--text3)">Activar/desactivar por empresa</div>
+            </div>
+            <div style="background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;text-align:center">
+              <div style="font-size:.7rem;color:var(--text3);margin-bottom:4px">Deploy</div>
+              <div style="font-size:.85rem;font-weight:700;color:var(--green)">Hetzner VPS</div>
+              <div style="font-size:.6rem;color:var(--text3)">Docker · SSL · CDN</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    ERP Platform — Arquitectura propuesta por Copilot para Mundo Outdoor SaaS &nbsp;·&nbsp; © 2025
+  </footer>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-panel">
+    <div class="dp-header">
+      <div class="dp-header-left">
+        <div class="logo" id="dpLogo"></div>
+        <div>
+          <h3 id="dpName"></h3>
+          <div class="ind" id="dpIndustry"></div>
+        </div>
+      </div>
+      <button class="dp-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="dp-tabs" id="dpTabs"></div>
+    <div class="dp-body" id="dpBody"></div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const COMPANIES = [
+  {
+    id:'mundo-outdoor', name:'Mundo Outdoor', industry:'INDUMENTARIA', emoji:'🏔️', color:'#3b82f6',
+    cuit:'30-71234567-9', address:'Av. Colón 1234, Córdoba', plan:'ENTERPRISE', users:12, locals:3,
+    modules:[
+      {mod:'stock', variant:'Ropa (talle, color, temporada)'},
+      {mod:'compras'},{mod:'ventas'},{mod:'facturacion', variant:'Estándar'},
+      {mod:'reportes'},{mod:'transporte'},{mod:'trell-outdoor'},
+      {mod:'control-ie', variant:'Mercadería textil'},
+      {mod:'usuarios'},{mod:'locales'}
+    ],
+    usersList:[
+      {name:'Carlos Admin', email:'carlos@mundooutdoor.com', role:'ADMIN'},
+      {name:'María Ventas', email:'maria@mundooutdoor.com', role:'VENDEDOR'},
+      {name:'Juan Depósito', email:'juan@mundooutdoor.com', role:'DEPOSITO'},
+      {name:'Ana Compras', email:'ana@mundooutdoor.com', role:'COMPRAS'},
+      {name:'Luis Local 2', email:'luis@mundooutdoor.com', role:'LOCAL'},
+    ],
+    brandName:'Mundo Outdoor ERP', brandColor:'#3b82f6'
+  },
+  {
+    id:'taller-euro', name:'TallerEuro', industry:'MECÁNICO', emoji:'🔧', color:'#f97316',
+    cuit:'20-32456789-1', address:'Bv. San Juan 567, Córdoba', plan:'PRO', users:5, locals:1,
+    modules:[
+      {mod:'stock', variant:'Repuestos Auto (OEM, aftermarket, nro. de parte)'},
+      {mod:'ordenes-trabajo'},{mod:'facturacion', variant:'Con retenciones'},
+      {mod:'archivo-digital'},{mod:'control-ie', variant:'Repuestos mecánicos'},
+      {mod:'usuarios'},{mod:'locales'}
+    ],
+    usersList:[
+      {name:'Pedro Dueño', email:'pedro@tallereuro.com', role:'ADMIN'},
+      {name:'Diego Mecánico', email:'diego@tallereuro.com', role:'GESTION_PAGOS'},
+      {name:'Sofía Admin', email:'sofia@tallereuro.com', role:'ADMINISTRACION'},
+    ],
+    brandName:'TallerEuro Gestión', brandColor:'#f97316'
+  },
+  {
+    id:'ferreyra-ropa', name:'Ferreyra Ropa', industry:'INDUMENTARIA', emoji:'👔', color:'#a855f7',
+    cuit:'27-29876543-5', address:'Gral. Paz 890, Villa María', plan:'STARTER', users:3, locals:1,
+    modules:[
+      {mod:'stock', variant:'Ropa (talle, color, temporada)'},
+      {mod:'ventas'},{mod:'facturacion', variant:'Simplificada'},
+      {mod:'reportes'},{mod:'usuarios'},{mod:'locales'}
+    ],
+    usersList:[
+      {name:'Laura Ferreyra', email:'laura@ferreyra.com', role:'ADMIN'},
+      {name:'Romina Ventas', email:'romina@ferreyra.com', role:'VENDEDOR'},
+    ],
+    brandName:'Ferreyra Ropa', brandColor:'#a855f7'
+  },
+  {
+    id:'kiosco-don-pedro', name:'Kiosco Don Pedro', industry:'KIOSCO', emoji:'🏪', color:'#22c55e',
+    cuit:'20-18765432-0', address:'Caseros 234, Córdoba', plan:'STARTER', users:2, locals:1,
+    modules:[
+      {mod:'stock', variant:'Consumibles (vencimiento, lote)'},
+      {mod:'ventas-pos'},{mod:'proveedores'},
+      {mod:'usuarios'},{mod:'locales'}
+    ],
+    usersList:[
+      {name:'Pedro González', email:'pedro@kiosco.com', role:'ADMIN'},
+      {name:'Marta Caja', email:'marta@kiosco.com', role:'LOCAL'},
+    ],
+    brandName:'Don Pedro POS', brandColor:'#22c55e'
+  },
+  {
+    id:'ferreteria-rodriguez', name:'Ferretería Rodríguez', industry:'FERRETERÍA', emoji:'🔨', color:'#ef4444',
+    cuit:'30-40987654-3', address:'Av. Sabattini 1567, Córdoba', plan:'PRO', users:4, locals:2,
+    modules:[
+      {mod:'stock', variant:'Herramientas/Materiales (código universal)'},
+      {mod:'compras'},{mod:'ventas'},{mod:'facturacion', variant:'Estándar'},
+      {mod:'archivo-digital'},{mod:'control-ie', variant:'Genérico'},
+      {mod:'usuarios'},{mod:'locales'}
+    ],
+    usersList:[
+      {name:'Roberto Rodríguez', email:'roberto@ferreteria.com', role:'ADMIN'},
+      {name:'Gabriel Ventas', email:'gabriel@ferreteria.com', role:'VENDEDOR'},
+      {name:'Cecilia Compras', email:'cecilia@ferreteria.com', role:'COMPRAS'},
+    ],
+    brandName:'Ferretería Rodríguez', brandColor:'#ef4444'
+  }
+];
+
+const MODULES = [
+  {id:'stock',name:'Stock / Inventario',icon:'📦',desc:'Gestión de inventario con control de existencias, alertas de stock bajo y movimientos.',industries:['INDUMENTARIA','MECÁNICO','KIOSCO','FERRETERÍA','TODOS'],hasVariants:true,
+    variants:['Ropa (talle, color, temporada)','Repuestos Auto (OEM, aftermarket, nro. de parte)','Consumibles (vencimiento, lote)','Herramientas/Materiales (código universal)','Genérico']},
+  {id:'compras',name:'Compras',icon:'🛒',desc:'Gestión de órdenes de compra, recepción de mercadería y control de proveedores.',industries:['TODOS'],hasVariants:false},
+  {id:'ventas',name:'Ventas',icon:'💰',desc:'Registro de ventas, cotizaciones, y gestión del flujo comercial completo.',industries:['TODOS'],hasVariants:false},
+  {id:'ventas-pos',name:'Ventas POS',icon:'🖥️',desc:'Punto de venta rápido optimizado para comercios minoristas con pantalla táctil.',industries:['KIOSCO','FERRETERÍA'],hasVariants:false},
+  {id:'facturacion',name:'Facturación',icon:'🧾',desc:'Emisión de comprobantes electrónicos AFIP (Factura A/B/C, NC, ND).',industries:['TODOS'],hasVariants:true,
+    variants:['Estándar','Con retenciones','Simplificada']},
+  {id:'control-ie',name:'Control I/E (Ingreso/Egreso)',icon:'📋',desc:'Control de ingreso y egreso de mercadería con remitos y verificación.',industries:['INDUMENTARIA','MECÁNICO','FERRETERÍA'],hasVariants:true,
+    variants:['Mercadería textil','Repuestos mecánicos','Alimentos','Genérico']},
+  {id:'reportes',name:'Reportes',icon:'📊',desc:'Reportes analíticos con gráficos: ventas, stock, rentabilidad, comparativos.',industries:['TODOS'],hasVariants:false},
+  {id:'transporte',name:'Transporte',icon:'🚚',desc:'Gestión de envíos, seguimiento de bultos, integración con transportistas.',industries:['INDUMENTARIA','FERRETERÍA'],hasVariants:false},
+  {id:'trell-outdoor',name:'TrellOutdoor',icon:'🏕️',desc:'Módulo exclusivo para Mundo Outdoor: gestión de trells, campañas outdoor, temporadas.',industries:['INDUMENTARIA'],hasVariants:false},
+  {id:'ordenes-trabajo',name:'Órdenes de Trabajo',icon:'🔩',desc:'Gestión de OT para talleres: recepción vehículo, diagnóstico, presupuesto, reparación.',industries:['MECÁNICO'],hasVariants:false},
+  {id:'archivo-digital',name:'Archivo Digital',icon:'🗂️',desc:'Auto-clasificación de documentos (facturas, remitos, presupuestos) por fecha/proveedor/tipo.',industries:['MECÁNICO','FERRETERÍA','INDUMENTARIA'],hasVariants:false},
+  {id:'proveedores',name:'Proveedores',icon:'🏭',desc:'ABM de proveedores con datos fiscales, contactos, historial de compras.',industries:['TODOS'],hasVariants:false},
+  {id:'usuarios',name:'Usuarios',icon:'👥',desc:'Gestión de usuarios con roles RBAC, permisos granulares por módulo.',industries:['TODOS'],hasVariants:false},
+  {id:'locales',name:'Locales / Sucursales',icon:'🏢',desc:'Multi-local: stock por sucursal, transferencias, permisos por local.',industries:['TODOS'],hasVariants:false},
+  {id:'configuracion',name:'Configuración',icon:'⚙️',desc:'Ajustes globales de la empresa: datos fiscales, preferencias, integraciones.',industries:['TODOS'],hasVariants:false}
+];
+
+const PLAN_LIMITS = {
+  STARTER:{price:'$45.000',users:5,locals:1,modules:6,storage:'5 GB'},
+  PRO:{price:'$120.000',users:15,locals:5,modules:12,storage:'25 GB'},
+  ENTERPRISE:{price:'$280.000',users:'Ilimitados',locals:'Ilimitados',modules:'Todos',storage:'100 GB'}
+};
+
+// ===================== RENDER =====================
+let selectedCompany = null;
+let currentTab = 'info';
+
+function getModuleName(modId) {
+  const m = MODULES.find(x => x.id === modId);
+  return m ? m.name : modId;
+}
+function getModuleIcon(modId) {
+  const m = MODULES.find(x => x.id === modId);
+  return m ? m.icon : '📎';
+}
+
+function renderCompanies(filter='') {
+  const grid = document.getElementById('companiesGrid');
+  const f = filter.toLowerCase();
+  const filtered = COMPANIES.filter(c =>
+    !f || c.name.toLowerCase().includes(f) || c.industry.toLowerCase().includes(f) ||
+    c.modules.some(m => getModuleName(m.mod).toLowerCase().includes(f))
+  );
+  grid.innerHTML = filtered.map((c, i) => `
+    <div class="company-card anim anim-d${i+1} ${selectedCompany?.id===c.id?'selected':''}" onclick="openDetail('${c.id}')" style="--card-color:${c.color}">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${c.color};border-radius:var(--radius-lg) var(--radius-lg) 0 0"></div>
+      <div class="cc-header">
+        <div class="cc-logo" style="background:${c.color}22;border:1px solid ${c.color}44">${c.emoji}</div>
+        <div class="cc-info">
+          <h3>${c.name}</h3>
+          <span class="industry" style="background:${c.color}18;color:${c.color}">${c.industry}</span>
+        </div>
+      </div>
+      <div class="cc-modules">
+        ${c.modules.slice(0, 6).map(m => {
+          if(m.variant) {
+            return `<span class="cc-module variant">${getModuleIcon(m.mod)} ${getModuleName(m.mod)} — ${m.variant}</span>`;
+          }
+          return `<span class="cc-module">${getModuleIcon(m.mod)} ${getModuleName(m.mod)}</span>`;
+        }).join('')}
+        ${c.modules.length > 6 ? `<span class="cc-module" style="background:rgba(148,163,184,.12);color:var(--text3)">+${c.modules.length-6} más</span>` : ''}
+      </div>
+      <div class="cc-footer">
+        <span class="cc-plan" style="background:${c.plan==='ENTERPRISE'?'rgba(59,130,246,.15);color:#60a5fa':c.plan==='PRO'?'rgba(249,115,22,.15);color:#fb923c':'rgba(34,197,94,.15);color:#4ade80'}">${c.plan}</span>
+        <div class="cc-stats">
+          <span>👤 ${c.users} usuarios</span>
+          <span>🏢 ${c.locals} local${c.locals>1?'es':''}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderModuleCatalog() {
+  const cat = document.getElementById('modulesCatalog');
+  cat.innerHTML = MODULES.map(m => `
+    <div class="mod-card">
+      <div class="mod-card-header">
+        <div class="icon">${m.icon}</div>
+        <h4>${m.name}</h4>
+      </div>
+      <p>${m.desc}</p>
+      <div class="mod-card-tags">
+        ${m.industries.map(ind => `<span class="mod-card-tag">${ind==='TODOS'?'🌐 Universal':ind}</span>`).join('')}
+      </div>
+      <div class="mod-card-footer">
+        <span class="mod-type ${m.hasVariants?'variants':'universal'}">${m.hasVariants?'🔀 Variantes por industria':'✅ Universal'}</span>
+      </div>
+      ${m.hasVariants ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <div style="font-size:.65rem;color:var(--text3);margin-bottom:4px">Variantes disponibles:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${m.variants.map(v => `<span style="font-size:.6rem;padding:2px 6px;border-radius:3px;background:rgba(168,85,247,.1);color:var(--purple);border:1px solid rgba(168,85,247,.15)">${v}</span>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+function filterCompanies() {
+  renderCompanies(document.getElementById('searchInput').value);
+}
+
+// ===================== DETAIL PANEL =====================
+function openDetail(companyId) {
+  selectedCompany = COMPANIES.find(c => c.id === companyId);
+  currentTab = 'info';
+  renderDetail();
+  document.getElementById('detailOverlay').classList.add('open');
+  renderCompanies(document.getElementById('searchInput').value);
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  selectedCompany = null;
+  renderCompanies(document.getElementById('searchInput').value);
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  renderDetail();
+}
+
+function renderDetail() {
+  if (!selectedCompany) return;
+  const c = selectedCompany;
+  const tabs = ['info','modulos','branding','usuarios','plan'];
+  const tabLabels = {info:'📄 Info',modulos:'📦 Módulos',branding:'🎨 Branding',usuarios:'👥 Usuarios',plan:'💎 Plan'};
+
+  document.getElementById('dpLogo').innerHTML = c.emoji;
+  document.getElementById('dpLogo').style.background = c.color + '22';
+  document.getElementById('dpLogo').style.border = `1px solid ${c.color}44`;
+  document.getElementById('dpName').textContent = c.name;
+  document.getElementById('dpIndustry').textContent = c.industry;
+
+  document.getElementById('dpTabs').innerHTML = tabs.map(t =>
+    `<div class="dp-tab ${currentTab===t?'active':''}" onclick="switchTab('${t}')">${tabLabels[t]}</div>`
+  ).join('');
+
+  const body = document.getElementById('dpBody');
+  if (currentTab === 'info') renderInfoTab(body, c);
+  else if (currentTab === 'modulos') renderModulesTab(body, c);
+  else if (currentTab === 'branding') renderBrandingTab(body, c);
+  else if (currentTab === 'usuarios') renderUsersTab(body, c);
+  else if (currentTab === 'plan') renderPlanTab(body, c);
+}
+
+function renderInfoTab(body, c) {
+  body.innerHTML = `
+    <h4>Información de la Empresa</h4>
+    <div class="info-grid">
+      <div class="info-item"><div class="lbl">Razón Social</div><div class="val">${c.name}</div></div>
+      <div class="info-item"><div class="lbl">CUIT</div><div class="val">${c.cuit}</div></div>
+      <div class="info-item"><div class="lbl">Industria</div><div class="val" style="color:${c.color}">${c.emoji} ${c.industry}</div></div>
+      <div class="info-item"><div class="lbl">Dirección</div><div class="val">${c.address}</div></div>
+      <div class="info-item"><div class="lbl">Plan Actual</div><div class="val">${c.plan}</div></div>
+      <div class="info-item"><div class="lbl">Usuarios / Locales</div><div class="val">${c.users} usuarios · ${c.locals} local${c.locals>1?'es':''}</div></div>
+      <div class="info-item"><div class="lbl">Módulos Activos</div><div class="val">${c.modules.length} módulos</div></div>
+      <div class="info-item"><div class="lbl">Estado</div><div class="val" style="color:var(--green)">● Activa</div></div>
+    </div>
+  `;
+}
+
+function renderModulesTab(body, c) {
+  const activeIds = c.modules.map(m => m.mod);
+  body.innerHTML = `
+    <h4>Módulos — ${c.name}</h4>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:16px">
+      Activa o desactiva módulos. Los módulos con variantes se adaptan a la industria <strong style="color:var(--purple)">${c.industry}</strong>.
+    </p>
+    <div class="mod-list">
+      ${MODULES.map(m => {
+        const isActive = activeIds.includes(m.id);
+        const activeModule = c.modules.find(cm => cm.mod === m.id);
+        const variant = activeModule?.variant || '';
+        return `
+          <div class="mod-row" style="${isActive?`border-left:3px solid ${c.color}`:''}">
+            <div class="mod-left">
+              <span class="mod-icon">${m.icon}</span>
+              <span class="mod-name">${m.name}</span>
+              ${variant ? `<span class="mod-variant-tag">🔀 ${variant}</span>` : ''}
+            </div>
+            <div class="mod-right">
+              ${m.hasVariants && isActive ? `
+                <select class="mod-variant-select" onchange="updateVariant('${c.id}','${m.id}',this.value)">
+                  ${m.variants.map(v => `<option ${v===variant?'selected':''}>${v}</option>`).join('')}
+                </select>` : ''}
+              ${m.hasVariants && !isActive ? `<span style="font-size:.65rem;color:var(--text3)">🔀 Tiene variantes</span>` : ''}
+              <label class="toggle">
+                <input type="checkbox" ${isActive?'checked':''} onchange="toggleModule('${c.id}','${m.id}',this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderBrandingTab(body, c) {
+  body.innerHTML = `
+    <h4>Branding — ${c.name}</h4>
+    <div class="brand-grid">
+      <div class="brand-item">
+        <label>Nombre de la App</label>
+        <input type="text" value="${c.brandName}" oninput="updateBrandName('${c.id}',this.value)">
+      </div>
+      <div class="brand-item">
+        <label>Color Principal</label>
+        <input type="color" value="${c.brandColor}" oninput="updateBrandColor('${c.id}',this.value)">
+      </div>
+      <div class="brand-item">
+        <label>Logo (emoji/upload)</label>
+        <div style="font-size:3rem;text-align:center;padding:10px">${c.emoji}</div>
+      </div>
+      <div class="brand-item">
+        <label>Industria Visual</label>
+        <input type="text" value="${c.industry}" readonly style="opacity:.6">
+      </div>
+      <div class="brand-preview">
+        <div style="font-size:.7rem;color:var(--text3);margin-bottom:8px">Vista previa de la barra de la app del cliente:</div>
+        <div class="preview-bar" id="brandPreviewBar" style="background:${c.brandColor}">${c.emoji} ${c.brandName}</div>
+        <div class="preview-label">Así se ve la app para los usuarios de ${c.name}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderUsersTab(body, c) {
+  const roleColors = {
+    ADMIN:'var(--blue)',VENDEDOR:'var(--green)',DEPOSITO:'var(--orange)',
+    COMPRAS:'var(--purple)',LOCAL:'var(--cyan)',GESTION_PAGOS:'var(--pink)',
+    ADMINISTRACION:'var(--yellow)',SUPERADMIN:'var(--red)'
+  };
+  body.innerHTML = `
+    <h4>Usuarios — ${c.name}</h4>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:16px">${c.usersList.length} de ${PLAN_LIMITS[c.plan].users} usuarios permitidos</p>
+    <table class="users-table">
+      <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th></tr></thead>
+      <tbody>
+        ${c.usersList.map(u => `
+          <tr>
+            <td style="font-weight:600">${u.name}</td>
+            <td style="color:var(--text2)">${u.email}</td>
+            <td><span class="role-badge" style="background:${roleColors[u.role]||'var(--blue)'}22;color:${roleColors[u.role]||'var(--blue)'}">${u.role}</span></td>
+            <td><span style="color:var(--green);font-size:.75rem">● Activo</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderPlanTab(body, c) {
+  body.innerHTML = `
+    <h4>Plan Actual — ${c.name}</h4>
+    <div class="plan-cards">
+      ${Object.entries(PLAN_LIMITS).map(([plan, limits]) => `
+        <div class="plan-card ${c.plan===plan?'current':''}" onclick="changePlan('${c.id}','${plan}')">
+          ${c.plan===plan?'<div style="font-size:.6rem;color:var(--blue2);margin-bottom:6px;font-weight:600">✓ PLAN ACTUAL</div>':''}
+          <h5>${plan}</h5>
+          <div class="price">${limits.price}<span>/mes</span></div>
+          <ul>
+            <li>${limits.users} usuarios</li>
+            <li>${limits.locals} local${typeof limits.locals==='number'&&limits.locals>1?'es':limits.locals==='Ilimitados'?'es':''}</li>
+            <li>${limits.modules} módulos</li>
+            <li>${limits.storage} almacenamiento</li>
+          </ul>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ===================== INTERACTIONS =====================
+function toggleModule(companyId, moduleId, enabled) {
+  const c = COMPANIES.find(x => x.id === companyId);
+  if (!c) return;
+  if (enabled) {
+    const m = MODULES.find(x => x.id === moduleId);
+    const entry = { mod: moduleId };
+    if (m?.hasVariants && m.variants.length > 0) {
+      entry.variant = m.variants[0];
+    }
+    c.modules.push(entry);
+  } else {
+    c.modules = c.modules.filter(m => m.mod !== moduleId);
+  }
+  renderDetail();
+  renderCompanies(document.getElementById('searchInput').value);
+}
+
+function updateVariant(companyId, moduleId, variant) {
+  const c = COMPANIES.find(x => x.id === companyId);
+  if (!c) return;
+  const mod = c.modules.find(m => m.mod === moduleId);
+  if (mod) mod.variant = variant;
+  renderDetail();
+  renderCompanies(document.getElementById('searchInput').value);
+}
+
+function changePlan(companyId, plan) {
+  const c = COMPANIES.find(x => x.id === companyId);
+  if (c) { c.plan = plan; renderDetail(); renderCompanies(document.getElementById('searchInput').value); }
+}
+
+function updateBrandName(companyId, name) {
+  const c = COMPANIES.find(x => x.id === companyId);
+  if (c) {
+    c.brandName = name;
+    const bar = document.getElementById('brandPreviewBar');
+    if (bar) bar.textContent = c.emoji + ' ' + name;
+  }
+}
+
+function updateBrandColor(companyId, color) {
+  const c = COMPANIES.find(x => x.id === companyId);
+  if (c) {
+    c.brandColor = color;
+    const bar = document.getElementById('brandPreviewBar');
+    if (bar) bar.style.background = color;
+  }
+}
+
+function showSection(section) {
+  document.querySelectorAll('.nav-list li').forEach(li => li.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const companiesGrid = document.getElementById('companiesGrid');
+  const catalogSection = document.getElementById('moduleCatalogSection');
+  const archSection = document.getElementById('archSection');
+  const topBar = document.querySelector('.top-bar h2 span');
+
+  companiesGrid.style.display = section === 'companies' ? '' : 'none';
+  catalogSection.style.display = section === 'modules' || section === 'companies' ? '' : 'none';
+  archSection.style.display = section === 'arch' || section === 'companies' ? '' : 'none';
+
+  if (section === 'companies') topBar.textContent = 'Empresas';
+  else if (section === 'modules') topBar.textContent = 'Módulos';
+  else if (section === 'arch') topBar.textContent = 'Arquitectura';
+}
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  renderCompanies();
+  renderModuleCatalog();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+
+// Close on escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+</script>
+</body>
+</html>

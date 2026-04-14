@@ -1,0 +1,63 @@
+{
+  "name": "erp-sistema",
+  "version": "1.0.0",
+  "description": "ERP Sistema - Aplicación empresarial",
+  "author": "ERP Sistema",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . \"ERP Sistema\" --platform=win32 --arch=x64 --out=dist-electron --overwrite --asar --ignore=dist-electron --ignore=node_modules/electron-builder --ignore=node_modules/electron-packager/node_modules",
+    "build-quick": "electron-packager . \"ERP Sistema\" --platform=win32 --arch=x64 --out=dist-electron --overwrite --asar"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.erp.sistema",
+    "productName": "ERP Sistema",
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "../frontend/public/icons/icon-512.png",
+      "sign": null,
+      "signingHashAlgorithms": null,
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ERP Sistema"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "config-screen.html",
+      "node_modules/**/*"
+    ],
+    "extraResources": [],
+    "directories": {
+      "output": "dist-electron"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "erp-mundo-outdoor",
+  "version": "1.0.0",
+  "description": "ERP Mundo Outdoor — cliente",
+  "main": "main.js",
+  "author": "Mundo Outdoor",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . \"ERP Mundo Outdoor - Cliente\" --platform=win32 --arch=x64 --out=dist --overwrite --asar"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-packager": "^17.1.2"
+  }
+}

@@ -1,0 +1,75 @@
+-- DECLARACIÓN DE VARIABLES
+DECLARE @FechaInicio DATE = '{fecha_inicio}';
+DECLARE @FechaFin DATE = '{fecha_fin}';
+DECLARE @Local VARCHAR(MAX) = {local};
+DECLARE @Marca VARCHAR(50) = {marca};
+DECLARE @Proveedor VARCHAR(200) = {proveedor};
+
+-- CTE PARA ELIMINAR DUPLICADOS EN ARTICULOS
+WITH ARTICULOS_DEPURADO AS (
+    SELECT *
+    FROM (
+        SELECT *,
+            ROW_NUMBER() OVER (
+                PARTITION BY CODIGO_ARTICULO, COLOR_DESCRIPCION, TALLE_DESCRIPCION
+                ORDER BY CODIGO_ARTICULO
+            ) AS RN
+        FROM ARTICULOS
+    ) A
+    WHERE RN = 1
+)
+
+-- CONSULTA PRINCIPAL
+SELECT 
+    CAST(V.FECHA AS DATE) AS FECHA,
+    V.MARCA,
+    REPLACE(V.LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+
+    SUM(
+        CASE 
+            WHEN V.COMPROBANTE_TIPO = 'AUTOCONS' OR V.COMPROBANTE_TIPO LIKE 'NCR%' 
+            THEN V.CANTIDAD_VENDIDA * -1 
+            ELSE V.CANTIDAD_VENDIDA 
+        END
+    ) AS CANTIDAD_VENDIDA,
+
+    SUM(
+        CASE 
+            WHEN V.COMPROBANTE_TIPO = 'AUTOCONS' OR V.COMPROBANTE_TIPO LIKE 'NCR%' 
+            THEN V.MONTO_VENTA_NETO_IVA * -1 
+            ELSE V.MONTO_VENTA_NETO_IVA 
+        END
+    ) AS MONTO_VENDIDO
+
+FROM VENTAS V
+
+-- JOIN CON ARTICULOS DEPURADO
+LEFT JOIN ARTICULOS_DEPURADO A
+    ON V.CODIGO_ARTICULO = A.CODIGO_ARTICULO
+    AND V.CODIGO_COLOR = A.COLOR_DESCRIPCION
+    AND V.CODIGO_TALLE = A.TALLE_DESCRIPCION   -- 👈 corregido (antes estaba mal repetido)
+
+WHERE 
+    CAST(V.FECHA AS DATE) BETWEEN @FechaInicio AND @FechaFin
+    AND V.PRECIO_UNIDAD > 10
+
+    AND (
+        @Local IS NULL OR LTRIM(RTRIM(@Local)) = ''
+        OR REPLACE(V.LOCAL, 'DRAGONFISH_', '') IN (
+            SELECT LTRIM(RTRIM(value))
+            FROM STRING_SPLIT(@Local, ',')
+            WHERE LTRIM(RTRIM(value)) <> ''
+        )
+    )
+
+    AND (V.MARCA = @Marca OR @Marca IS NULL)
+    AND (A.PROVEEDOR = @Proveedor OR @Proveedor IS NULL)
+
+GROUP BY 
+    CAST(V.FECHA AS DATE),
+    V.MARCA,
+    REPLACE(V.LOCAL, 'DRAGONFISH_', '')
+
+ORDER BY 
+    FECHA DESC, 
+    V.MARCA ASC;

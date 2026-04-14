@@ -1,0 +1,492 @@
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
+import {
+  X, Send, Trash2, CheckCircle2, Lightbulb,
+  Loader2, Bot, PlusCircle,
+  Image as ImageIcon, Check, Pencil as Edit2, MessageSquare
+} from "lucide-react";
+import { api } from "../lib/api";
+
+const ROUTE_LABELS = {
+  "/": "Dashboard",
+  "/dashboard": "Dashboard",
+  "/pedidos-compras": "Pedidos de Compra",
+  "/facturas-proveedor": "Facturas / Remitos",
+  "/facturas": "Facturas Proveedor",
+  "/recepcion": "Recepción",
+  "/gestion-pagos": "Gestión de Pagos",
+  "/completados": "Completados",
+  "/proveedores": "Proveedores",
+  "/productos": "Productos",
+  "/stock": "Stock",
+  "/locales": "Locales",
+  "/usuarios": "Usuarios",
+  "/consultas": "Consultas ERP",
+  "/reportes": "Reportes",
+  "/resumen": "Resumen",
+  "/monitoreo": "Monitoreo",
+  "/config": "Configuración",
+  "/kanban": "Kanban",
+  "/comparador": "Comparador Precios",
+  "/transporte": "Transporte",
+  "/ingreso": "Ingreso Mercadería",
+  "/facturacion": "Facturación",
+};
+
+const PRIORITY_CONFIG = {
+  LOW:     { label: "Baja",    color: "bg-green-100 text-green-700",   dot: "bg-green-500"  },
+  NORMAL:  { label: "Normal",  color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
+  HIGH:    { label: "Alta",    color: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
+  CRITICA: { label: "Crítica", color: "bg-red-100 text-red-700",       dot: "bg-red-500"    },
+};
+
+// Usar la misma lógica dinámica que api.js
+const _port = typeof window !== "undefined" ? window.location.port : "5174";
+const _apiPort = (_port === "5174" || _port === "5173") ? "8000" : _port || "8000";
+const SSE_BASE = typeof window !== "undefined"
+  ? `${window.location.protocol}//${window.location.hostname}:${_apiPort}`
+  : "http://localhost:8000";
+
+export default function ImprovementNotes() {
+  const location = useLocation();
+  const page = location.pathname;
+  const pageLabel = ROUTE_LABELS[page] || page.replace("/", "");
+
+  const [open, setOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [text, setText] = useState("");
+  const [priority, setPriority] = useState("NORMAL");
+  const [images, setImages] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [includeDone, setIncludeDone] = useState(false);
+  const [streamingNoteId, setStreamingNoteId] = useState(null);
+  const [streamingText, setStreamingText] = useState("");
+  const bottomRef = useRef(null);
+
+  const qc = useQueryClient();
+
+  const { data: notes = [], isLoading } = useQuery({
+    queryKey: ["improvement-notes", page, includeDone],
+    queryFn: () => api.get(`/improvement-notes/?page=${encodeURIComponent(page)}&include_done=${includeDone}`),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  // Scroll al fondo cuando llegan mensajes nuevos
+  useEffect(() => {
+    if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [notes, streamingText, open]);
+
+  // Llamar al endpoint SSE de IA y hacer streaming en la UI
+  const startAiStream = async (noteId) => {
+    console.log("[AI] startAiStream llamado con noteId=", noteId);
+    setStreamingNoteId(noteId);
+    setStreamingText("");
+
+    const token = localStorage.getItem("token");
+    const url = `${SSE_BASE}/api/v1/improvement-notes/${noteId}/ai-stream`;
+    console.log("[AI] Conectando a:", url, "| token:", token ? token.substring(0, 20) + "..." : "NO HAY TOKEN");
+
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("[AI] Response status:", res.status, res.statusText);
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[AI] Error HTTP:", res.status, errText);
+        setStreamingText(`Error ${res.status}: ${errText.substring(0, 100)}`);
+        setStreamingNoteId(null);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let chunkCount = 0;
+
+      console.log("[AI] Stream abierto, leyendo...");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { console.log("[AI] Stream terminado (done=true), chunks recibidos:", chunkCount); break; }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.chunk) {
+              chunkCount++;
+              if (chunkCount <= 3) console.log("[AI] chunk #" + chunkCount + ":", JSON.stringify(payload.chunk));
+              setStreamingText(prev => prev + payload.chunk);
+            } else if (payload.done) {
+              console.log("[AI] done=true recibido, invalidando queries");
+              await qc.invalidateQueries({ queryKey: ["improvement-notes"] });
+              setStreamingNoteId(null);
+              setStreamingText("");
+            } else if (payload.error) {
+              console.error("[AI] error del servidor:", payload.error);
+              setStreamingText(`Error IA: ${payload.error}`);
+              setStreamingNoteId(null);
+            }
+          } catch (parseErr) {
+            console.warn("[AI] parse error en línea:", line, parseErr);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[AI] fetch error:", err.name, err.message, err);
+      setStreamingText(`Sin conexión: ${err.message}`);
+      setStreamingNoteId(null);
+    }
+  };
+
+  const createMutation = useMutation({
+    mutationFn: (data) => api.post("/improvement-notes/", data),
+    onSuccess: (newNote) => {
+      console.log("[AI] Nota creada:", newNote);
+      qc.invalidateQueries({ queryKey: ["improvement-notes"] });
+      setText(""); setImages([]); setPriority("NORMAL"); setShowForm(false);
+      if (newNote?.id) {
+        console.log("[AI] Lanzando stream para nota id=", newNote.id);
+        startAiStream(newNote.id);
+      } else {
+        console.error("[AI] newNote no tiene id!", newNote);
+      }
+    },
+    onError: (err) => {
+      console.error("[AI] Error creando nota:", err);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/improvement-notes/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["improvement-notes"] });
+      setEditingId(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/improvement-notes/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["improvement-notes"] }),
+  });
+
+  const markDoneMutation = useMutation({
+    mutationFn: (id) => api.put(`/improvement-notes/${id}`, { is_done: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["improvement-notes"] }),
+  });
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      if (file.size > 2 * 1024 * 1024) { alert("Imagen muy grande (máx 2MB)"); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => setImages(prev => [...prev, ev.target.result]);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    createMutation.mutate({ page, page_label: pageLabel, text: text.trim(), priority, images });
+  };
+
+  const pendingCount = Array.isArray(notes) ? notes.filter(n => !n.is_done).length : 0;
+
+  return (
+    <>
+      {/* Botón flotante */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+        {pendingCount > 0 && !open && (
+          <div className="bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center absolute -top-1 -left-1 shadow">
+            {pendingCount}
+          </div>
+        )}
+        <button
+          onClick={() => setOpen(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
+            open ? "bg-gray-800 text-white" : "bg-amber-500 hover:bg-amber-600 text-white"
+          }`}
+          title="Notas para mejorar esta sección"
+        >
+          <Lightbulb size={16} />
+          {pendingCount > 0 ? `Mejoras (${pendingCount})` : "Notas para mejorar"}
+        </button>
+      </div>
+
+      {/* Panel chat */}
+      {open && (
+        <div className="fixed bottom-20 right-6 z-40 w-96 max-h-[72vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100 shrink-0">
+            <div className="flex items-center gap-2">
+              <Lightbulb size={16} className="text-amber-600" />
+              <span className="font-bold text-gray-800 text-sm">Mejoras — {pageLabel}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIncludeDone(v => !v)}
+                className={`text-xs px-2 py-1 rounded-lg transition ${includeDone ? "bg-gray-200 text-gray-700" : "text-gray-400 hover:text-gray-600"}`}
+              >
+                {includeDone ? "Ocultar resueltas" : "Ver resueltas"}
+              </button>
+              <button onClick={() => setOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Lista de notas como chat */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            {isLoading ? (
+              <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
+            ) : notes.length === 0 && !streamingNoteId ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                <Lightbulb size={32} className="mx-auto mb-2 opacity-30" />
+                <p>No hay notas para esta sección.</p>
+                <p className="text-xs mt-1">¡Sé el primero en sugerir una mejora!</p>
+              </div>
+            ) : (
+              <>
+                {notes.map(note => (
+                  <NotePair
+                    key={note.id}
+                    note={note}
+                    editingId={editingId}
+                    editText={editText}
+                    setEditText={setEditText}
+                    onEdit={(n) => { setEditingId(n.id); setEditText(n.text); }}
+                    onSaveEdit={(id) => updateMutation.mutate({ id, text: editText })}
+                    onCancelEdit={() => setEditingId(null)}
+                    onDelete={(id) => { if (window.confirm("¿Eliminar nota?")) deleteMutation.mutate(id); }}
+                    onMarkDone={(id) => markDoneMutation.mutate(id)}
+                    saving={updateMutation.isPending}
+                    isStreaming={streamingNoteId === note.id}
+                    streamingText={streamingNoteId === note.id ? streamingText : null}
+                  />
+                ))}
+              </>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Formulario de nueva nota */}
+          <div className="border-t border-gray-100 p-3 shrink-0">
+            {!showForm ? (
+              <button
+                onClick={() => setShowForm(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 text-sm text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition font-medium"
+              >
+                <PlusCircle size={15} /> Agregar nota de mejora
+              </button>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-2">
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  placeholder="Describí qué mejorarías en esta sección..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-amber-400"
+                  rows={3}
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <select
+                    value={priority}
+                    onChange={e => setPriority(e.target.value)}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none"
+                  >
+                    {Object.entries(PRIORITY_CONFIG).map(([k, v]) => (
+                      <option key={k} value={k}>{v.label}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer hover:text-gray-700 border border-gray-200 rounded-lg px-2 py-1.5">
+                    <ImageIcon size={13} />
+                    {images.length > 0 ? `${images.length} img` : "Imagen"}
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
+                  </label>
+                  <div className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => { setShowForm(false); setText(""); setImages([]); }}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!text.trim() || createMutation.isPending}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 disabled:opacity-50 font-semibold"
+                  >
+                    {createMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                    Guardar
+                  </button>
+                </div>
+                {images.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    {images.map((img, i) => (
+                      <div key={i} className="relative">
+                        <img src={img} alt="" className="w-14 h-14 object-cover rounded-lg border" />
+                        <button
+                          type="button"
+                          onClick={() => setImages(prev => prev.filter((_, j) => j !== i))}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Componente: par de mensajes (usuario + IA) ─────────────────────────────
+
+function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, onCancelEdit, onDelete, onMarkDone, saving, isStreaming, streamingText }) {
+  const [showImages, setShowImages] = useState(false);
+  const pConfig = PRIORITY_CONFIG[note.priority] || PRIORITY_CONFIG.NORMAL;
+  const isEditing = editingId === note.id;
+
+  return (
+    <div className="space-y-2">
+      {/* Burbuja del usuario (derecha, ámbar) */}
+      <div className="flex justify-end">
+        <div className={`max-w-[80%] rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm ${note.is_done ? "bg-amber-100 opacity-60" : "bg-amber-500"}`}>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${note.is_done ? "bg-amber-200 text-amber-700" : "bg-amber-400 text-white"}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${pConfig.dot}`} />
+              {pConfig.label}
+            </div>
+            <span className={`text-[9px] ${note.is_done ? "text-amber-600" : "text-amber-100"}`}>
+              {note.author_name || "Anónimo"} · {note.created_at ? new Date(note.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+            </span>
+            {note.is_done && <span className="ml-auto flex items-center gap-1 text-green-700 text-[9px] font-bold"><CheckCircle2 size={10} /> Resuelta</span>}
+          </div>
+
+          {isEditing ? (
+            <div className="space-y-1.5">
+              <textarea
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                className="w-full border border-amber-300 rounded-lg px-2 py-1.5 text-xs resize-none focus:outline-none bg-white text-gray-800"
+                rows={3}
+                autoFocus
+              />
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => onSaveEdit(note.id)}
+                  disabled={saving}
+                  className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded-lg text-[10px] font-semibold hover:bg-green-700"
+                >
+                  <Check size={10} /> Guardar
+                </button>
+                <button onClick={onCancelEdit} className="px-2 py-1 text-[10px] text-amber-200 hover:text-white">Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <p className={`text-xs leading-relaxed whitespace-pre-wrap ${note.is_done ? "text-amber-800" : "text-white"}`}>{note.text}</p>
+          )}
+
+          {(note.images || []).length > 0 && (
+            <div className="mt-1">
+              <button onClick={() => setShowImages(v => !v)} className="flex items-center gap-1 text-[9px] text-amber-100 hover:underline">
+                <ImageIcon size={10} /> {note.images.length} imagen(es) {showImages ? "▲" : "▼"}
+              </button>
+              {showImages && (
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {note.images.map((img, i) => (
+                    <a key={i} href={img} target="_blank" rel="noopener noreferrer">
+                      <img src={img} alt="" className="w-16 h-16 object-cover rounded-lg border border-amber-300 hover:opacity-80 transition" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!note.is_done && !isEditing && (
+            <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t border-amber-400">
+              <button onClick={() => onEdit(note)} className="flex items-center gap-1 text-[9px] text-amber-200 hover:text-white transition">
+                <Edit2 size={9} /> Editar
+              </button>
+              <button onClick={() => onMarkDone(note.id)} className="flex items-center gap-1 text-[9px] text-amber-200 hover:text-white transition">
+                <CheckCircle2 size={9} /> Resolver
+              </button>
+              <div className="flex-1" />
+              <button onClick={() => onDelete(note.id)} className="flex items-center gap-1 text-[9px] text-red-200 hover:text-white transition">
+                <Trash2 size={9} /> Eliminar
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Burbuja de la IA (izquierda, gris/blanca) */}
+      {(note.ai_reply || isStreaming) && (
+        <div className="flex justify-start">
+          <div className="flex gap-2 max-w-[85%]">
+            <div className="w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 mt-1">
+              <Bot size={13} className="text-gray-500" />
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
+              {isStreaming ? (
+                <>
+                  {streamingText ? (
+                    <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {streamingText}
+                      <span className="inline-block w-1.5 h-3.5 bg-amber-400 animate-pulse ml-0.5 align-middle rounded-sm" />
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <Loader2 size={11} className="animate-spin" />
+                      Analizando tu sugerencia...
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{note.ai_reply}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin feedback — visible to the employee */}
+      {note.admin_note && (
+        <div className="flex justify-start">
+          <div className="flex gap-2 max-w-[90%]">
+            <div className="w-6 h-6 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0 mt-1">
+              <MessageSquare size={12} className="text-blue-600" />
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] font-semibold text-blue-600">Feedback del Admin</span>
+                {note.admin_note_by && (
+                  <span className="text-[10px] text-blue-400">— {note.admin_note_by}</span>
+                )}
+                {note.admin_note_at && (
+                  <span className="text-[10px] text-blue-300">
+                    {new Date(note.admin_note_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-blue-700 leading-relaxed whitespace-pre-wrap">{note.admin_note}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

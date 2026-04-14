@@ -1,0 +1,56 @@
+============================================
+  DEMO ERP — CREDENCIALES
+============================================
+
+TODOS LOS SISTEMAS USAN:
+  Password: admin
+
+─────────────────────────────────────────
+  ERP MUNDO OUTDOOR
+  Usuario: admin
+  Password: admin
+  Rol: ADMIN (ve todos los módulos)
+
+  Usuario: mati
+  Password: admin
+  Rol: ADMIN (solo Stock, Ventas, Compras)
+
+  Usuario: compras
+  Password: admin
+  Rol: COMPRAS
+
+  Usuario: juani
+  Password: admin
+  Rol: ADMIN
+
+─────────────────────────────────────────
+  ERP TALLEREURO
+  Usuario: taller
+  Password: admin
+  Módulos: Stock, Ventas, Compras, Pagos, Reportes
+
+  Usuario: montagne
+  Password: admin
+
+─────────────────────────────────────────
+  SUPER ADMIN (Panel Maestro)
+  URL: http://localhost:5180
+  Usuario: admin1
+  Password: admin
+  → Gestiona TODAS las empresas, módulos y usuarios
+
+─────────────────────────────────────────
+  API DOCS (Swagger)
+  URL: http://localhost:8000/docs
+  → Para ver todos los endpoints disponibles
+
+============================================
+  ORDEN DE APERTURA:
+  1. Doble clic en "1 - INICIAR BACKEND (primero)"
+     (esperar que diga "Application startup complete")
+  2. Abrir el ERP que quieras
+  3. Login con admin / admin
+
+  O simplemente:
+  → Doble clic en "0 - ABRIR TODO DE UNA VEZ"
+============================================

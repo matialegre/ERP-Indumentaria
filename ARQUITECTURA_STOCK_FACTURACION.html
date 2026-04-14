@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitectura Stock &amp; Facturación — ERP Multi-Industria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-card-hover: #263548;
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
+  --accent-dark: #2563eb;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: #334155;
+  --border-light: #475569;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #06b6d4;
+  --purple: #a855f7;
+  --pink: #ec4899;
+  --orange: #f97316;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 15px;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ─── Header ─── */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-brand {
+  display: flex; align-items: center; gap: 12px;
+  font-weight: 800; font-size: 1.1rem;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-brand .icon { font-size: 1.5rem; -webkit-text-fill-color: initial; }
+.header-meta { display: flex; align-items: center; gap: 16px; }
+.header-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+  background: rgba(59, 130, 246, 0.15); color: var(--accent-light);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.header-version { color: var(--text-muted); font-size: 0.8rem; }
+
+/* ─── Sidebar TOC ─── */
+.sidebar {
+  position: fixed; top: 64px; left: 0; bottom: 0; width: 280px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 24px 0; z-index: 50;
+  transition: transform 0.3s ease;
+}
+.sidebar-title {
+  padding: 0 20px 16px; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted);
+}
+.toc-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; font-size: 0.85rem; color: var(--text-secondary);
+  text-decoration: none; transition: var(--transition);
+  border-left: 3px solid transparent;
+}
+.toc-link:hover { color: var(--text-primary); background: rgba(59, 130, 246, 0.08); border-left-color: rgba(59, 130, 246, 0.3); }
+.toc-link.active { color: var(--accent-light); background: rgba(59, 130, 246, 0.12); border-left-color: var(--accent); font-weight: 600; }
+.toc-number {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+  background: var(--bg-tertiary); color: var(--text-muted); flex-shrink: 0;
+}
+.toc-link.active .toc-number { background: var(--accent); color: white; }
+
+/* ─── Main Content ─── */
+.main {
+  margin-left: 280px; margin-top: 64px; padding: 48px 56px 120px;
+  max-width: 1100px;
+}
+
+/* ─── Section ─── */
+.section { margin-bottom: 64px; }
+.section-header {
+  cursor: pointer; display: flex; align-items: center; gap: 16px;
+  padding: 20px 24px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 0; transition: var(--transition);
+  user-select: none;
+}
+.section-header:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+.section-header.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; border-bottom-color: transparent; }
+.section-number {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 10px; font-weight: 800; font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color: white; flex-shrink: 0;
+}
+.section-title-text { flex: 1; }
+.section-title-text h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 2px; }
+.section-title-text .subtitle { font-size: 0.85rem; color: var(--text-muted); }
+.section-chevron {
+  font-size: 1.2rem; color: var(--text-muted); transition: transform 0.3s ease; flex-shrink: 0;
+}
+.section-header.open .section-chevron { transform: rotate(180deg); }
+.section-body {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.section-body.open {
+  max-height: 100000px;
+}
+.section-content {
+  padding: 32px 28px; background: var(--bg-card);
+  border: 1px solid var(--border); border-top: none;
+  border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius);
+}
+
+/* ─── Typography ─── */
+h3 { font-size: 1.1rem; font-weight: 700; margin: 28px 0 14px; color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px; }
+h3:first-child { margin-top: 0; }
+h3 .badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+h4 { font-size: 0.95rem; font-weight: 600; margin: 20px 0 10px; color: var(--text-secondary); }
+p { margin-bottom: 14px; color: var(--text-secondary); }
+strong { color: var(--text-primary); font-weight: 600; }
+ul, ol { margin: 10px 0 14px 20px; color: var(--text-secondary); }
+li { margin-bottom: 6px; }
+li::marker { color: var(--accent); }
+
+/* ─── Code blocks ─── */
+.code-block {
+  background: #0c1222; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 20px; margin: 16px 0; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.8;
+  color: #93c5fd; position: relative;
+}
+.code-block .code-label {
+  position: absolute; top: 8px; right: 12px;
+  font-size: 0.65rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.code-block .kw { color: #c084fc; }
+.code-block .type { color: #67e8f9; }
+.code-block .str { color: #86efac; }
+.code-block .comment { color: #64748b; font-style: italic; }
+.code-block .num { color: #fbbf24; }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.85em;
+  background: rgba(59, 130, 246, 0.1); padding: 2px 7px; border-radius: 4px;
+  color: var(--accent-light);
+}
+
+/* ─── Tables ─── */
+.table-wrap { overflow-x: auto; margin: 16px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+thead th {
+  background: var(--bg-tertiary); padding: 12px 16px; text-align: left;
+  font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-secondary); border-bottom: 2px solid var(--border);
+}
+tbody td {
+  padding: 12px 16px; border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+  color: var(--text-secondary); vertical-align: top;
+}
+tbody tr:hover { background: rgba(59, 130, 246, 0.04); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ─── Cards ─── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+.card {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 20px; transition: var(--transition);
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.card-icon {
+  width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.card-title { font-weight: 600; font-size: 0.95rem; }
+
+/* ─── Diagram ─── */
+.diagram {
+  background: #0c1222; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; margin: 20px 0; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.6;
+  color: #93c5fd; white-space: pre;
+}
+
+/* ─── Alert Cards ─── */
+.alert {
+  border-radius: var(--radius-sm); padding: 20px; margin: 14px 0;
+  border-left: 4px solid;
+}
+.alert-critical { background: rgba(239, 68, 68, 0.08); border-color: var(--danger); }
+.alert-high { background: rgba(245, 158, 11, 0.08); border-color: var(--warning); }
+.alert-medium { background: rgba(34, 197, 94, 0.08); border-color: var(--success); }
+.alert-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.alert-critical .alert-title { color: var(--danger); }
+.alert-high .alert-title { color: var(--warning); }
+.alert-medium .alert-title { color: var(--success); }
+.alert-body { color: var(--text-secondary); font-size: 0.88rem; }
+.alert-body strong { color: var(--text-primary); }
+
+/* ─── Phase Timeline ─── */
+.phase { margin: 18px 0; padding: 0 0 0 28px; border-left: 3px solid var(--border); position: relative; }
+.phase::before {
+  content: ''; position: absolute; left: -8px; top: 4px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--bg-card);
+}
+.phase-title { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+.phase-dep { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; font-style: italic; }
+.phase-steps { list-style: none; margin: 0; padding: 0; }
+.phase-steps li { padding: 4px 0; color: var(--text-secondary); font-size: 0.88rem; }
+.phase-steps li::before { content: '→ '; color: var(--accent); font-weight: 600; }
+
+/* ─── Method Badges ─── */
+.method {
+  display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  min-width: 52px; text-align: center;
+}
+.method-get { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+.method-post { background: rgba(59, 130, 246, 0.15); color: var(--accent-light); }
+.method-patch { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+.method-delete { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+/* ─── Status indicators ─── */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-green { background: var(--success); box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+.status-yellow { background: var(--warning); box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+.status-red { background: var(--danger); box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+
+/* ─── Pipeline ─── */
+.pipeline { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin: 20px 0; }
+.pipeline-node {
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 16px 20px; min-width: 180px; text-align: center;
+}
+.pipeline-node h5 { font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; }
+.pipeline-node p { font-size: 0.78rem; color: var(--text-muted); margin: 0; }
+.pipeline-arrow {
+  display: flex; align-items: center; color: var(--accent); font-size: 1.5rem; font-weight: 300;
+  padding-top: 10px;
+}
+
+/* ─── Indexeddb stores ─── */
+.store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 16px 0; }
+.store-tag {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.82rem;
+}
+.store-tag .store-icon { font-size: 1rem; }
+.store-tag .store-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--accent-light); font-size: 0.78rem; }
+
+/* ─── Footer ─── */
+.footer {
+  margin-left: 280px; padding: 32px 56px; border-top: 1px solid var(--border);
+  text-align: center; color: var(--text-muted); font-size: 0.82rem;
+}
+.footer strong { color: var(--text-secondary); }
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.5); }
+  .main { margin-left: 0; padding: 32px 24px 80px; }
+  .footer { margin-left: 0; padding: 24px; }
+  .header .mobile-toggle { display: flex; }
+}
+@media (min-width: 1025px) {
+  .header .mobile-toggle { display: none; }
+}
+.mobile-toggle {
+  width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px;
+  background: transparent; color: var(--text-primary); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+}
+
+/* ─── Flow arrows connector ─── */
+.flow-step {
+  display: flex; align-items: flex-start; gap: 16px; margin: 14px 0;
+  padding: 14px 18px; background: var(--bg-tertiary); border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.flow-number {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: white; font-weight: 700; font-size: 0.78rem; flex-shrink: 0;
+}
+.flow-text { flex: 1; }
+.flow-text strong { display: block; margin-bottom: 2px; }
+.flow-text span { font-size: 0.85rem; color: var(--text-muted); }
+
+/* ─── Retry table ─── */
+.retry-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 0; margin: 16px 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.retry-cell { padding: 10px 16px; border-bottom: 1px solid rgba(51,65,85,0.4); font-size: 0.85rem; }
+.retry-cell:nth-child(3n+1) { background: var(--bg-tertiary); font-weight: 600; color: var(--accent-light);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="header">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+    <div class="header-brand">
+      <span class="icon">◆</span>
+      Arquitectura Stock &amp; Facturación
+    </div>
+  </div>
+  <div class="header-meta">
+    <span class="header-badge">Multi-Industria</span>
+    <span class="header-badge" style="background:rgba(168,85,247,0.15);color:#c084fc;border-color:rgba(168,85,247,0.3);">Offline-First</span>
+    <span class="header-version">v2.0 — Julio 2025</span>
+  </div>
+</header>
+
+<!-- ═══════════════════ SIDEBAR TOC ═══════════════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-title">Contenido</div>
+  <a class="toc-link" href="#sec-1"><span class="toc-number">1</span> Resumen Ejecutivo</a>
+  <a class="toc-link" href="#sec-2"><span class="toc-number">2</span> Estado Actual</a>
+  <a class="toc-link" href="#sec-3"><span class="toc-number">3</span> Arquitectura Sync</a>
+  <a class="toc-link" href="#sec-4"><span class="toc-number">4</span> Resolución Conflictos</a>
+  <a class="toc-link" href="#sec-5"><span class="toc-number">5</span> Schema: Stock Multi-Rubro</a>
+  <a class="toc-link" href="#sec-6"><span class="toc-number">6</span> Schema: Facturación + AFIP</a>
+  <a class="toc-link" href="#sec-7"><span class="toc-number">7</span> Cola AFIP (Visual)</a>
+  <a class="toc-link" href="#sec-8"><span class="toc-number">8</span> API Endpoints Nuevos</a>
+  <a class="toc-link" href="#sec-9"><span class="toc-number">9</span> Casos Borde Críticos</a>
+  <a class="toc-link" href="#sec-10"><span class="toc-number">10</span> Orden de Implementación</a>
+</nav>
+
+<!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+<main class="main">
+
+<!-- ────── HERO ────── -->
+<div style="margin-bottom:48px;">
+  <h1 style="font-size:2.2rem;font-weight:900;line-height:1.2;margin-bottom:12px;">
+    Stock &amp; Facturación<br>
+    <span style="background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+      Arquitectura Definitiva
+    </span>
+  </h1>
+  <p style="font-size:1.05rem;color:var(--text-muted);max-width:680px;margin-bottom:20px;">
+    Documento técnico de referencia para los módulos de inventario multi-local, facturación electrónica AFIP,
+    y sincronización offline-first del ERP Multi-Industria de Mundo Outdoor.
+  </p>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text-secondary);">
+      <span class="status-dot status-green"></span> 15 endpoints activos
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text-secondary);">
+      <span class="status-dot status-green"></span> 11 stores IndexedDB
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--text-secondary);">
+      <span class="status-dot status-yellow"></span> 6 fases planificadas
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 1: RESUMEN EJECUTIVO ═══════════ -->
+<div class="section" id="sec-1">
+  <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-number">1</div>
+    <div class="section-title-text">
+      <h2>Resumen Ejecutivo</h2>
+      <span class="subtitle">Visión general del sistema y sus principios</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body open">
+    <div class="section-content">
+      <h3>🎯 ¿Qué estamos construyendo?</h3>
+      <p>
+        Un <strong>ERP SaaS multi-tenant y multi-industria</strong> diseñado para operar con la misma robustez
+        con conexión a internet o completamente offline. El sistema está pensado para empresas con
+        <strong>múltiples puntos de venta físicos</strong> donde la conectividad no es confiable.
+      </p>
+
+      <h3>📡 ¿Por qué Offline-First?</h3>
+      <p>
+        En el interior de Argentina, muchos locales comerciales enfrentan cortes de internet frecuentes.
+        Un sistema que depende de la conexión para vender simplemente <strong>no es viable</strong>.
+        Nuestro enfoque: el dispositivo del punto de venta es autónomo. Opera, vende, factura y registra
+        movimientos sin depender del servidor central. Cuando recupera conexión, sincroniza automáticamente.
+      </p>
+
+      <h3>🏭 Industrias soportadas</h3>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(59,130,246,0.15);">👕</div>
+            <div class="card-title">Indumentaria / Outdoor</div>
+          </div>
+          <p style="font-size:0.85rem;">Talles, colores, temporadas. SKU compuestos. Gestión de colección.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(245,158,11,0.15);">🏪</div>
+            <div class="card-title">Kiosco / Almacén</div>
+          </div>
+          <p style="font-size:0.85rem;">Lotes, vencimientos, FIFO. Control sanitario. Alta rotación.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(239,68,68,0.15);">🔧</div>
+            <div class="card-title">Taller Mecánico</div>
+          </div>
+          <p style="font-size:0.85rem;">Número OEM, aftermarket. Compatibilidad vehicular. Órdenes de trabajo.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-icon" style="background:rgba(34,197,94,0.15);">🔩</div>
+            <div class="card-title">Ferretería / Construcción</div>
+          </div>
+          <p style="font-size:0.85rem;">Bultos, pallets, ubicación estante. Unidades fraccionarias. Remitos.</p>
+        </div>
+      </div>
+
+      <h3>⚡ Principios de Diseño</h3>
+      <ul>
+        <li><strong>Offline-First:</strong> Toda operación funciona sin conexión. El server es la fuente de verdad, pero el local es autónomo.</li>
+        <li><strong>Multi-Tenant:</strong> Cada empresa opera en su propio espacio aislado (<code>company_id</code> en cada tabla).</li>
+        <li><strong>Extensibilidad:</strong> Los campos de variante se activan según el rubro. Sin rigidez.</li>
+        <li><strong>Idempotencia:</strong> Toda operación offline lleva un <code>offline_id</code> UUID. El server rechaza duplicados.</li>
+        <li><strong>Auditoría:</strong> Todo movimiento registra usuario, dispositivo, timestamp, y estado de sincronización.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 2: ESTADO ACTUAL ═══════════ -->
+<div class="section" id="sec-2">
+  <div class="section-header open" onclick="toggleSection(this)">
+    <div class="section-number">2</div>
+    <div class="section-title-text">
+      <h2>Estado Actual</h2>
+      <span class="subtitle">Lo que ya existe y funciona hoy</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body open">
+    <div class="section-content">
+
+      <h3>🗄️ Modelos Backend (SQLAlchemy)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Modelo</th><th>Campos clave</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Product</code></td>
+              <td>id, name, brand, category, description, base_price, cost_price, is_active, company_id, provider_id</td>
+              <td><span class="status-dot status-green"></span>Migrado</td>
+            </tr>
+            <tr>
+              <td><code>ProductVariant</code></td>
+              <td>id, product_id, size, color, sku, barcode, stock, is_active</td>
+              <td><span class="status-dot status-green"></span>Migrado</td>
+            </tr>
+            <tr>
+              <td><code>Sale</code></td>
+              <td>id, type, number, date, status, customer_name, customer_cuit, subtotal, tax, total, local_id, company_id, created_by_id</td>
+              <td><span class="status-dot status-yellow"></span>Modelo listo, migración pendiente</td>
+            </tr>
+            <tr>
+              <td><code>SaleItem</code></td>
+              <td>id, sale_id, variant_id, quantity, unit_price, subtotal</td>
+              <td><span class="status-dot status-yellow"></span>Modelo listo, migración pendiente</td>
+            </tr>
+            <tr>
+              <td><code>StockMovement</code></td>
+              <td>id, type (INGRESO/EGRESO/AJUSTE/TRANSFERENCIA), variant_id, quantity, reference, notes, company_id, created_by_id</td>
+              <td><span class="status-dot status-yellow"></span>Modelo listo, migración pendiente</td>
+            </tr>
+            <tr>
+              <td><code>Ingreso</code></td>
+              <td>id, type (REMITO/FACTURA), number, date, status (BORRADOR→CONFIRMADO→ANULADO), provider_id, local_id, company_id</td>
+              <td><span class="status-dot status-green"></span>Migrado</td>
+            </tr>
+            <tr>
+              <td><code>IngresoItem</code></td>
+              <td>id, ingreso_id, variant_id, quantity, unit_cost</td>
+              <td><span class="status-dot status-green"></span>Migrado</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🌐 API Endpoints Existentes (15+)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Router</th><th>Base</th><th>Operaciones</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Auth</td><td><code>/api/v1/auth</code></td><td>login, /me</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Users</td><td><code>/api/v1/users</code></td><td>CRUD usuarios + RBAC</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Locals</td><td><code>/api/v1/locals</code></td><td>CRUD locales</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Providers</td><td><code>/api/v1/providers</code></td><td>CRUD proveedores</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Products</td><td><code>/api/v1/products</code></td><td>CRUD productos + variantes</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Ingresos</td><td><code>/api/v1/ingresos</code></td><td>CRUD + confirm/cancel workflow</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+            <tr><td>Pedidos</td><td><code>/api/v1/pedidos</code></td><td>CRUD + send/receive/cancel</td><td><span class="status-dot status-yellow"></span>Router listo</td></tr>
+            <tr><td>Sales</td><td><code>/api/v1/sales</code></td><td>CRUD + emit/pay/cancel</td><td><span class="status-dot status-yellow"></span>Router listo</td></tr>
+            <tr><td>Stock</td><td><code>/api/v1/stock</code></td><td>Consulta, ajustes, movimientos</td><td><span class="status-dot status-yellow"></span>Router listo</td></tr>
+            <tr><td>System</td><td><code>/api/v1/system</code></td><td>Health check, métricas CPU/RAM</td><td><span class="status-dot status-green"></span>Activo</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>📦 Infraestructura Offline (YA ROBUSTA)</h3>
+      <h4>IndexedDB — 11 Stores</h4>
+      <div class="store-grid">
+        <div class="store-tag"><span class="store-icon">📦</span><span class="store-name">catalogProducts</span></div>
+        <div class="store-tag"><span class="store-icon">📊</span><span class="store-name">catalogStock</span></div>
+        <div class="store-tag"><span class="store-icon">🏢</span><span class="store-name">catalogProviders</span></div>
+        <div class="store-tag"><span class="store-icon">🏪</span><span class="store-name">catalogLocals</span></div>
+        <div class="store-tag"><span class="store-icon">📤</span><span class="store-name">pendingOps</span></div>
+        <div class="store-tag"><span class="store-icon">🔄</span><span class="store-name">syncMeta</span></div>
+        <div class="store-tag"><span class="store-icon">🧾</span><span class="store-name">offlineReceipts</span></div>
+        <div class="store-tag"><span class="store-icon">🛒</span><span class="store-name">recentOrders</span></div>
+        <div class="store-tag"><span class="store-icon">📥</span><span class="store-name">pendingIngresos</span></div>
+        <div class="store-tag"><span class="store-icon">🔐</span><span class="store-name">cachedAuth</span></div>
+        <div class="store-tag"><span class="store-icon">💰</span><span class="store-name">offlineSales</span></div>
+      </div>
+
+      <h4>Service Worker</h4>
+      <ul>
+        <li><strong>Estrategia:</strong> Stale-While-Revalidate para 8 patrones de API</li>
+        <li><strong>Cache:</strong> App shell + assets estáticos + respuestas API</li>
+        <li><strong>Background Sync:</strong> Registra sync event al detectar reconexión</li>
+      </ul>
+
+      <h4>Motor de Sincronización (<code>offlineSync.js</code>)</h4>
+      <ul>
+        <li><strong>Catalog Sync:</strong> <code>syncAllCatalogs()</code> cada 5 minutos — descarga productos, stock, proveedores, locales</li>
+        <li><strong>Outbox Pattern:</strong> <code>flushPendingOps()</code> envía operaciones pendientes en orden FIFO</li>
+        <li><strong>Fetch con Fallback:</strong> <code>fetchWithFallback()</code> con timeout de 2.5s → cae a IndexedDB</li>
+        <li><strong>Hooks React:</strong> <code>useOfflineQuery</code>, <code>usePendingOps</code>, <code>useSyncProgress</code></li>
+        <li><strong>Auth Offline:</strong> SHA-256 cached credentials en IndexedDB</li>
+        <li><strong>Recibos Offline:</strong> Generación HTML para impresión directa</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 3: ARQUITECTURA SYNC ═══════════ -->
+<div class="section" id="sec-3">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">3</div>
+    <div class="section-title-text">
+      <h2>Arquitectura de Sincronización Offline-First</h2>
+      <span class="subtitle">Diagrama completo del flujo de datos</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>🏗️ Topología del Sistema</h3>
+<div class="diagram">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          <span style="color:#60a5fa;font-weight:700;">SERVIDOR CENTRAL</span>                                 │
+│          PostgreSQL (puerto <span style="color:#fbbf24;">2048</span>) + FastAPI (puerto <span style="color:#fbbf24;">8000</span>)                │
+│                                                                             │
+│   ┌────────────────┐   ┌────────────────┐   ┌────────────────┐             │
+│   │   <span style="color:#86efac;">products</span>     │   │    <span style="color:#86efac;">sales</span>       │   │    <span style="color:#86efac;">stock</span>       │             │
+│   │   <span style="color:#86efac;">variants</span>     │   │  <span style="color:#86efac;">sale_items</span>    │   │  <span style="color:#86efac;">movements</span>    │             │
+│   └────────────────┘   └────────────────┘   └────────────────┘             │
+│   ┌────────────────┐   ┌────────────────┐   ┌────────────────┐             │
+│   │  <span style="color:#86efac;">afip_config</span>   │   │  <span style="color:#86efac;">afip_queue</span>    │   │ <span style="color:#86efac;">stock_by_local</span> │             │
+│   └────────────────┘   └────────────────┘   └────────────────┘             │
+└──────────────────────────────┬──────────────────────────────────────────────┘
+                               │
+                      <span style="color:#c084fc;">API REST (JSON)</span>
+                      <span style="color:#c084fc;">Puerto 8000</span>
+                               │
+            ┌──────────────────┼──────────────────┐
+            │                  │                  │
+  ┌─────────┴─────────┐ ┌─────┴─────────┐ ┌──────┴────────┐
+  │  <span style="color:#f97316;font-weight:700;">LOCAL 1</span>           │ │  <span style="color:#22c55e;font-weight:700;">LOCAL 2</span>       │ │  <span style="color:#f97316;font-weight:700;">LOCAL 3</span>      │
+  │  <span style="color:#f97316;">Estado: OFFLINE</span>   │ │  <span style="color:#22c55e;">Estado: ONLINE</span> │ │  <span style="color:#f97316;">Estado: OFFLINE</span>│
+  │                   │ │               │ │               │
+  │  ┌─────────────┐  │ │ ┌───────────┐ │ │ ┌───────────┐ │
+  │  │ <span style="color:#67e8f9;">IndexedDB</span>   │  │ │ │ <span style="color:#67e8f9;">IndexedDB</span> │ │ │ │ <span style="color:#67e8f9;">IndexedDB</span> │ │
+  │  │ pendingOps:3│  │ │ │ synced ✓  │ │ │ │ pendOps:7 │ │
+  │  │ offlineSale │  │ │ │           │ │ │ │ offlineSa │ │
+  │  └─────────────┘  │ │ └───────────┘ │ │ └───────────┘ │
+  │  <span style="color:#64748b;">↕ SW + Cache</span>     │ │ <span style="color:#64748b;">↕ SW + Cache</span> │ │ <span style="color:#64748b;">↕ SW + Cache</span> │
+  └───────────────────┘ └───────────────┘ └───────────────┘</div>
+
+      <h3>🔄 Flujo de Datos</h3>
+
+      <div class="flow-step">
+        <div class="flow-number">1</div>
+        <div class="flow-text">
+          <strong>DESCARGA (Server → Local)</strong>
+          <span>Catálogos se sincronizan cada 5 minutos vía <code>syncAllCatalogs()</code>. Se descargan productos, stock, proveedores y locales al IndexedDB. Usa timestamp de última sincronización para delta updates.</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">2</div>
+        <div class="flow-text">
+          <strong>OPERACIÓN OFFLINE</strong>
+          <span>Venta, ajuste de stock o ingreso se guarda en <code>pendingOps</code> + <code>offlineSales</code> en IndexedDB. El stock local se decrementa inmediatamente vía <code>decrementLocalStock()</code>. Se genera recibo HTML offline para el cliente.</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">3</div>
+        <div class="flow-text">
+          <strong>SUBIDA (Local → Server)</strong>
+          <span><code>flushPendingOps()</code> envía las operaciones encoladas cuando detecta conexión. Orden FIFO. Reintentos hasta 5x con backoff exponencial. Tras 5 fallos → marca FAILED para revisión manual.</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-number">4</div>
+        <div class="flow-text">
+          <strong>CONFIRMACIÓN</strong>
+          <span>El server procesa la operación, actualiza la base de datos central, y retorna respuesta con IDs definitivos. El cliente marca la operación como SYNCED y limpia de <code>pendingOps</code>. Si hay conflicto → se registra para resolución.</span>
+        </div>
+      </div>
+
+<div class="diagram">
+<span style="color:#f97316;font-weight:700;">FLUJO TEMPORAL DE UNA VENTA OFFLINE:</span>
+
+  T=0        T=0         T=0          T+5min         T+5min       T+5min
+  ┌───┐    ┌───────┐    ┌────────┐    ┌──────────┐   ┌─────────┐  ┌───────┐
+  │<span style="color:#86efac;">POS</span>│───→│<span style="color:#67e8f9;">IDB</span>    │───→│<span style="color:#c084fc;">Receipt</span> │    │<span style="color:#60a5fa;">flushOps</span>  │──→│<span style="color:#86efac;">Server</span>   │─→│<span style="color:#22c55e;">SYNCED</span>│
+  │<span style="color:#86efac;">tap</span>│    │pending │    │<span style="color:#c084fc;">printed</span> │    │<span style="color:#60a5fa;">POST /api</span> │   │<span style="color:#86efac;">DB write</span> │  │<span style="color:#22c55e;">clean</span> │
+  └───┘    │offSale │    │<span style="color:#c084fc;">offline</span> │    │<span style="color:#60a5fa;">v1/sales</span> │   │<span style="color:#86efac;">CAE queue</span>│  │<span style="color:#22c55e;">IDB</span>   │
+           │-stock  │    └────────┘    └──────────┘   └─────────┘  └───────┘
+           └───────┘
+</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 4: RESOLUCIÓN DE CONFLICTOS ═══════════ -->
+<div class="section" id="sec-4">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">4</div>
+    <div class="section-title-text">
+      <h2>Resolución de Conflictos</h2>
+      <span class="subtitle">Estrategias para cada escenario de conflicto offline</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+      <p>
+        Este es <strong>el problema central</strong> de un sistema offline-first. Cuando dos dispositivos operan
+        sin conexión simultáneamente, los conflictos son inevitables. La clave es tener una estrategia clara
+        para cada tipo de conflicto.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%;">Escenario</th>
+              <th style="width:28%;">Ejemplo Concreto</th>
+              <th style="width:50%;">Estrategia de Resolución</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Mismo producto, dos locales offline</strong></td>
+              <td>Local 1 vende la última campera M azul. Local 2 también vende "la última" porque su stock local aún dice 1.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Last-Write-Wins + Alerta de stock negativo.</strong><br>
+                Server acepta ambas ventas. Stock central queda en <code>-1</code>. Se genera alerta
+                <span style="color:var(--danger);font-weight:600;">STOCK NEGATIVO</span> al admin.
+                La venta <strong>NO se rechaza</strong> (el cliente ya se fue con el producto).
+                Admin decide: pedir reposición o transferir desde otro local.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Mismo producto, mismo local, dos cajas</strong></td>
+              <td>Caja 1 y Caja 2 del mismo local venden el último item simultáneamente.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Partición por caja.</strong><br>
+                Cada caja decrementa su propia copia local de stock. Al sincronizar, el server consolida ambas ventas.
+                Posible resultado negativo → genera alerta. Resolución idéntica al caso anterior.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Ajuste de inventario vs. venta</strong></td>
+              <td>Admin hace ajuste "+5" mientras el cajero vendió 3 unidades offline.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Timestamps + merge cronológico.</strong><br>
+                Ajuste con timestamp T1, ventas con timestamps T2, T3, T4. Server aplica en orden cronológico:
+                <code>+5, -1, -1, -1</code> = resultado correcto <code>+2</code>. El orden temporal garantiza consistencia.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Precio cambiado mientras offline</strong></td>
+              <td>Admin cambia precio de $10.000 a $12.000. Cajero offline sigue vendiendo a $10.000.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Venta vale con precio del momento.</strong><br>
+                El precio queda grabado en <code>SaleItem.unit_price</code> al momento de la venta. No se retroactiva.
+                Al sincronizar, el server acepta el precio original del momento offline. Principio: <em>el cliente pagó ese precio</em>.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Transferencia entre locales</strong></td>
+              <td>Local A envía 10 unidades a Local B. Local B no confirma porque está offline.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Estados de transferencia.</strong><br>
+                <code>ENVIADO</code> (A decrementó stock) → <code>RECIBIDO</code> (B confirma e incrementa stock).
+                Si B está offline, queda en ENVIADO. Timeout 72h → alerta al admin. Admin puede forzar confirmación.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>AFIP caído durante emisión</strong></td>
+              <td>Factura emitida offline sin CAE. AFIP sigue caído al reconectarse.</td>
+              <td>
+                <strong style="color:var(--accent-light);">Cola AFIP con reintentos.</strong><br>
+                Factura se guarda con status <code>PENDING_CAE</code>. Cola intenta cada 5 min, escalando a 2h.
+                Máximo 72h de reintentos. Después → alerta manual. El cliente recibió un ticket provisorio con UUID.
+                Alternativa: usar <strong>CAEA</strong> (CAE Anticipado) pre-solicitado.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>📐 Regla de Oro</h3>
+      <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:var(--radius-sm);padding:20px;margin:16px 0;">
+        <p style="font-size:1rem;font-weight:600;color:var(--accent-light);margin-bottom:8px;">
+          "Nunca rechazar una venta que ya ocurrió en el mundo real."
+        </p>
+        <p style="margin:0;font-size:0.88rem;">
+          Si el cliente se fue con el producto y pagó, la operación es válida sin importar el estado del sistema.
+          Los conflictos se resuelven <strong>después</strong>, no bloqueando la venta. El sistema registra, alerta,
+          y el humano resuelve.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 5: SCHEMA STOCK MULTI-RUBRO ═══════════ -->
+<div class="section" id="sec-5">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">5</div>
+    <div class="section-title-text">
+      <h2>Esquema de Base de Datos — Stock Multi-Rubro</h2>
+      <span class="subtitle">Extensiones al schema para soportar múltiples industrias</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>📦 Tabla: <code>product_variants</code> <span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);">EXTENDER</span></h3>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="comment">-- Campos existentes (ya migrados)</span>
+id, product_id, size, color, sku, barcode, stock, is_active
+
+<span class="comment">-- NUEVOS CAMPOS para multi-rubro:</span>
+<span class="kw">ALTER TABLE</span> product_variants <span class="kw">ADD COLUMN</span>
+  lot_number    <span class="type">VARCHAR(50)</span>,          <span class="comment">-- Kiosco: número de lote</span>
+  expiry_date   <span class="type">DATE</span>,                 <span class="comment">-- Kiosco: fecha de vencimiento</span>
+  oem_number    <span class="type">VARCHAR(100)</span>,         <span class="comment">-- Taller: número OEM del fabricante</span>
+  aftermarket_ref <span class="type">VARCHAR(100)</span>,       <span class="comment">-- Taller: referencia aftermarket</span>
+  vehicle_compat <span class="type">TEXT</span>,                <span class="comment">-- Taller: compatibilidad vehículos (JSON)</span>
+  unit_type     <span class="type">VARCHAR(20)</span> <span class="kw">DEFAULT</span> <span class="str">'UNIDAD'</span>,  <span class="comment">-- Ferretería: UNIDAD/CAJA/PALLET</span>
+  units_per_pack <span class="type">INT</span> <span class="kw">DEFAULT</span> <span class="num">1</span>,      <span class="comment">-- Ferretería: unidades por bulto</span>
+  location      <span class="type">VARCHAR(50)</span>,           <span class="comment">-- Ferretería: ubicación en estante</span>
+  season        <span class="type">VARCHAR(20)</span>;           <span class="comment">-- Indumentaria: temporada (OI-2025, PV-2026)</span>
+</div>
+
+      <h3>🏪 Tabla: <code>stock_by_local</code> <span class="badge" style="background:rgba(34,197,94,0.15);color:var(--success);">NUEVA</span></h3>
+      <p>Separa el stock por local. Reemplaza el campo <code>stock</code> global de <code>product_variants</code>.</p>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="kw">CREATE TABLE</span> stock_by_local (
+  id                <span class="type">SERIAL PRIMARY KEY</span>,
+  variant_id        <span class="type">INT</span> <span class="kw">REFERENCES</span> product_variants(id),
+  local_id          <span class="type">INT</span> <span class="kw">REFERENCES</span> locals(id),
+  quantity          <span class="type">INT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num">0</span>,
+  min_stock         <span class="type">INT</span> <span class="kw">DEFAULT</span> <span class="num">0</span>,        <span class="comment">-- Alerta si baja de este valor</span>
+  max_stock         <span class="type">INT</span>,                      <span class="comment">-- Capacidad máxima del local</span>
+  last_movement_at  <span class="type">TIMESTAMP</span>,
+  company_id        <span class="type">INT</span> <span class="kw">REFERENCES</span> companies(id),
+  <span class="kw">UNIQUE</span>(variant_id, local_id)
+);
+
+<span class="comment">-- Índices para performance</span>
+<span class="kw">CREATE INDEX</span> idx_stock_local_variant <span class="kw">ON</span> stock_by_local(local_id, variant_id);
+<span class="kw">CREATE INDEX</span> idx_stock_company <span class="kw">ON</span> stock_by_local(company_id);
+<span class="kw">CREATE INDEX</span> idx_stock_low <span class="kw">ON</span> stock_by_local(quantity) <span class="kw">WHERE</span> quantity &lt;= min_stock;
+</div>
+
+      <h3>📋 Tabla: <code>stock_movements</code> <span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);">EXTENDER</span></h3>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="comment">-- Campos existentes</span>
+id, type, variant_id, quantity, reference, notes, company_id, created_by_id
+
+<span class="comment">-- NUEVOS CAMPOS:</span>
+<span class="kw">ALTER TABLE</span> stock_movements <span class="kw">ADD COLUMN</span>
+  local_id         <span class="type">INT</span> <span class="kw">REFERENCES</span> locals(id),       <span class="comment">-- ¿En qué local ocurrió?</span>
+  dest_local_id    <span class="type">INT</span>,                               <span class="comment">-- Para TRANSFERENCIA: destino</span>
+  transfer_status  <span class="type">VARCHAR(20)</span>,                      <span class="comment">-- ENVIADO / RECIBIDO / CANCELADO</span>
+  offline_id       <span class="type">UUID</span>,                              <span class="comment">-- ID generado offline (dedup)</span>
+  synced_at        <span class="type">TIMESTAMP</span>,                         <span class="comment">-- Cuándo se sincronizó al server</span>
+  device_id        <span class="type">VARCHAR(50)</span>;                       <span class="comment">-- Desde qué dispositivo</span>
+
+<span class="comment">-- Índice para deduplicación offline</span>
+<span class="kw">CREATE UNIQUE INDEX</span> idx_movements_offline_id
+  <span class="kw">ON</span> stock_movements(offline_id)
+  <span class="kw">WHERE</span> offline_id <span class="kw">IS NOT NULL</span>;
+</div>
+
+      <h3>🔗 Relaciones</h3>
+<div class="diagram">
+┌──────────────┐       ┌──────────────────┐       ┌──────────────┐
+│   <span style="color:#86efac;">products</span>   │──1:N─→│ <span style="color:#86efac;">product_variants</span> │←─N:1──│  <span style="color:#86efac;">providers</span>   │
+│              │       │                  │       └──────────────┘
+└──────────────┘       └───────┬──────────┘
+                               │
+                         1:N   │   N:1
+                               ▼
+                       ┌───────────────┐        ┌──────────────┐
+                       │ <span style="color:#67e8f9;">stock_by_local</span>│───N:1─→│   <span style="color:#67e8f9;">locals</span>     │
+                       │               │        └──────────────┘
+                       └───────────────┘
+                               ▲
+                               │ referencia
+                       ┌───────┴────────┐
+                       │<span style="color:#c084fc;">stock_movements</span> │
+                       │ type:          │
+                       │  INGRESO       │
+                       │  EGRESO        │
+                       │  AJUSTE        │
+                       │  TRANSFERENCIA │
+                       └────────────────┘</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 6: SCHEMA FACTURACIÓN + AFIP ═══════════ -->
+<div class="section" id="sec-6">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">6</div>
+    <div class="section-title-text">
+      <h2>Esquema de Base de Datos — Facturación + AFIP</h2>
+      <span class="subtitle">Modelo de ventas, integración AFIP, y tablas de configuración</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>🧾 Tabla: <code>sales</code> <span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);">EXTENDER</span></h3>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="comment">-- Campos existentes</span>
+id, type, number, date, status, customer_name, customer_cuit,
+subtotal, tax, total, local_id, company_id, created_by_id
+
+<span class="comment">-- NUEVOS para AFIP:</span>
+<span class="kw">ALTER TABLE</span> sales <span class="kw">ADD COLUMN</span>
+  cae              <span class="type">VARCHAR(14)</span>,                <span class="comment">-- Código Autorización Electrónico</span>
+  cae_expiration   <span class="type">DATE</span>,                       <span class="comment">-- Vencimiento del CAE</span>
+  caea             <span class="type">VARCHAR(14)</span>,                <span class="comment">-- CAE Anticipado (offline)</span>
+  punto_venta      <span class="type">INT</span>,                        <span class="comment">-- Punto de venta AFIP (0001-9999)</span>
+  cbte_desde       <span class="type">BIGINT</span>,                     <span class="comment">-- Nro comprobante desde</span>
+  cbte_hasta       <span class="type">BIGINT</span>,                     <span class="comment">-- Nro comprobante hasta</span>
+  afip_result      <span class="type">VARCHAR(20)</span>,                <span class="comment">-- APROBADO / RECHAZADO / PENDIENTE</span>
+  afip_response    <span class="type">JSONB</span>,                      <span class="comment">-- Respuesta completa de AFIP</span>
+  afip_retry_count <span class="type">INT</span> <span class="kw">DEFAULT</span> <span class="num">0</span>,             <span class="comment">-- Intentos de envío a AFIP</span>
+  afip_last_retry  <span class="type">TIMESTAMP</span>,                  <span class="comment">-- Último intento</span>
+
+<span class="comment">-- NUEVOS para multi-rubro:</span>
+  payment_method   <span class="type">VARCHAR(30)</span>,                <span class="comment">-- EFECTIVO/TARJETA/TRANSFERENCIA/MP/MIXTO</span>
+  payment_details  <span class="type">JSONB</span>,                      <span class="comment">-- {metodos: [{tipo, monto}]}</span>
+  related_ot_id    <span class="type">INT</span>,                        <span class="comment">-- Taller: Orden de Trabajo asociada</span>
+  client_account_id <span class="type">INT</span>,                      <span class="comment">-- Cuenta corriente del cliente</span>
+  remito_number    <span class="type">VARCHAR(50)</span>,                <span class="comment">-- Ferretería: remito previo asociado</span>
+  offline_id       <span class="type">UUID UNIQUE</span>,                <span class="comment">-- ID generado offline (deduplicación)</span>
+  synced_at        <span class="type">TIMESTAMP</span>,                  <span class="comment">-- Cuándo se sincronizó</span>
+  device_id        <span class="type">VARCHAR(50)</span>;                <span class="comment">-- Desde qué dispositivo</span>
+</div>
+
+      <h3>⚙️ Tabla: <code>afip_config</code> <span class="badge" style="background:rgba(34,197,94,0.15);color:var(--success);">NUEVA</span></h3>
+      <p>Configuración de facturación electrónica AFIP por empresa. Almacena certificados y credenciales.</p>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="kw">CREATE TABLE</span> afip_config (
+  id                  <span class="type">SERIAL PRIMARY KEY</span>,
+  company_id          <span class="type">INT UNIQUE</span> <span class="kw">REFERENCES</span> companies(id),
+  cuit_emisor         <span class="type">VARCHAR(11)</span> <span class="kw">NOT NULL</span>,        <span class="comment">-- CUIT del emisor</span>
+  razon_social        <span class="type">VARCHAR(200)</span>,                  <span class="comment">-- Razón social</span>
+  punto_venta         <span class="type">INT</span> <span class="kw">NOT NULL</span>,                  <span class="comment">-- Punto de venta (0001-9999)</span>
+  iibb                <span class="type">VARCHAR(20)</span>,                   <span class="comment">-- Nro. Ingresos Brutos</span>
+  inicio_actividades  <span class="type">DATE</span>,                          <span class="comment">-- Fecha inicio actividades</span>
+  cert_pem            <span class="type">TEXT</span>,                          <span class="comment">-- Certificado digital (.pem)</span>
+  key_pem             <span class="type">TEXT</span>,                          <span class="comment">-- Clave privada (.key)</span>
+  ambiente            <span class="type">VARCHAR(10)</span> <span class="kw">DEFAULT</span> <span class="str">'testing'</span>, <span class="comment">-- testing / production</span>
+  is_active           <span class="type">BOOL</span> <span class="kw">DEFAULT</span> <span class="num">FALSE</span>,
+  last_caea           <span class="type">VARCHAR(14)</span>,                   <span class="comment">-- Último CAEA solicitado</span>
+  caea_from           <span class="type">DATE</span>,                          <span class="comment">-- Vigencia CAEA desde</span>
+  caea_to             <span class="type">DATE</span>,                          <span class="comment">-- Vigencia CAEA hasta</span>
+  created_at          <span class="type">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW()
+);
+</div>
+
+      <h3>📬 Tabla: <code>afip_queue</code> <span class="badge" style="background:rgba(34,197,94,0.15);color:var(--success);">NUEVA</span></h3>
+      <p>Cola de trabajo para envío de facturas a AFIP. Implementa patrón de reintentos con backoff.</p>
+      <div class="code-block">
+        <span class="code-label">SQL</span>
+<span class="kw">CREATE TABLE</span> afip_queue (
+  id              <span class="type">SERIAL PRIMARY KEY</span>,
+  sale_id         <span class="type">INT</span> <span class="kw">REFERENCES</span> sales(id),
+  company_id      <span class="type">INT</span> <span class="kw">REFERENCES</span> companies(id),
+  status          <span class="type">VARCHAR(20)</span> <span class="kw">DEFAULT</span> <span class="str">'PENDING'</span>,    <span class="comment">-- PENDING/PROCESSING/COMPLETED/FAILED</span>
+  attempts        <span class="type">INT</span> <span class="kw">DEFAULT</span> <span class="num">0</span>,
+  max_attempts    <span class="type">INT</span> <span class="kw">DEFAULT</span> <span class="num">10</span>,
+  last_attempt_at <span class="type">TIMESTAMP</span>,
+  next_attempt_at <span class="type">TIMESTAMP</span>,
+  error_message   <span class="type">TEXT</span>,
+  created_at      <span class="type">TIMESTAMP</span> <span class="kw">DEFAULT</span> NOW(),
+  completed_at    <span class="type">TIMESTAMP</span>
+);
+
+<span class="comment">-- Índices para el worker de la cola</span>
+<span class="kw">CREATE INDEX</span> idx_afip_queue_pending
+  <span class="kw">ON</span> afip_queue(status, next_attempt_at)
+  <span class="kw">WHERE</span> status = <span class="str">'PENDING'</span>;
+
+<span class="kw">CREATE INDEX</span> idx_afip_queue_company
+  <span class="kw">ON</span> afip_queue(company_id, status);
+</div>
+
+      <h3>🔗 Relaciones Facturación</h3>
+<div class="diagram">
+┌──────────────┐       ┌──────────────┐       ┌──────────────┐
+│  <span style="color:#86efac;">companies</span>   │──1:1─→│ <span style="color:#67e8f9;">afip_config</span>  │       │   <span style="color:#86efac;">locals</span>     │
+└──────┬───────┘       └──────────────┘       └───────┬──────┘
+       │                                              │
+       │ 1:N                                    N:1   │
+       ▼                                              │
+┌──────────────┐       ┌──────────────┐               │
+│    <span style="color:#c084fc;">sales</span>     │──1:N─→│ <span style="color:#c084fc;">sale_items</span>  │               │
+│              │       └──────┬───────┘               │
+│  cae         │              │ N:1                   │
+│  caea        │              ▼                       │
+│  punto_venta │       ┌──────────────────┐           │
+│  offline_id  │       │ <span style="color:#86efac;">product_variants</span> │           │
+└──────┬───────┘       └──────────────────┘           │
+       │                                              │
+       │ 1:1                                          │
+       ▼                                              │
+┌──────────────┐                                      │
+│  <span style="color:#f97316;">afip_queue</span>  │                                      │
+│  status      │                                      │
+│  attempts    │←─────────────────────────────────────┘
+│  retry       │        (local_id en sales)
+└──────────────┘</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 7: COLA AFIP VISUAL ═══════════ -->
+<div class="section" id="sec-7">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">7</div>
+    <div class="section-title-text">
+      <h2>Cola de Envío a AFIP</h2>
+      <span class="subtitle">Pipeline visual y estrategia de reintentos</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>📊 Pipeline Visual</h3>
+<div class="diagram">
+<span style="color:#f97316;font-weight:700;">PIPELINE DE FACTURACIÓN ELECTRÓNICA</span>
+
+┌──────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│  <span style="color:#86efac;">VENTA</span>        │      │   <span style="color:#67e8f9;">COLA AFIP</span>      │      │  <span style="color:#c084fc;">AFIP WSFE</span>       │
+│              │      │                 │      │                 │
+│  Sale {      │      │  afip_queue {   │      │  FECAESolicitar │
+│   status:    │─────→│   status:       │─────→│                 │
+│    <span style="color:#fbbf24;">EMITIDA</span>   │      │    <span style="color:#fbbf24;">PENDING</span>      │      │  ┌───────────┐  │
+│   cae:       │      │   attempts: 0   │      │  │ Validar   │  │
+│    <span style="color:#ef4444;">null</span>      │      │   next_attempt: │      │  │ Autorizar │  │
+│  }           │      │    <span style="color:#86efac;">NOW()</span>        │      │  │ Firmar    │  │
+└──────────────┘      └────────┬────────┘      │  └─────┬─────┘  │
+                               │               └────────┼────────┘
+                               │                        │
+                     ┌─────────┴─────────┐              │
+                     │                   │              │
+               <span style="color:#ef4444;">ERROR</span> ▼             <span style="color:#22c55e;">OK</span>    ▼              │
+         ┌──────────────┐    ┌─────────────────┐       │
+         │  <span style="color:#ef4444;">RETRY</span>       │    │  <span style="color:#22c55e;">COMPLETADO</span>      │       │
+         │              │    │                 │       │
+         │ attempts++   │    │  Sale {         │       │
+         │ next_attempt │    │   cae: <span style="color:#22c55e;">71234...</span> │◄──────┘
+         │  = backoff   │    │   cae_exp:      │  CAE recibido
+         │              │    │    <span style="color:#22c55e;">2025-08-15</span>   │
+         │  <span style="color:#fbbf24;">¿attempts</span>   │    │   afip_result:  │
+         │  <span style="color:#fbbf24;"> &gt; max?</span>     │    │    <span style="color:#22c55e;">APROBADO</span>     │
+         │     │        │    │  }              │
+         └─────┼────────┘    └─────────────────┘
+               │
+          <span style="color:#ef4444;">SI</span>   ▼
+     ┌──────────────┐
+     │  <span style="color:#ef4444;">FAILED</span>       │
+     │              │
+     │ ⚠️ Alerta    │
+     │   al Admin   │
+     │              │
+     │ Intervención │
+     │   manual     │
+     └──────────────┘</div>
+
+      <h3>📌 Estados de la Cola</h3>
+      <div class="card-grid">
+        <div class="card" style="border-left:3px solid var(--warning);">
+          <div class="card-header">
+            <div class="card-title" style="color:var(--warning);">⏳ PENDING</div>
+          </div>
+          <p style="font-size:0.85rem;">Esperando envío. Recién creada o reconectada después de un corte.</p>
+        </div>
+        <div class="card" style="border-left:3px solid var(--accent);">
+          <div class="card-header">
+            <div class="card-title" style="color:var(--accent-light);">🔄 PROCESSING</div>
+          </div>
+          <p style="font-size:0.85rem;">Enviando a AFIP ahora mismo. Bloquea reintento hasta resolución.</p>
+        </div>
+        <div class="card" style="border-left:3px solid var(--success);">
+          <div class="card-header">
+            <div class="card-title" style="color:var(--success);">✅ COMPLETED</div>
+          </div>
+          <p style="font-size:0.85rem;">CAE obtenido exitosamente. Sale actualizada con CAE y vencimiento.</p>
+        </div>
+        <div class="card" style="border-left:3px solid var(--danger);">
+          <div class="card-header">
+            <div class="card-title" style="color:var(--danger);">❌ FAILED</div>
+          </div>
+          <p style="font-size:0.85rem;">Agotó reintentos. Requiere intervención manual del administrador.</p>
+        </div>
+      </div>
+
+      <h3>🔁 Estrategia de Reintentos (Exponential Backoff)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Intento</th><th>Demora</th><th>Tiempo Acumulado</th><th>Notas</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>1</strong></td><td>Inmediato</td><td>0 min</td><td>Primer intento al crear la factura</td></tr>
+            <tr><td><strong>2</strong></td><td>5 min</td><td>5 min</td><td>Corte breve de internet</td></tr>
+            <tr><td><strong>3</strong></td><td>15 min</td><td>20 min</td><td>Problema temporal de AFIP</td></tr>
+            <tr><td><strong>4</strong></td><td>1 hora</td><td>1h 20m</td><td>—</td></tr>
+            <tr><td><strong>5–10</strong></td><td>Cada 2 horas</td><td>~11h</td><td>Caída prolongada de AFIP</td></tr>
+            <tr>
+              <td><strong>&gt;10</strong></td>
+              <td style="color:var(--danger);font-weight:600;">FAILED</td>
+              <td>~11h</td>
+              <td style="color:var(--danger);">Requiere intervención manual</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🔐 CAEA — Modo Offline Total</h3>
+      <p>
+        Cuando un local sabe que estará offline (zona rural, evento), puede pre-solicitar un <strong>CAEA</strong>
+        (Código de Autorización Electrónico Anticipado) a AFIP. Este CAEA tiene una vigencia de <strong>15 días</strong>
+        y permite facturar sin conexión. Al reconectar, se informan los comprobantes emitidos.
+      </p>
+      <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.3);border-radius:var(--radius-sm);padding:16px;font-size:0.88rem;">
+        <strong style="color:#c084fc;">Flujo CAEA:</strong> Solicitar CAEA → Facturar offline con CAEA → Al reconectar → 
+        <code>POST /afip/caea/inform</code> → AFIP registra comprobantes → ✅
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 8: API ENDPOINTS NUEVOS ═══════════ -->
+<div class="section" id="sec-8">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">8</div>
+    <div class="section-title-text">
+      <h2>API Endpoints Nuevos</h2>
+      <span class="subtitle">Endpoints a implementar para Stock, AFIP y Sync</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>📦 Stock Multi-Local</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th style="width:90px;">Método</th><th style="width:35%;">Endpoint</th><th>Descripción</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/stock/by-local/{local_id}</code></td>
+              <td>Stock de un local específico. Filtrable por categoría, marca, stock bajo.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/stock/transfer</code></td>
+              <td>Iniciar transferencia entre locales. Decrementa origen, crea movimiento ENVIADO.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-patch">PATCH</span></td>
+              <td><code>/api/v1/stock/transfer/{id}/confirm</code></td>
+              <td>Confirmar recepción de transferencia. Incrementa destino, marca RECIBIDO.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/stock/physical-count</code></td>
+              <td>Enviar conteo de inventario físico. Guarda como borrador.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/stock/physical-count/{id}/diff</code></td>
+              <td>Ver diferencias entre conteo físico y stock del sistema.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/stock/physical-count/{id}/apply</code></td>
+              <td>Aplicar ajustes del inventario físico. Genera movimientos de AJUSTE.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/stock/expiring</code></td>
+              <td>Productos próximos a vencer (Kiosco). Parámetro <code>?days=30</code>.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/stock/sync-offline</code></td>
+              <td>Recibir operaciones offline de stock. Dedup por <code>offline_id</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🧾 Facturación AFIP</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th style="width:90px;">Método</th><th style="width:35%;">Endpoint</th><th>Descripción</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/afip/config</code></td>
+              <td>Configurar credenciales AFIP para la empresa. Cert + Key + CUIT.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/afip/config</code></td>
+              <td>Ver configuración actual de AFIP (sin clave privada).</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/afip/test-connection</code></td>
+              <td>Probar conexión y autenticación con AFIP WSFE.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/sales/{id}/authorize</code></td>
+              <td>Solicitar CAE a AFIP para una venta específica (FECAESolicitar).</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/sales/authorize-batch</code></td>
+              <td>Autorizar lote de ventas offline acumuladas. Envía batch a AFIP.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/afip/queue</code></td>
+              <td>Ver cola de facturas pendientes de envío a AFIP.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/afip/queue/retry/{id}</code></td>
+              <td>Reintentar manualmente una factura fallida.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/afip/queue/stats</code></td>
+              <td>Estadísticas de la cola: pending, completed, failed, avg time.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/afip/caea/request</code></td>
+              <td>Solicitar CAEA (CAE Anticipado) para facturar offline 15 días.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🔄 Sincronización Offline</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th style="width:90px;">Método</th><th style="width:35%;">Endpoint</th><th>Descripción</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/sync/push</code></td>
+              <td>Enviar batch de operaciones offline (ventas, ajustes, ingresos). Dedup por UUID.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/sync/pull</code></td>
+              <td>Descargar cambios desde un timestamp dado. Delta sync. Parámetro <code>?since=ISO8601</code>.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-post">POST</span></td>
+              <td><code>/api/v1/sync/resolve-conflict</code></td>
+              <td>Resolver un conflicto manualmente (admin). Acepta/rechaza operación conflictiva.</td>
+            </tr>
+            <tr>
+              <td><span class="method method-get">GET</span></td>
+              <td><code>/api/v1/sync/status/{device_id}</code></td>
+              <td>Estado de sincronización de un dispositivo específico. Última sync, ops pendientes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 9: CASOS BORDE CRÍTICOS ═══════════ -->
+<div class="section" id="sec-9">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">9</div>
+    <div class="section-title-text">
+      <h2>Casos Borde Críticos</h2>
+      <span class="subtitle">Escenarios de fallo y sus resoluciones</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <div class="alert alert-critical">
+        <div class="alert-title">🔴 CRÍTICO: Stock negativo por ventas offline simultáneas</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Dos locales venden el último item del mismo producto offline. Ambos creen tener stock = 1.</p>
+          <p><strong>Resolución:</strong> Aceptar ambas ventas. Stock central queda en -1. Se genera alerta automática "STOCK NEGATIVO" al administrador. La venta NO se rechaza porque el cliente ya se fue con el producto.</p>
+          <p><strong>Prevención:</strong> Configurar <code>min_stock</code> por local como reserva de seguridad. Sync más frecuente en productos de alta rotación.</p>
+        </div>
+      </div>
+
+      <div class="alert alert-critical">
+        <div class="alert-title">🔴 CRÍTICO: AFIP caído más de 72 horas</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Las facturas sin CAE se acumulan en la cola. AFIP no responde por días.</p>
+          <p><strong>Resolución:</strong> Usar CAEA (CAE Anticipado) solicitado con antelación. El CAEA permite facturar sin conexión a AFIP durante 15 días.</p>
+          <p><strong>Fallback:</strong> Emitir como Ticket (tipo C) que no requiere CAE inmediato para monotributistas/consumidor final.</p>
+        </div>
+      </div>
+
+      <div class="alert alert-high">
+        <div class="alert-title">🟡 ALTO: Precio desactualizado offline</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Admin actualiza precio de $10.000 a $12.000 en el server. Cajero offline sigue vendiendo a $10.000.</p>
+          <p><strong>Resolución:</strong> El precio en <code>SaleItem.unit_price</code> es definitivo. El cliente pagó ese precio; no se retroactiva. El server acepta el precio del momento offline.</p>
+          <p><strong>Prevención:</strong> Sincronización de precios más frecuente (cada 1 minuto en lugar de 5). Notificación push vía Service Worker cuando cambian precios.</p>
+        </div>
+      </div>
+
+      <div class="alert alert-high">
+        <div class="alert-title">🟡 ALTO: Transferencia nunca confirmada</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Local A envía mercadería a Local B. Local B nunca confirma recepción (offline, olvido, o pérdida).</p>
+          <p><strong>Resolución:</strong> Timeout de 72 horas → se genera auto-alerta al admin. Admin puede forzar confirmación o revertir la transferencia. El stock queda "en tránsito" visible en el dashboard.</p>
+        </div>
+      </div>
+
+      <div class="alert alert-medium">
+        <div class="alert-title">🟢 MEDIO: Número de factura duplicado offline</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Dos dispositivos del mismo local generan facturas con el mismo número correlativo.</p>
+          <p><strong>Resolución:</strong> El campo <code>offline_id</code> (UUID v4) previene duplicados en el server. El número definitivo de factura es asignado por el servidor al sincronizar. El número offline es provisional.</p>
+        </div>
+      </div>
+
+      <div class="alert alert-medium">
+        <div class="alert-title">🟢 MEDIO: Dispositivo perdido con ventas no sincronizadas</div>
+        <div class="alert-body">
+          <p><strong>Escenario:</strong> Tablet robada o rota que tenía <code>pendingOps</code> sin sincronizar.</p>
+          <p><strong>Resolución:</strong> Auditoría de dispositivos con <code>device_id</code>. Dashboard muestra último sync por dispositivo. Las ventas con ticket offline impreso son prueba fiscal válida. El admin puede reconstruir operaciones desde los recibos impresos.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ SECTION 10: ORDEN DE IMPLEMENTACIÓN ═══════════ -->
+<div class="section" id="sec-10">
+  <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-number">10</div>
+    <div class="section-title-text">
+      <h2>Orden de Implementación</h2>
+      <span class="subtitle">Roadmap por fases con dependencias</span>
+    </div>
+    <span class="section-chevron">▼</span>
+  </div>
+  <div class="section-body">
+    <div class="section-content">
+
+      <h3>🗺️ Mapa de Dependencias</h3>
+<div class="diagram">
+<span style="color:#f97316;font-weight:700;">GRAFO DE DEPENDENCIAS ENTRE FASES</span>
+
+  ┌───────────────────┐
+  │  <span style="color:#22c55e;font-weight:700;">FASE 1</span>            │
+  │  Stock Multi-Local │ ←── No depende de nada (START)
+  └─────────┬─────────┘
+            │
+     ┌──────┼──────────────────────┐
+     │      │                      │
+     ▼      ▼                      ▼
+┌─────────────────┐  ┌────────────────────┐  ┌──────────────────┐
+│  <span style="color:#60a5fa;font-weight:700;">FASE 2</span>          │  │  <span style="color:#c084fc;font-weight:700;">FASE 3</span>             │  │  <span style="color:#67e8f9;font-weight:700;">FASE 5</span>           │
+│  Variantes      │  │  Facturación       │  │  Sync Avanzado   │
+│  Multi-Rubro    │  │  Robusta           │  │                  │
+└────────┬────────┘  └─────────┬──────────┘  └──────────────────┘
+         │                     │                     ▲
+         │                     ▼                     │
+         │           ┌────────────────────┐          │
+         │           │  <span style="color:#f97316;font-weight:700;">FASE 4</span>             │          │
+         │           │  AFIP Integration  │──────────┘
+         │           └────────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│  <span style="color:#ec4899;font-weight:700;">FASE 6</span>          │
+│  Módulos Nuevos │
+│  (OT, CCC, POS) │
+└─────────────────┘</div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--success);">FASE 1: Stock Multi-Local</div>
+        <div class="phase-dep">Dependencias: ninguna — punto de partida</div>
+        <ol class="phase-steps">
+          <li>Crear tabla <code>stock_by_local</code> + migración Alembic</li>
+          <li>API endpoints de stock por local (consulta, filtros)</li>
+          <li>Transferencias entre locales (crear, confirmar, cancelar)</li>
+          <li>Frontend: selector de local en StockPage + vista de stock por local</li>
+          <li>Sync: store IndexedDB <code>catalogStock</code> segmentado por local</li>
+        </ol>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--accent-light);">FASE 2: Variantes Multi-Rubro</div>
+        <div class="phase-dep">Dependencias: Fase 1 completa</div>
+        <ol class="phase-steps">
+          <li>Extender <code>ProductVariant</code> con campos multi-rubro (lote, OEM, vencimiento, etc.)</li>
+          <li>Configuración de rubro por empresa (<code>CompanyModule</code>)</li>
+          <li>Frontend: formularios dinámicos según rubro de la empresa</li>
+          <li>Alertas automáticas de vencimiento (Kiosco/Alimentos)</li>
+          <li>Buscador por compatibilidad vehicular (Taller Mecánico)</li>
+        </ol>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--purple);">FASE 3: Facturación Robusta</div>
+        <div class="phase-dep">Dependencias: Fase 1 completa</div>
+        <ol class="phase-steps">
+          <li>Extender modelo <code>Sale</code> con campos AFIP + medios de pago</li>
+          <li>Soporte múltiples medios de pago (efectivo + tarjeta + transferencia)</li>
+          <li>Numeración automática por punto de venta AFIP</li>
+          <li>Cuenta corriente de cliente (saldo, pagos parciales)</li>
+          <li>Frontend: POS mejorado con selector de medio de pago</li>
+        </ol>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--orange);">FASE 4: AFIP Integration</div>
+        <div class="phase-dep">Dependencias: Fase 3 completa</div>
+        <ol class="phase-steps">
+          <li>Instalar <code>pyafipws</code> + configurar certificados</li>
+          <li>Crear tablas <code>afip_config</code> + <code>afip_queue</code></li>
+          <li>Endpoint <code>/sales/{id}/authorize</code> con WSFE (FECAESolicitar)</li>
+          <li>Cola de reintentos como background task (asyncio / Celery)</li>
+          <li>Solicitud de CAEA para modo offline total</li>
+          <li>Frontend: indicador de estado factura (con/sin CAE, pendiente, error)</li>
+        </ol>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--info);">FASE 5: Sync Avanzado</div>
+        <div class="phase-dep">Dependencias: Fase 1 + Fase 3 completas</div>
+        <ol class="phase-steps">
+          <li>Agregar <code>offline_id</code> UUID en todas las tablas operativas</li>
+          <li>Deduplicación server-side por <code>offline_id</code> (UPSERT)</li>
+          <li>Resolución de conflictos por timestamp + merge cronológico</li>
+          <li>Alertas automáticas de stock negativo post-sync</li>
+          <li>Dashboard de sync para MegaAdmin (estado dispositivos, ops pendientes)</li>
+          <li>Auditoría de dispositivos (último sync, ops fallidas, estado)</li>
+        </ol>
+      </div>
+
+      <div class="phase">
+        <div class="phase-title" style="color:var(--pink);">FASE 6: Módulos Nuevos</div>
+        <div class="phase-dep">Dependencias: Fase 2 completa</div>
+        <ol class="phase-steps">
+          <li>Órdenes de Trabajo — OT para Taller Mecánico (crear, asignar, cerrar, facturar)</li>
+          <li>Archivo Digital — clasificación automática de documentos (remitos, facturas, NC)</li>
+          <li>Cuenta Corriente de Cliente — saldos, movimientos, límites de crédito</li>
+          <li>POS Táctil Optimizado — interfaz fullscreen para tablets en mostrador</li>
+        </ol>
+      </div>
+
+      <h3>⏱️ Estimación de Tiempos</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Fase</th><th>Estimación</th><th>Prioridad</th><th>Impacto</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Fase 1:</strong> Stock Multi-Local</td><td>2–3 semanas</td><td style="color:var(--danger);font-weight:600;">P0 — Crítica</td><td>Habilita operación multi-local real</td></tr>
+            <tr><td><strong>Fase 2:</strong> Variantes Multi-Rubro</td><td>2 semanas</td><td style="color:var(--warning);font-weight:600;">P1 — Alta</td><td>Habilita venta a nuevas industrias</td></tr>
+            <tr><td><strong>Fase 3:</strong> Facturación Robusta</td><td>2–3 semanas</td><td style="color:var(--danger);font-weight:600;">P0 — Crítica</td><td>Requerimiento legal (AFIP)</td></tr>
+            <tr><td><strong>Fase 4:</strong> AFIP Integration</td><td>3–4 semanas</td><td style="color:var(--danger);font-weight:600;">P0 — Crítica</td><td>Facturación electrónica legal</td></tr>
+            <tr><td><strong>Fase 5:</strong> Sync Avanzado</td><td>2 semanas</td><td style="color:var(--warning);font-weight:600;">P1 — Alta</td><td>Robustez del sistema offline</td></tr>
+            <tr><td><strong>Fase 6:</strong> Módulos Nuevos</td><td>4–6 semanas</td><td style="color:var(--success);font-weight:600;">P2 — Media</td><td>Expansión funcional</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="footer">
+  <p>
+    <strong>Arquitectura ERP Multi-Industria</strong> — Mundo Outdoor SaaS Platform — 2026
+  </p>
+  <p style="margin-top:6px;font-size:0.75rem;">
+    PostgreSQL 18.3 (puerto 2048) · FastAPI (puerto 8000) · React 19 + Vite 8 (puerto 5174) · PWA Offline-First
+  </p>
+</footer>
+
+<!-- ═══════════ JAVASCRIPT ═══════════ -->
+<script>
+// ─── Section Toggle ───
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const isOpen = header.classList.contains('open');
+
+  if (isOpen) {
+    header.classList.remove('open');
+    body.classList.remove('open');
+  } else {
+    header.classList.add('open');
+    body.classList.add('open');
+  }
+}
+
+// ─── Sidebar Toggle (mobile) ───
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ─── Active TOC link on scroll ───
+function updateActiveTOC() {
+  const sections = document.querySelectorAll('.section[id]');
+  const tocLinks = document.querySelectorAll('.toc-link');
+  let currentId = '';
+
+  sections.forEach(section => {
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= 120) {
+      currentId = section.id;
+    }
+  });
+
+  tocLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + currentId) {
+      link.classList.add('active');
+    }
+  });
+}
+
+window.addEventListener('scroll', updateActiveTOC, { passive: true });
+window.addEventListener('load', updateActiveTOC);
+
+// ─── Close sidebar on link click (mobile) ───
+document.querySelectorAll('.toc-link').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth <= 1024) {
+      document.getElementById('sidebar').classList.remove('open');
+    }
+  });
+});
+
+// ─── Initialize: first two sections open, rest closed ───
+document.addEventListener('DOMContentLoaded', () => {
+  updateActiveTOC();
+});
+</script>
+</body>
+</html>

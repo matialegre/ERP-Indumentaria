@@ -1,0 +1,56 @@
+# Dependencias
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Instaladores y distribuibles pesados
+Instaladores/
+DISTRIBUIBLES/
+erp/electron/dist-electron/
+
+# Builds
+dist/
+build/
+*.egg-info/
+
+# Archivos pesados
+*.zip
+*.exe
+
+# Entorno y secretos
+.env
+*.env.local
+CREDENCIALES.txt
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Base de datos local
+BASE DE DATOS/
+erp/backend/*.db
+erp/backend/data/
+erp/backend/.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Misc
+*.bak
+*.tmp
+
+ULTIMO CONTROL/
+# Sesiones / caches temporales
+A AGREGAR/OPENCLAW/scripts/.ww-session/
+*.err

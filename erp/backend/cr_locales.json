@@ -1,0 +1,57 @@
+[
+  {
+    "LOCALES_NOMBRE": "Montagne General Roca",
+    "LOCALES_ID": 6,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Montagne Mar Del Plata Güemes",
+    "LOCALES_ID": 10,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Montagne Mar Del Plata Juan B. Justo",
+    "LOCALES_ID": 11,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Montagne Neuquén Centro",
+    "LOCALES_ID": 4,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Montagne Villa María",
+    "LOCALES_ID": 12,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Mundo Outdoor Bahía Blanca Plaza Shopping",
+    "LOCALES_ID": 9,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Mundo Outdoor Bahía Blanca San Martín",
+    "LOCALES_ID": 8,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Mundo Outdoor General Roca",
+    "LOCALES_ID": 7,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Mundo Outdoor Palermo",
+    "LOCALES_ID": 3,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Neuquén Shopping Alto Comahue",
+    "LOCALES_ID": 5,
+    "LOCALES_ANULADO": false
+  },
+  {
+    "LOCALES_NOMBRE": "Neuquén Shopping Paseo de la Patagonia",
+    "LOCALES_ID": 2,
+    "LOCALES_ANULADO": false
+  }
+]

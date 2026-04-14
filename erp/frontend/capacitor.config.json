@@ -1,0 +1,10 @@
+{
+  "appId": "com.mundooutdoor.erp",
+  "appName": "ERP Mundo Outdoor",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

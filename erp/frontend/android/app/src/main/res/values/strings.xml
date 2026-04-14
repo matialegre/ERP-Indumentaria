@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ERP Mundo Outdoor</string>
+    <string name="title_activity_main">ERP Mundo Outdoor</string>
+    <string name="package_name">com.mundooutdoor.erp</string>
+    <string name="custom_url_scheme">com.mundooutdoor.erp</string>
+</resources>

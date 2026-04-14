@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+      width: 460px; height: 320px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      color: white;
+      border-radius: 20px;
+      overflow: hidden;
+      -webkit-app-region: drag;
+      position: relative;
+    }
+    /* Fondo decorativo */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+      top: -80px; right: -80px;
+      border-radius: 50%;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+      bottom: -60px; left: -60px;
+      border-radius: 50%;
+    }
+    .content { position: relative; z-index: 1; text-align: center; }
+    .logo-wrap {
+      width: 72px; height: 72px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .logo-wrap img { width: 48px; height: 48px; object-fit: contain; }
+    .logo-text { font-size: 28px; font-weight: 900; letter-spacing: -1px; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(99,102,241,0); }
+    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+    .subtitle { font-size: 12px; opacity: 0.5; margin-bottom: 28px; text-transform: uppercase; letter-spacing: 2px; }
+    .progress-bar {
+      width: 180px; height: 3px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #60a5fa, #a78bfa);
+      border-radius: 99px;
+      animation: progress 3s ease-in-out infinite;
+    }
+    @keyframes progress {
+      0% { width: 0%; transform: translateX(0); }
+      50% { width: 70%; }
+      100% { width: 100%; }
+    }
+    .status { font-size: 11px; opacity: 0.55; min-height: 16px; }
+    .version { position: absolute; bottom: 14px; right: 18px; font-size: 10px; opacity: 0.3; }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <div class="logo-wrap">
+      <div class="logo-text">ERP</div>
+    </div>
+    <h1>ERP Sistema</h1>
+    <div class="subtitle">Panel de Administración</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+    <div class="status" id="status">Iniciando servicios...</div>
+  </div>
+  <div class="version">v1.0</div>
+  <script>
+    const msgs = [
+      'Iniciando servicios...',
+      'Verificando Python...',
+      'Conectando base de datos...',
+      'Cargando módulos...',
+      'Preparando interfaz...',
+      'Casi listo...'
+    ];
+    let i = 0;
+    const el = document.getElementById('status');
+    setInterval(() => { el.textContent = msgs[Math.min(i++, msgs.length - 1)]; }, 1800);
+    // Recibir actualizaciones del proceso principal
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.status) el.textContent = e.data.status;
+    });
+  </script>
+</body>
+</html>

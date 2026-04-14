@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Configurar conexión</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8fafc; color: #1e293b;
+      padding: 32px;
+      height: 100vh;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .logo { font-size: 28px; font-weight: 900; color: #1e40af; margin-bottom: 4px; }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #374151; }
+    input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .btn {
+      width: 100%; padding: 11px;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      margin-top: 10px; transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: #1e40af; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .divider { text-align: center; color: #94a3b8; font-size: 12px; margin: 16px 0; }
+    .error { color: #ef4444; font-size: 12px; margin-top: 6px; display: none; }
+    .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="logo">ERP</div>
+  <h2>Configurar conexión al servidor</h2>
+  <p>Ingresá la dirección del servidor ERP de tu empresa</p>
+
+  <label>Dirección del servidor</label>
+  <input type="text" id="serverUrl" placeholder="Ej: http://192.168.0.122:8000" />
+  <div class="hint">Pedile la dirección al encargado del sistema</div>
+  <div class="error" id="error">⚠️ URL inválida. Debe ser http://IP:8000</div>
+
+  <button class="btn btn-primary" onclick="connect()" style="margin-top:20px">Conectar</button>
+
+  <div class="divider">— o —</div>
+
+  <button class="btn btn-secondary" onclick="useLocal()">
+    Usar servidor local (esta PC es el servidor)
+  </button>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      const saved = await window.erpApp.getServerUrl();
+      if (saved) document.getElementById('serverUrl').value = saved;
+      else document.getElementById('serverUrl').value = 'http://190.211.201.217:8000';
+    });
+
+    function connect() {
+      const url = document.getElementById('serverUrl').value.trim();
+      const err = document.getElementById('error');
+      if (!url.match(/^https?:\/\/.+:\d+$/)) {
+        err.style.display = 'block'; return;
+      }
+      err.style.display = 'none';
+      window.erpApp.saveServerUrl(url);
+    }
+
+    function useLocal() {
+      window.erpApp.useLocalServer();
+    }
+  </script>
+</body>
+</html>

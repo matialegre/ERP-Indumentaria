@@ -1,0 +1,14 @@
+{
+  "description": "TallerEuro - Cliente",
+  "devDependencies": {
+    "electron-packager": "^17.1.2",
+    "electron": "^35.1.5"
+  },
+  "name": "erp-taller-euro",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . \"TallerEuro\" --platform=win32 --arch=x64 --out=dist --overwrite"
+  },
+  "version": "1.0.0"
+}

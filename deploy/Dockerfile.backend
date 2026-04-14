@@ -1,0 +1,45 @@
+# ─── Dockerfile multi-stage — Backend ERP Mundo Outdoor ───
+# Etapa 1: instalar dependencias Python
+# Etapa 2: copiar código y ejecutar uvicorn
+
+# ── Etapa 1: dependencias ──────────────────────────────────────────────────────
+FROM python:3.12-slim AS deps
+
+WORKDIR /app
+
+# Paquetes del sistema necesarios para psycopg2 y bcrypt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY erp/backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── Etapa 2: aplicación ────────────────────────────────────────────────────────
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Solo las libs de runtime (sin gcc)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libpq5 curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copiar paquetes Python instalados en la etapa anterior
+COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Copiar código del backend
+COPY erp/backend/ .
+
+# Copiar frontend buildeado (si existe) para servir estáticos desde el backend
+COPY erp/frontend/dist/ /app/../frontend/dist/
+
+EXPOSE 8000
+
+# Health check interno del contenedor
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# 4 workers para producción; en dev se sobreescribe con --reload
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

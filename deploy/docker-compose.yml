@@ -1,0 +1,79 @@
+# ─── Docker Compose — ERP Mundo Outdoor ───
+# Servicios: PostgreSQL, Backend FastAPI, Nginx reverse proxy
+# Uso: docker-compose up -d --build
+
+version: "3.9"
+
+services:
+  # ── Base de datos PostgreSQL ─────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: erp_db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-2048}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-erp_mundooutdoor}
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-MundoOutdoor2026!}
+    volumes:
+      - erp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_mundooutdoor}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - erp_network
+
+  # ── Backend FastAPI ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    container_name: erp_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://erp_user:MundoOutdoor2026!@db:5432/erp_mundooutdoor}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+    volumes:
+      # Modo desarrollo: montar código fuente para hot-reload
+      # Comentar estas líneas en producción
+      - ../erp/backend:/app
+      - ../erp/frontend/dist:/app/../frontend/dist
+    networks:
+      - erp_network
+
+  # ── Nginx reverse proxy ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: erp_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../erp/frontend/dist:/app/frontend/dist:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - erp_network
+
+volumes:
+  erp_pgdata:
+    driver: local
+
+networks:
+  erp_network:
+    driver: bridge

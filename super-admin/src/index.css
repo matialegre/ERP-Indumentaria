@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --brand: #6366f1;
+  --brand-dark: #4f46e5;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-slate-900; }
+::-webkit-scrollbar-thumb { @apply bg-slate-600 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }

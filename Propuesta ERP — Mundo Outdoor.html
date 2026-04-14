@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<!-- saved from url=(0091)file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propuesta ERP — Mundo Outdoor</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg: #09090b;
+            --bg2: #111114;
+            --card: #18181b;
+            --card2: #1f1f23;
+            --border: #27272a;
+            --border-light: #3f3f46;
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --primary-glow: rgba(99,102,241,.15);
+            --green: #22c55e;
+            --green-bg: rgba(34,197,94,.08);
+            --green-border: rgba(34,197,94,.2);
+            --amber: #f59e0b;
+            --amber-bg: rgba(245,158,11,.08);
+            --amber-border: rgba(245,158,11,.2);
+            --red: #ef4444;
+            --red-bg: rgba(239,68,68,.08);
+            --red-border: rgba(239,68,68,.2);
+            --cyan: #06b6d4;
+            --cyan-bg: rgba(6,182,212,.08);
+            --rose: #f43f5e;
+            --violet: #8b5cf6;
+            --text: #fafafa;
+            --text2: #a1a1aa;
+            --text3: #71717a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.65;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── HERO ─── */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4rem 2rem;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 70%);
+            top: -200px; left: 50%; transform: translateX(-50%);
+            animation: heroGlow 6s ease-in-out infinite alternate;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 60%, var(--bg));
+            pointer-events: none;
+        }
+
+        @keyframes heroGlow {
+            0% { opacity: .5; transform: translateX(-50%) scale(1); }
+            100% { opacity: 1; transform: translateX(-50%) scale(1.2); }
+        }
+
+        .hero-eyebrow {
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .4rem 1rem;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            font-size: .75rem;
+            color: var(--text2);
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+            animation: fadeUp .8s ease-out;
+        }
+
+        .hero-eyebrow .dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+
+        .hero h1 {
+            z-index: 1;
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            letter-spacing: -.03em;
+            line-height: 1.1;
+            animation: fadeUp 1s ease-out;
+        }
+
+        .hero h1 .gradient {
+            background: linear-gradient(135deg, var(--primary-light), var(--cyan), var(--green));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero .subtitle {
+            z-index: 1;
+            max-width: 650px;
+            color: var(--text2);
+            font-size: 1.15rem;
+            margin-top: 1.5rem;
+            animation: fadeUp 1.2s ease-out;
+        }
+
+        .hero-stats {
+            z-index: 1;
+            display: flex;
+            gap: 3rem;
+            margin-top: 3rem;
+            animation: fadeUp 1.4s ease-out;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat .num {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-light);
+        }
+
+        .hero-stat .label {
+            font-size: .75rem;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── NAV ─── */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(9,9,11,.8);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            gap: .25rem;
+            padding: .6rem 1rem;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: var(--text3);
+            text-decoration: none;
+            font-size: .72rem;
+            font-weight: 500;
+            padding: .4rem .8rem;
+            border-radius: 6px;
+            transition: all .2s;
+            letter-spacing: .02em;
+        }
+
+        .nav a:hover {
+            color: var(--primary-light);
+            background: var(--primary-glow);
+        }
+
+        /* ─── SECTIONS ─── */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            font-size: .7rem;
+            font-weight: 600;
+            color: var(--primary-light);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: .6rem;
+        }
+
+        .section-title {
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            font-weight: 800;
+            letter-spacing: -.02em;
+            margin-bottom: .5rem;
+        }
+
+        .section-desc {
+            color: var(--text2);
+            font-size: .95rem;
+            max-width: 650px;
+            margin-bottom: 2.5rem;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ─── CARDS ─── */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .hero-stats { flex-direction: column; gap: 1.5rem; }
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            transition: transform .3s, border-color .3s, box-shadow .3s;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-light);
+            box-shadow: 0 12px 40px rgba(0,0,0,.3);
+        }
+
+        .card-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: .3rem;
+        }
+
+        .card p {
+            font-size: .82rem;
+            color: var(--text2);
+        }
+
+        /* ─── COMPARISON TABLE ─── */
+        .compare-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: .82rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .compare-table thead th {
+            background: var(--card);
+            padding: .8rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--text2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .compare-table thead th:nth-child(2) {
+            color: var(--amber);
+        }
+
+        .compare-table thead th:nth-child(3) {
+            color: var(--primary-light);
+        }
+
+        .compare-table tbody td {
+            padding: .7rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,.03);
+        }
+
+        .compare-table tbody tr:last-child td { border-bottom: none; }
+
+        .compare-table tbody tr:hover { background: rgba(99,102,241,.03); }
+
+        .compare-table td:first-child {
+            color: var(--text2);
+            font-weight: 500;
+        }
+
+        /* ─── TAG / BADGE ─── */
+        .tag {
+            display: inline-block;
+            font-size: .65rem;
+            font-weight: 600;
+            padding: .2rem .55rem;
+            border-radius: 5px;
+            letter-spacing: .02em;
+        }
+
+        .tag-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+        .tag-amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+        .tag-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+        .tag-primary { background: var(--primary-glow); color: var(--primary-light); border: 1px solid rgba(99,102,241,.25); }
+
+        /* ─── ALERT BOX ─── */
+        .alert {
+            border-radius: 12px;
+            padding: 1.3rem 1.5rem;
+            margin: 1.5rem 0;
+            font-size: .88rem;
+        }
+
+        .alert-green {
+            background: var(--green-bg);
+            border: 1px solid var(--green-border);
+        }
+
+        .alert-green strong { color: var(--green); }
+
+        .alert-amber {
+            background: var(--amber-bg);
+            border: 1px solid var(--amber-border);
+        }
+
+        .alert-amber strong { color: var(--amber); }
+
+        .alert-red {
+            background: var(--red-bg);
+            border: 1px solid var(--red-border);
+        }
+
+        .alert-red strong { color: var(--red); }
+
+        /* ─── CODE / DIAGRAM ─── */
+        .diagram-box {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        .diagram-box pre {
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: .78rem;
+            line-height: 1.8;
+            color: var(--text2);
+        }
+
+        .hl-p { color: var(--primary-light); }
+        .hl-g { color: var(--green); }
+        .hl-a { color: var(--amber); }
+        .hl-c { color: var(--cyan); }
+        .hl-r { color: var(--rose); }
+        .hl-v { color: var(--violet); }
+        .hl-w { color: var(--text); font-weight: 700; }
+
+        /* ─── TIMELINE ─── */
+        .timeline {
+            position: relative;
+            padding-left: 2.5rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: .65rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--green), var(--amber));
+            border-radius: 1px;
+        }
+
+        .tl-item {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .tl-dot {
+            position: absolute;
+            left: -2.15rem;
+            top: .2rem;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+
+        .tl-item h4 {
+            font-size: .95rem;
+            font-weight: 700;
+            margin-bottom: .2rem;
+        }
+
+        .tl-item p {
+            font-size: .82rem;
+            color: var(--text2);
+        }
+
+        .tl-modules {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .4rem;
+            margin-top: .5rem;
+        }
+
+        /* ─── INFRA CARDS ─── */
+        .infra-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.8rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .infra-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .infra-card.recommended::before { background: linear-gradient(90deg, var(--green), var(--cyan)); }
+        .infra-card.alternative::before { background: linear-gradient(90deg, var(--amber), var(--rose)); }
+
+        .infra-card .price {
+            font-size: 2rem;
+            font-weight: 800;
+            margin: .5rem 0;
+        }
+
+        .infra-card .price small {
+            font-size: .8rem;
+            font-weight: 400;
+            color: var(--text3);
+        }
+
+        .infra-card ul {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .infra-card ul li {
+            padding: .35rem 0;
+            font-size: .82rem;
+            color: var(--text2);
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+
+        .infra-card ul li .check { color: var(--green); font-weight: 700; }
+        .infra-card ul li .cross { color: var(--red); font-weight: 700; }
+
+        /* ─── VPS TABLE ─── */
+        .vps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+
+        .vps-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.3rem;
+            text-align: center;
+            transition: transform .3s, border-color .3s;
+        }
+
+        .vps-card:hover { transform: translateY(-2px); }
+
+        .vps-card.best {
+            border-color: var(--green);
+            box-shadow: 0 0 30px rgba(34,197,94,.08);
+        }
+
+        .vps-card .vps-name {
+            font-weight: 700;
+            font-size: .95rem;
+        }
+
+        .vps-card .vps-specs {
+            font-size: .75rem;
+            color: var(--text3);
+            margin: .5rem 0;
+        }
+
+        .vps-card .vps-price {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--green);
+        }
+
+        .vps-card .vps-price small {
+            font-size: .7rem;
+            font-weight: 400;
+            color: var(--text3);
+        }
+
+        /* ─── LOCAL DEV PC ─── */
+        .pc-meter {
+            height: 10px;
+            background: rgba(255,255,255,.06);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: .3rem 0 .8rem;
+        }
+
+        .pc-meter-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 1.5s ease-out;
+        }
+
+        /* ─── DESIGNER SECTION ─── */
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-box {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            text-align: center;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .flow-box h4 { font-size: .85rem; font-weight: 700; }
+        .flow-box p { font-size: .75rem; color: var(--text2); margin-top: .3rem; }
+
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: var(--primary-light);
+            flex-shrink: 0;
+        }
+
+        /* ─── FOOTER ─── */
+        footer {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text3);
+            font-size: .75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ─── PRINT BTN ─── */
+        .print-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 999;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: .8rem 1.4rem;
+            border-radius: 10px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 6px 24px rgba(99,102,241,.3);
+            transition: transform .2s;
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            font-family: 'Inter', sans-serif;
+        }
+        .print-btn:hover { transform: translateY(-2px); }
+
+        /* ─── REVEAL ─── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity .6s ease-out, transform .6s ease-out;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ─── PRINT ─── */
+        @media print {
+            @page { size: A4; margin: 15mm; }
+            :root {
+                --bg: #fff; --bg2: #f9fafb; --card: #f3f4f6; --border: #e5e7eb;
+                --text: #111; --text2: #374151; --text3: #6b7280;
+                --primary: #4f46e5; --primary-light: #4338ca;
+                --green: #16a34a; --amber: #d97706; --red: #dc2626;
+                --cyan: #0891b2; --rose: #e11d48; --violet: #7c3aed;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                animation: none !important;
+                transition: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+            body { background: #fff !important; font-size: 9pt; }
+            .nav, .print-btn { display: none !important; }
+            .hero { min-height: auto !important; padding: 2rem 0 1rem; }
+            .hero::before, .hero::after { display: none; }
+            .hero h1 { font-size: 22pt; }
+            .hero h1 .gradient {
+                background: none !important;
+                -webkit-text-fill-color: var(--primary) !important;
+            }
+            .container { padding: 1.5rem 0; }
+            .card:hover, .vps-card:hover, .archi-card:hover, .infra-card:hover { transform: none; box-shadow: none; }
+            .card, .infra-card, .diagram-box, .vps-card, .flow-box { page-break-inside: avoid; }
+            #infra { page-break-before: always; }
+            #design { page-break-before: always; }
+            #roadmap { page-break-before: always; }
+            .grid-2 { grid-template-columns: 1fr 1fr !important; }
+            .grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+    <div class="hero-eyebrow">
+        <span class="dot"></span>
+        Documento técnico interno
+    </div>
+    <h1>ERP <span class="gradient">Mundo Outdoor</span></h1>
+    <p class="subtitle">Relevamiento técnico para la construcción de un sistema de gestión propio: stock por talle y color, compras, ventas, facturación, logística y reportes.</p>
+    <div class="hero-stats">
+        <div class="hero-stat">
+            <div class="num">500</div>
+            <div class="label">Usuarios simultáneos (máx.)</div>
+        </div>
+        <div class="hero-stat">
+            <div class="num">14</div>
+            <div class="label">Módulos planificados</div>
+        </div>
+        <div class="hero-stat">
+            <div class="num">3</div>
+            <div class="label">Años de desarrollo</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#scale">Escalabilidad</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#stack">Tecnologías</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#infra">Infraestructura</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#localpc">¿Desde mi PC?</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#design">Diseño</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#modules">Módulos</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#roadmap">Roadmap</a>
+    <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/CONTROL%20REMITOS/erp_mundo_outdoor_propuesta.html#existing">Ya construido</a>
+</nav>
+
+<!-- ═══ 2. ESCALA ═══ -->
+<div class="divider"></div>
+<section id="scale" class="container reveal visible">
+    <div class="section-label">01 — Dimensionamiento</div>
+    <h2 class="section-title">50 vs 200 vs 500 usuarios — ¿Qué cambia?</h2>
+    <p class="section-desc">La tecnología base es la misma. Lo que cambia es el tamaño del servidor y componentes adicionales para manejar la concurrencia.</p>
+
+    <table class="compare-table">
+        <thead>
+            <tr>
+                <th>Componente</th>
+                <th>50 usuarios</th>
+                <th>200 usuarios</th>
+                <th style="color:var(--rose);">500 usuarios</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Workers de API</td>
+                <td>4</td>
+                <td><b>8–12</b></td>
+                <td><b>16–24</b> (o 2 servidores)</td>
+            </tr>
+            <tr>
+                <td>RAM del servidor</td>
+                <td>16 GB</td>
+                <td><b>32–64 GB</b></td>
+                <td><b>128 GB</b> (o distribuido)</td>
+            </tr>
+            <tr>
+                <td>CPU</td>
+                <td>8 cores</td>
+                <td><b>16–32 cores</b></td>
+                <td><b>32–48 cores</b></td>
+            </tr>
+            <tr>
+                <td>Conexiones DB</td>
+                <td>Pool de 20</td>
+                <td>Pool de 80–100</td>
+                <td><b>Pool de 200 + réplica lectura</b></td>
+            </tr>
+            <tr>
+                <td>PgBouncer</td>
+                <td><span class="tag tag-amber">Opcional</span></td>
+                <td><span class="tag tag-red">Obligatorio</span></td>
+                <td><span class="tag tag-red">Obligatorio</span></td>
+            </tr>
+            <tr>
+                <td>Redis</td>
+                <td>1 instancia</td>
+                <td>1 instancia</td>
+                <td><b>1 instancia + Redis Cluster si es necesario</b></td>
+            </tr>
+            <tr>
+                <td>Arquitectura</td>
+                <td>1 servidor</td>
+                <td>1 servidor</td>
+                <td><b>2+ servidores (load balancer)</b></td>
+            </tr>
+            <tr>
+                <td>Base de datos</td>
+                <td>1 PostgreSQL</td>
+                <td>1 PostgreSQL</td>
+                <td><b>1 primario + 1 réplica de lectura</b></td>
+            </tr>
+            <tr>
+                <td>Internet</td>
+                <td>100 Mbps</td>
+                <td>500 Mbps</td>
+                <td><b>1 Gbps simétrico</b></td>
+            </tr>
+            <tr>
+                <td>Costo mensual (VPS)</td>
+                <td>~$65 USD</td>
+                <td><b>~$120–180 USD</b></td>
+                <td><b>~$350–500 USD</b></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="alert alert-amber" style="margin-top:1.5rem;">
+        <strong>¿Qué es PgBouncer?</strong> — Cuando muchas personas hacen consultas a la base de datos al mismo tiempo, PostgreSQL abre una conexión por cada una, consumiendo memoria. PgBouncer se pone adelante y reutiliza un pool fijo de conexiones. A partir de ~100 usuarios es necesario.
+    </div>
+
+    <!-- ESCALADO PROGRESIVO -->
+    <h3 style="font-size:1.1rem; margin-top:2.5rem;">Cómo se escala progresivamente</h3>
+    <p style="color:var(--text2); font-size:.88rem; margin-bottom:1.5rem;">El sistema no necesita arrancar sobredimensionado. Se empieza con lo mínimo y se agregan recursos a medida que se necesitan. Cada paso se hace sin tirar lo anterior.</p>
+
+    <div style="display:flex; flex-direction:column; gap:0;">
+
+        <!-- Paso 1 -->
+        <div style="display:flex; gap:1.2rem; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:40px;">
+                <div style="width:32px; height:32px; border-radius:50%; background:var(--green-bg); border:2px solid var(--green); display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:800; color:var(--green);">1</div>
+                <div style="width:2px; height:60px; background:linear-gradient(var(--green), var(--primary));"></div>
+            </div>
+            <div style="padding-bottom:1rem;">
+                <div style="font-weight:700; font-size:.9rem;">Arranque — 1 a 50 usuarios <span class="tag tag-green" style="margin-left:.5rem;">VPS de $30-65/mes</span></div>
+                <p style="font-size:.82rem; color:var(--text2); margin-top:.3rem;">Un solo servidor VPS chico (8 cores, 16 GB). Todo corre junto: Nginx + FastAPI + PostgreSQL + Redis. Sin PgBouncer. Suficiente para los primeros meses de uso real.</p>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.2rem;">No se tira nada al escalar: se migra la base de datos al servidor más grande.</p>
+            </div>
+        </div>
+
+        <!-- Paso 2 -->
+        <div style="display:flex; gap:1.2rem; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:40px;">
+                <div style="width:32px; height:32px; border-radius:50%; background:var(--primary-glow); border:2px solid var(--primary-light); display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:800; color:var(--primary-light);">2</div>
+                <div style="width:2px; height:60px; background:linear-gradient(var(--primary), var(--amber));"></div>
+            </div>
+            <div style="padding-bottom:1rem;">
+                <div style="font-weight:700; font-size:.9rem;">Crecimiento — 50 a 200 usuarios <span class="tag tag-primary" style="margin-left:.5rem;">VPS de $120-180/mes</span></div>
+                <p style="font-size:.82rem; color:var(--text2); margin-top:.3rem;">Se cambia a un VPS más grande (16-32 cores, 32-64 GB). Se agrega PgBouncer. Se aumentan los workers de FastAPI a 8-12. La misma arquitectura, más recursos.</p>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.2rem;">En Hetzner, cambiar de plan toma 5 minutos. No hay migración compleja.</p>
+            </div>
+        </div>
+
+        <!-- Paso 3 -->
+        <div style="display:flex; gap:1.2rem; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:40px;">
+                <div style="width:32px; height:32px; border-radius:50%; background:var(--amber-bg); border:2px solid var(--amber); display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:800; color:var(--amber);">3</div>
+                <div style="width:2px; height:60px; background:linear-gradient(var(--amber), var(--rose));"></div>
+            </div>
+            <div style="padding-bottom:1rem;">
+                <div style="font-weight:700; font-size:.9rem;">Límite de 1 servidor — ~200-300 usuarios <span class="tag tag-amber" style="margin-left:.5rem;">Techo del servidor único</span></div>
+                <p style="font-size:.82rem; color:var(--text2); margin-top:.3rem;">Acá se llega al límite de lo que un solo servidor puede manejar bien. Las señales: tiempos de respuesta suben a &gt;500ms en horarios pico, CPU constantemente &gt;80%, queries lentas en la base de datos.</p>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.2rem;">La solución no es poner un servidor más grande sino separar componentes.</p>
+            </div>
+        </div>
+
+        <!-- Paso 4 -->
+        <div style="display:flex; gap:1.2rem; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:40px;">
+                <div style="width:32px; height:32px; border-radius:50%; background:var(--red-bg); border:2px solid var(--rose); display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:800; color:var(--rose);">4</div>
+                <div style="width:2px; height:30px; background:transparent;"></div>
+            </div>
+            <div style="padding-bottom:1rem;">
+                <div style="font-weight:700; font-size:.9rem;">Arquitectura distribuida — 300 a 500+ usuarios <span class="tag tag-red" style="margin-left:.5rem;">$350-500/mes (múltiples servidores)</span></div>
+                <p style="font-size:.82rem; color:var(--text2); margin-top:.3rem;">Se separan los servicios en servidores distintos:</p>
+                <ul style="list-style:none; font-size:.8rem; color:var(--text2); margin-top:.3rem;">
+                    <li style="padding:.2rem 0;">• <b>Servidor 1:</b> Nginx + Frontend (load balancer)</li>
+                    <li style="padding:.2rem 0;">• <b>Servidor 2:</b> FastAPI workers (la API)</li>
+                    <li style="padding:.2rem 0;">• <b>Servidor 3:</b> PostgreSQL primario (escrituras)</li>
+                    <li style="padding:.2rem 0;">• <b>Servidor 4:</b> PostgreSQL réplica (lecturas — reportes, consultas de stock)</li>
+                    <li style="padding:.2rem 0;">• <b>Servidor 5 (opcional):</b> Redis + PgBouncer + workers async</li>
+                </ul>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.3rem;">El código no cambia. Solo cambia dónde corre cada componente.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIAGRAMA DE ESCALADO -->
+    <div class="diagram-box" style="margin-top:1.5rem;">
+        <div style="font-weight:700; color:var(--primary-light); margin-bottom:1rem; font-size:.9rem;">Escalado visual — De 1 servidor a arquitectura distribuida</div>
+        <pre><span class="hl-g">PASO 1-2 (hasta ~200 usuarios):</span>       <span class="hl-r">PASO 4 (300-500+ usuarios):</span>
+
+  ┌───────────────────┐               ┌─────────────┐
+  │  <span class="hl-w">1 SERVIDOR</span>       │               │ <span class="hl-c">LOAD BALANCER</span>│  (Nginx)
+  │                   │               └──────┬───────┘
+  │  Nginx            │                  ┌───┴───┐
+  │  FastAPI (x8)     │               ┌──┴──┐ ┌──┴──┐
+  │  PostgreSQL       │               │<span class="hl-p"> API </span>│ │<span class="hl-p"> API </span>│  (FastAPI x12 c/u)
+  │  Redis            │               │<span class="hl-p"> SRV1</span>│ │<span class="hl-p"> SRV2</span>│
+  │  PgBouncer        │               └──┬──┘ └──┬──┘
+  │                   │                  └───┬───┘
+  └───────────────────┘               ┌──────┴───────┐
+                                      │  <span class="hl-a">PgBouncer</span>   │
+                                      └──────┬───────┘
+                                         ┌───┴───┐
+                                      ┌──┴──┐ ┌──┴──┐
+                                      │<span class="hl-v"> PG  </span>│ │<span class="hl-v"> PG  </span>│
+                                      │<span class="hl-v">WRITE</span>│ │<span class="hl-v"> READ</span>│  (réplica)
+                                      └─────┘ └─────┘
+        </pre>
+    </div>
+
+    <!-- CUÁNDO ESCALAR -->
+    <h3 style="font-size:1.1rem; margin-top:2rem;">¿Cuándo se necesita escalar?</h3>
+    <p style="color:var(--text2); font-size:.88rem; margin-bottom:1rem;">No se escala preventivamente, se escala cuando se detectan estas señales:</p>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3 style="color:var(--amber);">Señales de que falta capacidad</h3>
+            <ul style="list-style:none; font-size:.82rem; margin-top:.5rem;">
+                <li style="padding:.3rem 0; color:var(--text2);">• Tiempos de respuesta &gt; 500ms en horarios pico</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• CPU del servidor constantemente &gt; 80%</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• RAM al 90%+ de uso</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• Queries de base de datos tardan &gt; 1 segundo</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• Usuarios reportan "lentitud" al mediodía</li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3 style="color:var(--green);">Qué se hace en cada caso</h3>
+            <ul style="list-style:none; font-size:.82rem; margin-top:.5rem;">
+                <li style="padding:.3rem 0; color:var(--text2);">• CPU alta → agregar más workers o más cores</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• RAM alta → subir plan del VPS (minutos)</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• Queries lentas → agregar réplica de lectura</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• Todo lento → separar DB en su propio servidor</li>
+                <li style="padding:.3rem 0; color:var(--text2);">• 300+ usuarios → load balancer + 2 APIs</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="alert alert-green" style="margin-top:1.5rem;">
+        <strong>Dato clave:</strong> El código del sistema es el mismo en todos los pasos. Escalar no implica reescribir nada. Solo implica cambiar dónde y con cuántos recursos corre cada componente. Se puede arrancar con $65/mes y llegar a 500 usuarios con $500/mes sin tocar una línea de código.
+    </div>
+
+    <!-- OBJETIVO 500 USUARIOS -->
+    <div style="margin-top:2.5rem; padding:2rem; border-radius:16px; background:linear-gradient(135deg, rgba(99,102,241,.08), rgba(244,63,94,.08)); border:1px solid rgba(99,102,241,.2);">
+        <h3 style="font-size:1.15rem; margin-bottom:.5rem;">Si el objetivo es llegar a 500 usuarios</h3>
+        <p style="color:var(--text2); font-size:.88rem; margin-bottom:1.5rem;">El camino correcto es arrancar chico en infraestructura pero desde el día 1 escribir el código preparado para escalar. Esto no cuesta más plata ni más tiempo — es simplemente cómo se programa.</p>
+
+        <div class="grid-2" style="margin-bottom:1.5rem;">
+            <div class="card" style="border-color:var(--green-border);">
+                <h3 style="color:var(--green); font-size:.95rem;">Lo que se hace desde el día 1 en el código (gratis)</h3>
+                <ul style="list-style:none; font-size:.82rem; margin-top:.5rem;">
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> Usar <b>PostgreSQL</b> desde el arranque (no SQLite)</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> API <b>stateless</b>: no guardar sesiones en memoria del servidor</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Redis</b> como caché desde el principio</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Índices</b> en la base de datos en todas las consultas frecuentes</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Variables de entorno</b> para todas las conexiones (DB, Redis, API URL)</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Paginación</b> en todas las tablas/listados (nunca cargar 10.000 registros)</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Queries optimizadas</b>: no SELECT *, no N+1, usar JOINs</li>
+                    <li style="padding:.3rem 0; color:var(--text2);"><span style="color:var(--green);">✓</span> <b>Separación frontend/backend</b>: React sirve archivos estáticos, API es independiente</li>
+                </ul>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.8rem;">Estas prácticas ya están contempladas en el stack propuesto (FastAPI + PostgreSQL + Redis + React). No agregan costo ni complejidad.</p>
+            </div>
+
+            <div class="card">
+                <h3 style="color:var(--primary-light); font-size:.95rem;">Lo que cambia solo en infraestructura (cuando se necesite)</h3>
+                <table style="width:100%; font-size:.78rem; margin-top:.5rem; border-collapse:collapse;">
+                    <tbody><tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:.4rem .3rem; color:var(--text3);">Usuarios</td>
+                        <td style="padding:.4rem .3rem; color:var(--text3);">Infra</td>
+                        <td style="padding:.4rem .3rem; color:var(--text3);">Costo</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:.4rem .3rem;">1–50</td>
+                        <td style="padding:.4rem .3rem;">1 VPS (todo junto)</td>
+                        <td style="padding:.4rem .3rem;">$65/mes</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:.4rem .3rem;">50–200</td>
+                        <td style="padding:.4rem .3rem;">1 VPS más grande + PgBouncer</td>
+                        <td style="padding:.4rem .3rem;">$120–180/mes</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:.4rem .3rem;">200–300</td>
+                        <td style="padding:.4rem .3rem;">DB separada en su propio servidor</td>
+                        <td style="padding:.4rem .3rem;">$200–300/mes</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:.4rem .3rem; font-weight:700;">300–500+</td>
+                        <td style="padding:.4rem .3rem; font-weight:700;">Load balancer + 2 APIs + DB primario + réplica</td>
+                        <td style="padding:.4rem .3rem; font-weight:700;">$350–500/mes</td>
+                    </tr>
+                </tbody></table>
+                <p style="font-size:.75rem; color:var(--text3); margin-top:.8rem;">Cada paso es un cambio de configuración, no de código. Se hace cuando los datos de monitoreo indican que es necesario.</p>
+            </div>
+        </div>
+
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.2rem; font-size:.85rem;">
+            <div style="font-weight:700; margin-bottom:.5rem;">Ejemplo concreto del recorrido en el tiempo:</div>
+            <div style="display:flex; flex-wrap:wrap; gap:.8rem; font-size:.8rem; color:var(--text2);">
+                <div style="flex:1; min-width:200px; padding:.5rem .8rem; border-radius:8px; background:var(--green-bg); border-left:3px solid var(--green);">
+                    <b style="color:var(--green);">Mes 1–6</b><br>
+                    Desarrollo en PC local. Deploy en VPS de $30. Solo el equipo de desarrollo usa el sistema. <b>Gasto: $30/mes.</b>
+                </div>
+                <div style="flex:1; min-width:200px; padding:.5rem .8rem; border-radius:8px; background:var(--primary-glow); border-left:3px solid var(--primary-light);">
+                    <b style="color:var(--primary-light);">Mes 6–12</b><br>
+                    Se suman los primeros locales (20-50 usuarios). Se sube el VPS a 16 GB. <b>Gasto: $65/mes.</b>
+                </div>
+                <div style="flex:1; min-width:200px; padding:.5rem .8rem; border-radius:8px; background:var(--amber-bg); border-left:3px solid var(--amber);">
+                    <b style="color:var(--amber);">Año 2</b><br>
+                    POS en producción. 100-200 usuarios. VPS de 32-64 GB + PgBouncer. <b>Gasto: $120-180/mes.</b>
+                </div>
+                <div style="flex:1; min-width:200px; padding:.5rem .8rem; border-radius:8px; background:var(--red-bg); border-left:3px solid var(--rose);">
+                    <b style="color:var(--rose);">Año 3</b><br>
+                    Todos los módulos activos. 300-500 usuarios. Arquitectura distribuida. <b>Gasto: $350-500/mes.</b>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 3. TECH STACK ═══ -->
+<div class="divider"></div>
+<section id="stack" class="container reveal visible">
+    <div class="section-label">02 — Stack tecnológico</div>
+    <h2 class="section-title">Tecnologías involucradas</h2>
+    <p class="section-desc">Qué hace cada componente del sistema y por qué se eligió.</p>
+
+    <div class="diagram-box">
+        <pre><span class="hl-w">                    USUARIOS (navegador web)</span>
+<span class="hl-w">              Chrome / Edge / Firefox / Safari</span>
+                          <span class="hl-p">│</span>
+                          <span class="hl-p">│</span> HTTPS (encriptado)
+                          <span class="hl-p">▼</span>
+                ┌─────────────────────┐
+                │    <span class="hl-c">NGINX</span>            │  ← Portero: SSL, compresión,
+                │    Reverse Proxy    │    bloqueo de ataques
+                └──────┬──────┬───────┘
+                       │      │
+              ┌────────┘      └────────┐
+              ▼                        ▼
+   ┌──────────────────┐    ┌──────────────────────┐
+   │  <span class="hl-g">FRONTEND</span>        │    │  <span class="hl-p">BACKEND API</span>          │
+   │  React + Vite    │    │  FastAPI + Uvicorn    │
+   │  (archivos       │    │  (8-12 workers)       │
+   │   estáticos)     │    │                       │
+   └──────────────────┘    └──────┬───────┬────────┘
+                                  │       │
+                          ┌───────┘       └────────┐
+                          ▼                        ▼
+                ┌──────────────────┐    ┌──────────────────┐
+                │  <span class="hl-a">PgBouncer</span>      │    │  <span class="hl-r">Redis</span>            │
+                │  Connection Pool │    │  Caché + Sesiones │
+                └────────┬─────────┘    └──────────────────┘
+                         ▼
+                ┌──────────────────┐
+                │  <span class="hl-v">PostgreSQL</span>     │  ← La única fuente de verdad
+                │  Base de datos   │    Todos los datos viven acá
+                └──────────────────┘
+        </pre>
+    </div>
+
+    <div class="grid-2" style="margin-top:1.5rem;">
+        <div class="card">
+            <div class="card-icon" style="background:rgba(6,182,212,.1); color:var(--cyan);">🌐</div>
+            <h3>Nginx</h3>
+            <p>El único proceso expuesto a internet. Maneja HTTPS (seguridad), comprime respuestas para ahorrar ancho de banda, distribuye carga entre workers y bloquea ataques básicos (DDoS, inyección).</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(34,197,94,.1); color:var(--green);">⚛️</div>
+            <h3>React + Vite + Tailwind</h3>
+            <p>La interfaz que ven los usuarios. Se descarga UNA VEZ al navegador y después solo viajan datos (JSON). No recarga la página entera en cada clic — es como una app nativa.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--primary-glow); color:var(--primary-light);">🐍</div>
+            <h3>FastAPI (Python)</h3>
+            <p>El cerebro del sistema. Recibe pedidos, ejecuta lógica de negocio (stock, precios, facturación) y responde con datos. Async nativo = puede atender cientos de pedidos al mismo tiempo con pocos recursos.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(139,92,246,.1); color:var(--violet);">🐘</div>
+            <h3>PostgreSQL</h3>
+            <p>La base de datos más robusta del mundo open source. Soporta escrituras simultáneas sin bloqueos (MVCC), índices para búsquedas de stock por talle/color, y particionamiento para millones de movimientos históricos.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(244,63,94,.1); color:var(--rose);">⚡</div>
+            <h3>Redis</h3>
+            <p>Memoria ultrarrápida para datos que se consultan todo el tiempo: stock actual, listas de precios, sesiones de usuario. Evita golpear la base de datos por cosas que no cambian cada segundo.</p>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,.1); color:var(--amber);">🔀</div>
+            <h3>PgBouncer</h3>
+            <p>Se pone entre FastAPI y PostgreSQL. En vez de abrir 200 conexiones (una por usuario), reutiliza un pool de 80 conexiones. Esto reduce el uso de memoria de PostgreSQL de ~4GB a ~800MB.</p>
+        </div>
+    </div>
+
+    <h3 style="margin-top:2.5rem; font-size:1.1rem;">Librerías frontend clave</h3>
+    <p style="color:var(--text2); font-size:.88rem; margin-bottom:1.2rem;">Cada una resuelve un problema específico que aparece en un ERP real.</p>
+
+    <table class="compare-table">
+        <thead>
+            <tr><th>Necesidad</th><th>Librería</th><th>Por qué</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Componentes UI</td><td><b>shadcn/ui + Tailwind</b></td><td>Componentes profesionales, accesibles, personalizables</td></tr>
+            <tr><td>Tablas masivas</td><td><b>TanStack Table v8</b></td><td>Virtualización: renderiza 100.000 filas sin lag</td></tr>
+            <tr><td>Gráficos</td><td><b>Recharts</b></td><td>Dashboards de ventas, rotación de stock, comparativos</td></tr>
+            <tr><td>Estado global</td><td><b>Zustand</b></td><td>Compartir datos entre pantallas sin complejidad</td></tr>
+            <tr><td>Formularios</td><td><b>React Hook Form + Zod</b></td><td>Validación en tiempo real sin re-renders</td></tr>
+            <tr><td>Iconos</td><td><b>Lucide Icons</b></td><td>+1500 iconos SVG, estilo consistente</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ═══ 4. INFRA ═══ -->
+<div class="divider"></div>
+<section id="infra" class="container reveal">
+    <div class="section-label">03 — Infraestructura de producción</div>
+    <h2 class="section-title">¿Dónde correría el sistema?</h2>
+    <p class="section-desc">Dos opciones posibles. La elección depende de si se prefiere controlar el hardware o simplificar la operación.</p>
+
+    <div class="grid-2">
+        <div class="infra-card recommended">
+            <span class="tag tag-green" style="margin-bottom:.8rem;">OPCIÓN A</span>
+            <h3>VPS en la nube (Hetzner)</h3>
+            <div class="price">~$120 <small>USD / mes para 200 usuarios</small></div>
+            <p style="font-size:.82rem; color:var(--text2);">Servidor virtual en datacenter europeo. Se alquila por mes, sin inversión inicial.</p>
+            <ul>
+                <li><span class="check">✓</span> Sin inversión inicial en hardware</li>
+                <li><span class="check">✓</span> Escalar = cambiar un plan (5 minutos)</li>
+                <li><span class="check">✓</span> Backups automáticos incluidos</li>
+                <li><span class="check">✓</span> Uptime garantizado 99.9%</li>
+                <li><span class="check">✓</span> No necesitamos técnico de redes</li>
+                <li><span class="check">✓</span> Accesible desde cualquier lugar</li>
+                <li><span class="cross">✗</span> Dependemos de internet para acceder</li>
+                <li><span class="cross">✗</span> Datos fuera de la empresa (encriptados)</li>
+            </ul>
+        </div>
+
+        <div class="infra-card alternative">
+            <span class="tag tag-amber" style="margin-bottom:.8rem;">OPCIÓN B</span>
+            <h3>Servidor físico propio</h3>
+            <div class="price">~$4.500 <small>USD inversión única + $50/mes electricidad</small></div>
+            <p style="font-size:.82rem; color:var(--text2);">Hardware dedicado en la empresa o en un datacenter local.</p>
+            <ul>
+                <li><span class="check">✓</span> Datos 100% dentro de la empresa</li>
+                <li><span class="check">✓</span> No hay costo mensual de hosting</li>
+                <li><span class="check">✓</span> Funciona sin internet (red interna)</li>
+                <li><span class="cross">✗</span> Inversión inicial alta</li>
+                <li><span class="cross">✗</span> Necesitamos UPS y backup propio</li>
+                <li><span class="cross">✗</span> Si se rompe, compramos repuesto</li>
+                <li><span class="cross">✗</span> Para acceso remoto, internet igual</li>
+                <li><span class="cross">✗</span> Necesitamos persona que lo mantenga</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="margin-top:2.5rem; font-size:1.1rem;">Proveedores de VPS — comparativa</h3>
+    <div class="vps-grid" style="margin-top:1rem;">
+        <div class="vps-card best">
+            <div class="vps-name">🏆 Hetzner</div>
+            <div class="vps-specs">16 vCPU · 32 GB RAM · 360 GB SSD<br>Alemania · 20 TB tráfico</div>
+            <div class="vps-price">$65 <small>/mes</small></div>
+            <div style="font-size:.7rem; color:var(--green); margin-top:.3rem;">MEJOR PRECIO/CALIDAD</div>
+        </div>
+        <div class="vps-card">
+            <div class="vps-name">DigitalOcean</div>
+            <div class="vps-specs">16 vCPU · 32 GB RAM · 400 GB SSD<br>USA/EU · 7 TB tráfico</div>
+            <div class="vps-price">$192 <small>/mes</small></div>
+        </div>
+        <div class="vps-card">
+            <div class="vps-name">Vultr</div>
+            <div class="vps-specs">16 vCPU · 64 GB RAM · 640 GB SSD<br>Global · 10 TB tráfico</div>
+            <div class="vps-price">$240 <small>/mes</small></div>
+        </div>
+        <div class="vps-card">
+            <div class="vps-name">AWS Lightsail</div>
+            <div class="vps-specs">8 vCPU · 32 GB RAM · 640 GB SSD<br>Global · 6 TB tráfico</div>
+            <div class="vps-price">$240 <small>/mes</small></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 5. LOCAL PC ═══ -->
+<div class="divider"></div>
+<section id="localpc" class="container reveal">
+    <div class="section-label">04 — Desarrollo local</div>
+    <h2 class="section-title">¿Puedo arrancar a desarrollar desde mi PC?</h2>
+    <p class="section-desc">Tu PC actual de 16GB RAM: sí se puede para DESARROLLAR, pero con limitaciones. No es para producción.</p>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3 style="margin-bottom:1rem;">Tu PC actual (16 GB RAM)</h3>
+            
+            <div style="font-size:.82rem; color:var(--text2); margin-bottom:.3rem;">RAM disponible para desarrollo</div>
+            <div class="pc-meter"><div class="pc-meter-fill" style="width:75%; background:linear-gradient(90deg, var(--green), var(--amber));"></div></div>
+            <div style="font-size:.72rem; color:var(--text3); margin-bottom:1rem;">~10-12 GB libres después de Windows + apps → suficiente para VS Code + Postgres + FastAPI + navegador</div>
+
+            <div style="font-size:.82rem; color:var(--text2); margin-bottom:.3rem;">Capacidad para usuarios simultáneos</div>
+            <div class="pc-meter"><div class="pc-meter-fill" style="width:8%; background:var(--red);"></div></div>
+            <div style="font-size:.72rem; color:var(--text3); margin-bottom:1rem;">1-3 usuarios de prueba. NO producción.</div>
+
+            <div style="font-size:.82rem; color:var(--text2); margin-bottom:.3rem;">Velocidad de compilación frontend</div>
+            <div class="pc-meter"><div class="pc-meter-fill" style="width:60%; background:linear-gradient(90deg, var(--amber), var(--green));"></div></div>
+            <div style="font-size:.72rem; color:var(--text3);">Aceptable con Vite (hot reload &lt; 1 segundo)</div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom:1rem;">Flujo recomendado</h3>
+            <div style="font-size:.85rem; line-height:1.8;">
+                <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem;">
+                    <span class="tag tag-green">DESARROLLO</span>
+                    <span>Tu PC de 16GB</span>
+                </div>
+                <p style="font-size:.78rem; color:var(--text2); margin-bottom:1rem;">Escribís código, probás en local con datos de prueba. VS Code + Postgres local + navegador.</p>
+
+                <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem;">
+                    <span class="tag tag-amber">STAGING</span>
+                    <span>VPS chico (~$10/mes)</span>
+                </div>
+                <p style="font-size:.78rem; color:var(--text2); margin-bottom:1rem;">Servidor de pruebas. Los usuarios de confianza prueban antes de que sea oficial.</p>
+
+                <div style="display:flex; align-items:center; gap:.5rem; margin-bottom:.3rem;">
+                    <span class="tag tag-primary">PRODUCCIÓN</span>
+                    <span>VPS grande (~$120/mes)</span>
+                </div>
+                <p style="font-size:.78rem; color:var(--text2);">El sistema real. 200 usuarios. Solo se sube código probado.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-green" style="margin-top:1.5rem;">
+        <strong>El desarrollo se puede hacer desde una PC común.</strong> Para programar no se necesita un servidor potente — el servidor es necesario para cuando los 200 usuarios estén conectados. El código se escribe en local y se sube al servidor cuando está listo.
+    </div>
+
+    <div class="alert alert-amber">
+        <strong>Limitación con 16 GB de RAM:</strong> Postgres local + VS Code + Chrome consumen ~6-8 GB. Windows ya usa 4-5 GB. Quedan ~3 GB de margen. Funciona para desarrollo, pero justo. <b>Con 32 GB sería más cómodo.</b>
+    </div>
+</section>
+
+<!-- ═══ 6. DESIGN ═══ -->
+<div class="divider"></div>
+<section id="design" class="container reveal">
+    <div class="section-label">05 — Diseño visual</div>
+    <h2 class="section-title">Rol de las diseñadoras en el proyecto</h2>
+    <p class="section-desc">En la empresa hay diseñadoras que podrían participar en la parte visual del sistema. Así funcionaría el flujo de trabajo.</p>
+
+    <h3 style="font-size:1rem; margin-bottom:1.2rem;">Flujo de trabajo diseño → código</h3>
+
+    <div class="flow-row">
+        <div class="flow-box" style="border-color:var(--rose);">
+            <h4 style="color:var(--rose);">🎨 Diseñadoras</h4>
+            <p>Diseñan en <b>Figma</b> las pantallas, componentes, paleta de colores y tipografías</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color:var(--amber);">
+            <h4 style="color:var(--amber);">📋 Revisión</h4>
+            <p>Se revisan juntos los diseños para validar que sean factibles técnicamente</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color:var(--primary-light);">
+            <h4 style="color:var(--primary-light);">💻 Desarrollo</h4>
+            <p>El programador traduce el diseño a componentes React + Tailwind</p>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color:var(--green);">
+            <h4 style="color:var(--green);">✅ QA Visual</h4>
+            <p>Diseñadoras aprueban que la implementación sea fiel al diseño</p>
+        </div>
+    </div>
+
+    <h3 style="font-size:1rem; margin: 2rem 0 1rem;">¿Qué es Figma?</h3>
+    <div class="card" style="max-width:700px;">
+        <p>Es la herramienta estándar de la industria para diseñar interfaces. Es <b>gratuita</b> para equipos de hasta 3 personas. Las diseñadoras crean ahí el "plano" visual completo del sistema, y el programador lo construye siguiendo esos planos exactos.</p>
+        <p style="margin-top:.5rem;"><b>Las diseñadoras NO necesitan aprender a programar.</b> Solo necesitan Figma.</p>
+    </div>
+
+    <h3 style="font-size:1rem; margin: 2rem 0 1rem;">Sistema de diseño — lo que se define antes de programar</h3>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>🎨 Paleta de colores</h3>
+            <p>Colores primarios de la marca, secundarios, neutros (grises), y semánticos (verde = OK, rojo = error, amarillo = advertencia). Se define una vez y se usa en TODO el sistema.</p>
+            <div style="display:flex; gap:.4rem; margin-top:.8rem;">
+                <div style="width:32px;height:32px;border-radius:6px;background:#6366f1;"></div>
+                <div style="width:32px;height:32px;border-radius:6px;background:#22c55e;"></div>
+                <div style="width:32px;height:32px;border-radius:6px;background:#f59e0b;"></div>
+                <div style="width:32px;height:32px;border-radius:6px;background:#ef4444;"></div>
+                <div style="width:32px;height:32px;border-radius:6px;background:#18181b;"></div>
+                <div style="width:32px;height:32px;border-radius:6px;background:#fafafa; border:1px solid #ccc;"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>🔤 Tipografía</h3>
+            <p>1 o 2 fuentes máximo. Inter (la que usa esta página) es el estándar actual para apps. Se definen tamaños para títulos, subtítulos, cuerpo y datos de tabla.</p>
+            <div style="margin-top:.8rem;">
+                <div style="font-size:1.5rem; font-weight:800;">Título principal</div>
+                <div style="font-size:1rem; font-weight:600;">Subtítulo de sección</div>
+                <div style="font-size:.85rem;">Texto de cuerpo normal</div>
+                <div style="font-size:.75rem; color:var(--text3);">Dato de tabla / detalle</div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>🧩 Componentes base</h3>
+            <p>Se diseñan los ~15 componentes que componen TODA la app. Si todos son consistentes, el sistema entero se ve profesional.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.5rem;">
+                <span class="tag tag-primary">Button</span>
+                <span class="tag tag-primary">Input</span>
+                <span class="tag tag-primary">Table</span>
+                <span class="tag tag-primary">Card</span>
+                <span class="tag tag-primary">Modal</span>
+                <span class="tag tag-primary">Badge</span>
+                <span class="tag tag-primary">Select</span>
+                <span class="tag tag-primary">DatePicker</span>
+                <span class="tag tag-primary">Toast</span>
+                <span class="tag tag-primary">Sidebar</span>
+                <span class="tag tag-primary">Tabs</span>
+                <span class="tag tag-primary">Drawer</span>
+            </div>
+        </div>
+        <div class="card">
+            <h3>📐 Primeras 5 pantallas</h3>
+            <p>Se diseñan las pantallas más usadas ANTES de programarlas. Esto ahorra semanas de ida y vuelta.</p>
+            <ul style="list-style:none; margin-top:.5rem; font-size:.82rem;">
+                <li style="padding:.2rem 0; color:var(--text2);">1. Dashboard general</li>
+                <li style="padding:.2rem 0; color:var(--text2);">2. Stock por talle/color</li>
+                <li style="padding:.2rem 0; color:var(--text2);">3. Punto de venta (POS)</li>
+                <li style="padding:.2rem 0; color:var(--text2);">4. Compras / notas de pedido</li>
+                <li style="padding:.2rem 0; color:var(--text2);">5. Reportes de ventas</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 7. MODULES ═══ -->
+<div class="divider"></div>
+<section id="modules" class="container reveal">
+    <div class="section-label">06 — Módulos del ERP</div>
+    <h2 class="section-title">Módulos necesarios</h2>
+    <p class="section-desc">Listado de los 14 módulos que necesitaría el sistema para cubrir la operación completa.</p>
+
+    <div class="grid-3">
+        <div class="card">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">📦</div>
+            <h3>Stock por talle/color</h3>
+            <p>Matriz de variantes: cada producto tiene N talles × N colores. Stock por local en tiempo real. Mínimos y alertas.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">Ya hay base parcial</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">🛒</div>
+            <h3>Compras</h3>
+            <p>Notas de pedido a proveedores, seguimiento de estado, grupos de notas, comparación contra facturas.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">Ya construido</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">📄</div>
+            <h3>Ingresos / Facturación compras</h3>
+            <p>Carga de facturas de proveedores (PDF), extracción automática de datos, vinculación con remitos.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">Ya construido</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">🚚</div>
+            <h3>Remitos y Logística</h3>
+            <p>Recepción de mercadería, carta de porte, control de ingreso, transferencias entre locales.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">Ya construido</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">💳</div>
+            <h3>Pagos a proveedores</h3>
+            <p>Gestión de pagos parciales/totales, cruce con listas de precios, estado de cuenta corriente.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">Ya construido (parcial)</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--primary-glow); color:var(--primary-light);">🔐</div>
+            <h3>Autenticación y roles</h3>
+            <p>Login seguro, roles (admin, local, vendedor, gerente). Cada rol ve solo lo que le corresponde.</p>
+            <div class="tag tag-primary" style="margin-top:.5rem;">Año 1</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:var(--primary-glow); color:var(--primary-light);">🏷️</div>
+            <h3>Productos y variantes</h3>
+            <p>Catálogo de productos con fotos, marca, categoría, temporada. Variantes por talle/color con código de barras.</p>
+            <div class="tag tag-primary" style="margin-top:.5rem;">Año 1</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,.1); color:var(--amber);">🏪</div>
+            <h3>Punto de venta (POS)</h3>
+            <p>Venta en local: escaneo de código, descuentos, medios de pago, ticket/factura. Cierre de caja diario.</p>
+            <div class="tag tag-amber" style="margin-top:.5rem;">Año 2</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,.1); color:var(--amber);">🧾</div>
+            <h3>Facturación electrónica</h3>
+            <p>Emisión de facturas A/B/C vía AFIP (ARCA). Notas de crédito y débito. Cumplimiento fiscal completo.</p>
+            <div class="tag tag-amber" style="margin-top:.5rem;">Año 2</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,.1); color:var(--amber);">👥</div>
+            <h3>Clientes + cta. corriente</h3>
+            <p>Base de clientes mayoristas. Cuenta corriente, límites de crédito, historial de compras.</p>
+            <div class="tag tag-amber" style="margin-top:.5rem;">Año 2</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(245,158,11,.1); color:var(--amber);">🏷️</div>
+            <h3>Precios, descuentos y promos</h3>
+            <p>Múltiples listas de precios (minorista, mayorista, e-commerce). Descuentos temporales, promos 2x1, etc.</p>
+            <div class="tag tag-amber" style="margin-top:.5rem;">Año 2</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(244,63,94,.1); color:var(--rose);">📊</div>
+            <h3>Reportes y dashboards</h3>
+            <p>Ventas por marca, local, temporada. Rotación de stock. Análisis ABC. Comparativos interanuales.</p>
+            <div class="tag tag-red" style="margin-top:.5rem;">Año 3</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(244,63,94,.1); color:var(--rose);">🌐</div>
+            <h3>E-commerce</h3>
+            <p>Integración con Tiendanube y/o MercadoLibre. Stock sincronizado. Pedidos online → preparación en local.</p>
+            <div class="tag tag-red" style="margin-top:.5rem;">Año 3</div>
+        </div>
+        <div class="card">
+            <div class="card-icon" style="background:rgba(244,63,94,.1); color:var(--rose);">📱</div>
+            <h3>App móvil</h3>
+            <p>Para empleados de local: consulta de stock, inventario con lector de barras, notificaciones de transferencias.</p>
+            <div class="tag tag-red" style="margin-top:.5rem;">Año 3</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 8. ROADMAP ═══ -->
+<div class="divider"></div>
+<section id="roadmap" class="container reveal">
+    <div class="section-label">07 — Hoja de ruta</div>
+    <h2 class="section-title">Plan de desarrollo estimado a 3 años</h2>
+    <p class="section-desc">El desarrollo se planifica en etapas. Cada etapa entrega funcionalidad utilizable. Parte del sistema ya está en uso.</p>
+
+    <div class="timeline">
+        <div class="tl-item">
+            <div class="tl-dot" style="border-color:var(--green); background:var(--green-bg);"></div>
+            <h4 style="color:var(--green);">✅ Ya completado (últimos meses)</h4>
+            <p>Sistema de compras, ingresos, remitos, control de ingreso, pagos parciales, comparador de facturas.</p>
+            <div class="tl-modules">
+                <span class="tag tag-green">Compras</span>
+                <span class="tag tag-green">Ingresos</span>
+                <span class="tag tag-green">Remitos</span>
+                <span class="tag tag-green">Ctrl. Ingreso</span>
+                <span class="tag tag-green">Pagos</span>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="border-color:var(--primary-light); background:var(--primary-glow);"></div>
+            <h4 style="color:var(--primary-light);">📌 Año 1 — Base sólida (mes 1–12)</h4>
+            <p>Migrar a PostgreSQL. Implementar autenticación real con roles. Módulo de productos con variantes talle/color. Stock por local en tiempo real. Sistema de diseño visual definido con las diseñadoras.</p>
+            <div class="tl-modules">
+                <span class="tag tag-primary">PostgreSQL</span>
+                <span class="tag tag-primary">Auth + Roles</span>
+                <span class="tag tag-primary">Productos</span>
+                <span class="tag tag-primary">Stock talle/color</span>
+                <span class="tag tag-primary">Sistema de diseño</span>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="border-color:var(--amber); background:var(--amber-bg);"></div>
+            <h4 style="color:var(--amber);">🔨 Año 2 — Operación comercial (mes 13–24)</h4>
+            <p>Punto de venta para cada local. Facturación electrónica AFIP. Clientes y cuenta corriente. Listas de precios y descuentos. Transferencias entre locales.</p>
+            <div class="tl-modules">
+                <span class="tag tag-amber">POS / Caja</span>
+                <span class="tag tag-amber">Fact. electrónica</span>
+                <span class="tag tag-amber">Clientes</span>
+                <span class="tag tag-amber">Precios</span>
+                <span class="tag tag-amber">Transferencias</span>
+            </div>
+        </div>
+
+        <div class="tl-item">
+            <div class="tl-dot" style="border-color:var(--rose); background:var(--red-bg);"></div>
+            <h4 style="color:var(--rose);">Año 3 — Reportes y expansión (mes 25–36)</h4>
+            <p>Dashboards de gestión y reportes ejecutivos. Integración con e-commerce (Tiendanube/ML). App móvil para locales. Contabilidad básica.</p>
+            <div class="tl-modules">
+                <span class="tag tag-red">Reportes</span>
+                <span class="tag tag-red">E-commerce</span>
+                <span class="tag tag-red">App móvil</span>
+                <span class="tag tag-red">Contabilidad</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══ 9. RESUMEN ═══ -->
+<div class="divider"></div>
+<section id="summary" class="container reveal">
+    <div class="section-label">08 — Resumen</div>
+    <h2 class="section-title">Datos clave del proyecto</h2>
+
+    <div class="grid-4" style="margin-bottom:2rem;">
+        <div class="card" style="text-align:center;">
+            <div style="font-size:2rem; font-weight:800; color:var(--primary-light);">$0</div>
+            <div style="font-size:.75rem; color:var(--text3); text-transform:uppercase;">Licencias mensuales</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div style="font-size:2rem; font-weight:800; color:var(--green);">~$120</div>
+            <div style="font-size:.75rem; color:var(--text3); text-transform:uppercase;">USD/mes servidor</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div style="font-size:2rem; font-weight:800; color:var(--amber);">500</div>
+            <div style="font-size:.75rem; color:var(--text3); text-transform:uppercase;">Usuarios (techo escalable)</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div style="font-size:2rem; font-weight:800; color:var(--rose);">100%</div>
+            <div style="font-size:.75rem; color:var(--text3); text-transform:uppercase;">Control del código</div>
+        </div>
+    </div>
+
+    <table class="compare-table">
+        <thead>
+            <tr><th style="width:50%;">Pregunta</th><th>Respuesta</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>¿Por qué no un ERP comprado?</td><td>No manejan talle/color nativamente. Tienen costo de licencia mensual por usuario.</td></tr>
+            <tr><td>¿Qué tecnología?</td><td>FastAPI + PostgreSQL + Redis + React + Nginx</td></tr>
+            <tr><td>¿Soporta 200-500 usuarios?</td><td><b>Sí.</b> Hasta 200 en 1 servidor. 500 requiere arquitectura distribuida.</td></tr>
+            <tr><td>¿Puedo arrancar desde mi PC?</td><td><b>Sí.</b> Para desarrollo. Producción va en el VPS.</td></tr>
+            <tr><td>¿Participan las diseñadoras?</td><td><b>Sí.</b> Diseñan en Figma, el programador implementa.</td></tr>
+            <tr><td>¿Cuánto cuesta?</td><td>$65-500/mes según escala + tiempo de desarrollo. Sin licencias.</td></tr>
+            <tr><td>¿En cuánto tiempo?</td><td>3 años progresivos. Año 1: base. Año 2: ventas. Año 3: reportes.</td></tr>
+            <tr><td>¿Qué ya está construido?</td><td>Compras, Ingresos, Remitos, Control de ingreso, Pagos</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ═══ 9. YA CONSTRUIDO ═══ -->
+<div class="divider"></div>
+<section id="existing" class="container reveal">
+    <div class="section-label">09 — Ya construido</div>
+    <h2 class="section-title">Lo que ya existe en el sistema actual</h2>
+    <p class="section-desc">El sistema "Control de Remitos" ya tiene módulos funcionando en producción. Estos se integran directamente al ERP.</p>
+
+    <div class="grid-3">
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">🛒</div>
+            <h3>Compras</h3>
+            <p>Notas de pedido, seguimiento de estado, grupos de notas por marca, comparador contra facturas PDF.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">📄</div>
+            <h3>Ingresos / Facturación</h3>
+            <p>Carga masiva de facturas PDF, extracción automática de datos, vinculación con remitos de venta.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">🚚</div>
+            <h3>Remitos y Recepción</h3>
+            <p>Recepción en locales, confirmación de mercadería, carta de porte, flujo entre locales.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">✅</div>
+            <h3>Control de Ingreso</h3>
+            <p>Validación cruzada: remito + factura + recepción del local. Aprueba y mueve a Completados.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">💳</div>
+            <h3>Pagos a proveedores</h3>
+            <p>Pagos parciales/totales, cruce con listas de precios, estado de cuenta.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+        <div class="card" style="border-color:var(--green-border);">
+            <div class="card-icon" style="background:var(--green-bg); color:var(--green);">🔐</div>
+            <h3>Autenticación y Roles</h3>
+            <p>Login con JWT, 6 roles diferenciados. Cada rol ve solo lo que le corresponde.</p>
+            <div class="tag tag-green" style="margin-top:.5rem;">En producción</div>
+        </div>
+    </div>
+
+    <h3 style="font-size:1rem; margin: 2rem 0 1rem;">Herramientas adicionales ya construidas</h3>
+    <div class="grid-3">
+        <div class="card">
+            <h3 style="font-size:.9rem;">🏄 Comparador OMBAK</h3>
+            <p style="font-size:.82rem;">Cruce Excel vs PDF de OMBAK. Detecta diferencias de cantidades y códigos.</p>
+        </div>
+        <div class="card">
+            <h3 style="font-size:.9rem;">🔗 Grupos de Notas</h3>
+            <p style="font-size:.82rem;">Agrupa notas del mismo proveedor. Las facturas se cruzan contra el grupo completo.</p>
+        </div>
+        <div class="card">
+            <h3 style="font-size:.9rem;">📊 Comparador de precios</h3>
+            <p style="font-size:.82rem;">Cruce contra listas de precios. Detecta el precio más reciente automáticamente.</p>
+        </div>
+        <div class="card">
+            <h3 style="font-size:.9rem;">📋 TrellOutdoor</h3>
+            <p style="font-size:.82rem;">Tablero Kanban para tareas internas. Boards, tarjetas, imágenes, etiquetas.</p>
+        </div>
+        <div class="card">
+            <h3 style="font-size:.9rem;">🔔 Notificaciones</h3>
+            <p style="font-size:.82rem;">Notificaciones internas por acción (factura cargada, remito confirmado, etc.).</p>
+        </div>
+        <div class="card">
+            <h3 style="font-size:.9rem;">📡 Conexión SQL Server</h3>
+            <p style="font-size:.82rem;">Lectura de la base existente: artículos, códigos de barra, listas de precios, stock.</p>
+        </div>
+    </div>
+
+    <h3 style="font-size:1rem; margin: 2rem 0 1rem;">Cómo se integra al ERP</h3>
+    <table class="compare-table">
+        <thead>
+            <tr>
+                <th>Componente actual</th>
+                <th>En el ERP</th>
+                <th>Esfuerzo</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Flujo Compras → Pagos</td>
+                <td>Se migra a PostgreSQL. La lógica de negocio no cambia.</td>
+                <td><span class="tag tag-green">Bajo</span></td>
+            </tr>
+            <tr>
+                <td>Extracción automática de PDFs</td>
+                <td>Se reutiliza tal cual. El parser es independiente de la DB.</td>
+                <td><span class="tag tag-green">Bajo</span></td>
+            </tr>
+            <tr>
+                <td>Comparadores (OMBAK, precios)</td>
+                <td>Se integran dentro del módulo de Compras.</td>
+                <td><span class="tag tag-green">Bajo</span></td>
+            </tr>
+            <tr>
+                <td>Conexión SQL Server</td>
+                <td>Se mantiene como puente hasta tener catálogo propio en PostgreSQL.</td>
+                <td><span class="tag tag-green">Bajo</span></td>
+            </tr>
+            <tr>
+                <td>TrellOutdoor (Kanban)</td>
+                <td>Se integra como módulo de gestión de tareas.</td>
+                <td><span class="tag tag-green">Bajo</span></td>
+            </tr>
+            <tr>
+                <td>Roles y autenticación</td>
+                <td>Se amplía con nuevos roles (vendedor, gerente).</td>
+                <td><span class="tag tag-amber">Medio</span></td>
+            </tr>
+            <tr>
+                <td>Frontend React + Tailwind</td>
+                <td>Se rediseña con las diseñadoras, reutilizando la estructura.</td>
+                <td><span class="tag tag-amber">Medio</span></td>
+            </tr>
+            <tr>
+                <td>Backend FastAPI</td>
+                <td>Se migra de SQLite a PostgreSQL. Rutas y lógica se conservan.</td>
+                <td><span class="tag tag-amber">Medio</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="alert alert-green" style="margin-top:1.5rem;">
+        <strong>Aproximadamente el 60-70% del código actual se reutiliza.</strong> El trabajo principal es la migración a PostgreSQL y los módulos nuevos (Stock talle/color, POS, Facturación AFIP). Los módulos de Compras, Ingresos, Remitos y Pagos ya están resueltos.
+    </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+    <p><b>ERP Mundo Outdoor</b> — Documento técnico interno · Marzo 2026</p>
+    <p style="margin-top:.3rem;">Todas las tecnologías mencionadas son open source (sin costo de licencia).</p>
+</footer>
+
+<!-- ═══ PRINT BTN ═══ -->
+<button class="print-btn" onclick="window.print()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+    Guardar PDF
+</button>
+
+<!-- ═══ REVEAL JS ═══ -->
+<script>
+    const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                e.target.classList.add('visible');
+                obs.unobserve(e.target);
+            }
+        });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+
+
+
+</body></html>

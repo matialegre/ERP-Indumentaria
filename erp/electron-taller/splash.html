@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(160deg, #1c1917 0%, #7f1d1d 50%, #dc2626 100%);
+      width: 460px; height: 320px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      color: white;
+      border-radius: 20px;
+      overflow: hidden;
+      -webkit-app-region: drag;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: absolute;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%);
+      top: -100px; right: -100px;
+      border-radius: 50%;
+    }
+    body::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(185,28,28,0.12) 0%, transparent 70%);
+      bottom: -60px; left: -60px;
+      border-radius: 50%;
+    }
+    .content { position: relative; z-index: 1; text-align: center; }
+    .logo-wrap {
+      width: 80px; height: 80px;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .logo-fallback { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: white; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50% { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+    }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 3px; letter-spacing: -0.5px; }
+    .brand { font-size: 11px; opacity: 0.55; margin-bottom: 28px; text-transform: uppercase; letter-spacing: 3px; }
+    .dots {
+      display: flex; gap: 7px; justify-content: center; margin-bottom: 14px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 50%;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); background: rgba(255,255,255,0.4); }
+      50% { transform: translateY(-5px); background: rgba(255,255,255,0.95); }
+    }
+    .status { font-size: 11px; opacity: 0.55; min-height: 16px; }
+    .version { position: absolute; bottom: 14px; right: 18px; font-size: 10px; opacity: 0.3; }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <div class="logo-wrap">
+      <span class="logo-fallback">MT</span>
+    </div>
+    <h1>TallerEuro</h1>
+    <div class="brand">Sistema de Gestión</div>
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="status" id="status">Conectando con el servidor...</div>
+  </div>
+  <div class="version">v1.0</div>
+</body>
+</html>
+

@@ -1,0 +1,27 @@
+{
+  "packageId": "ar.mundooutdoor.erp",
+  "host": "192.168.0.122",
+  "name": "Mundo Outdoor ERP",
+  "launcherName": "MO ERP",
+  "display": "standalone",
+  "orientation": "any",
+  "themeColor": "#1e40af",
+  "backgroundColor": "#f8fafc",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "http://192.168.0.122:8000/icons/icon-512.png",
+  "maskableIconUrl": "http://192.168.0.122:8000/icons/icon-512.png",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "./mundooutdoor-release-key.keystore",
+    "alias": "mundooutdoor-erp"
+  },
+  "splashScreenFadeOutDuration": 300,
+  "enableSiteSettingsShortcut": false,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "http://192.168.0.122:8000/",
+  "minSdkVersion": 21,
+  "targetSdkVersion": 34
+}

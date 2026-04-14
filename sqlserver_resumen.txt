@@ -1,0 +1,1031 @@
+RESUMEN SQL SERVER LEGACY — 2026-03-27 13:17:26.292468
+Server: 192.168.0.109,9970 / DB: DATOS
+================================================================================
+
+
+================================================================================
+TABLA: LISTAS_PRECIOS_DRAGONFISH — 1,663,626 registros
+================================================================================
+
+COLUMNAS:
+  AGREGAPRE                                numeric
+  ARTICULO                                 char(15)
+  BDALTAFW                                 varchar(8)
+  BDMODIFW                                 varchar(8)
+  BLOQUEO                                  bit
+  CCOLOR                                   char(6)
+  CODIGO                                   char(46) NOT NULL
+  CODORI                                   varchar(20)
+  DESCFW                                   varchar(200)
+  ENTORI                                   varchar(40)
+  ESTTRANS                                 varchar(20)
+  FALTAFW                                  datetime
+  FECEXPO                                  datetime
+  FECHAVIG                                 datetime
+  FECIMPO                                  datetime
+  FECTRANS                                 datetime
+  FMODIFW                                  datetime
+  HALTAFW                                  varchar(8)
+  HMODIFW                                  varchar(8)
+  HORAEXPO                                 varchar(8)
+  HORAIMPO                                 varchar(8)
+  LISTAPRE                                 char(6)
+  OBS                                      text(2147483647)
+  PDIRECTO                                 numeric
+  PDIRORI                                  numeric
+  SALTAFW                                  varchar(7)
+  SMODIFW                                  varchar(7)
+  SOBREPRE                                 numeric
+  TALLE                                    char(5)
+  TIMESTAMP                                numeric
+  TIMESTAMPA                               numeric
+  UALTAFW                                  varchar(100)
+  UMODIFW                                  varchar(100)
+  VALTAFW                                  varchar(13)
+  VMODIFW                                  varchar(13)
+  ZADSFW                                   text(2147483647)
+
+ESTADÍSTICAS:
+  AGREGAPRE: min=0.0, max=0.0, avg=None
+  BDALTAFW: 2 valores únicos → [DEPOSITO (106317),          (1649)]
+  BDMODIFW: 2 valores únicos → [DEPOSITO (106317),          (1649)]
+  ENTORI: 5 valores únicos → [041                                      (799462), PRE (756152), MODIFICACIONPRECIOS (77966), CALCULODEPRECIOS                         (28351),                                          (1695)]
+  ESTTRANS: 3 valores únicos → [ENVIADO (1216448),                      (21716), SUSCRIPCIÓN (6994)]
+  FALTAFW: rango 1900-01-01 00:00:00 → 2020-07-10 00:00:00
+  FECEXPO: 2 valores únicos → [1900-01-01 00:00:00 (1635275), 2025-12-04 00:00:00 (28351)]
+  FECEXPO: rango 1900-01-01 00:00:00 → 2025-12-04 00:00:00
+  FECHAVIG: rango 1925-01-13 00:00:00 → 2025-12-03 00:00:00
+  FECIMPO: 27 valores únicos → [1900-01-01 00:00:00 (1633626), 2020-04-20 00:00:00 (2534), 2019-08-15 00:00:00 (2249), 2019-11-11 00:00:00 (1872), 2019-12-07 00:00:00 (1670), 2019-05-20 00:00:00 (1649), 2019-11-04 00:00:00 (1648), 2019-11-24 00:00:00 (1441), 2020-06-26 00:00:00 (1289), 2020-06-05 00:00:00 (1276)]
+  FECIMPO: rango 1900-01-01 00:00:00 → 2020-06-26 00:00:00
+  FECTRANS: 19 valores únicos → [2024-11-05 00:00:00 (1180232), 1900-01-01 00:00:00 (419292), 2021-05-08 00:00:00 (32148), 2025-12-04 00:00:00 (20892), 2019-04-05 00:00:00 (2950), 2023-01-20 00:00:00 (2918), 2023-01-21 00:00:00 (2010), 2023-01-24 00:00:00 (870), 2022-11-03 00:00:00 (562), 2022-10-18 00:00:00 (552)]
+  FECTRANS: rango 1900-01-01 00:00:00 → 2025-12-04 00:00:00
+  FMODIFW: rango 2019-03-11 00:00:00 → 2025-12-03 00:00:00
+  HORAEXPO: 1 valores únicos → [         (30000)]
+  HORAIMPO: 35 valores únicos → [14:17:49 (2249), 09:19:33 (1289), 18:10:04 (1276), 10:01:47 (1268), 16:19:00 (1267), 10:44:05 (1267), 10:43:11 (1267), 10:33:29 (1267), 10:22:29 (1267), 12:39:28 (1267)]
+  LISTAPRE: 34 valores únicos → [LISTA5 (592366), LISTA1 (438316), LISTA0 (324857), LISTA6 (72708), OUTLET (46392), LISTA7 (42521), LIST95 (18932), LIST83 (15784), LIST97 (11744), LIST91 (9682)]
+  PDIRECTO: min=0.0, max=16149358.0, avg=49811.66
+  PDIRORI: min=0.0, max=0.0, avg=None
+  SALTAFW: 3 valores únicos → [609061 (100111), 609921 (6206),         (1649)]
+  SMODIFW: 3 valores únicos → [609061 (100111), 609921 (6206),         (1649)]
+  SOBREPRE: min=0.0, max=0.0, avg=None
+  TIMESTAMP: min=0.0, max=2546617201.0, avg=2505836408.16
+  TIMESTAMPA: min=763407148237.0, max=975857459377.0, avg=891922731342.24
+  UALTAFW: 1 valores únicos → [ADMIN (107966)]
+  UMODIFW: 1 valores únicos → [ADMIN (107966)]
+  VALTAFW: 3 valores únicos → [09.0002.12567 (93673), 08.0010.12408 (12644),               (1649)]
+  VMODIFW: 3 valores únicos → [09.0002.12567 (93673), 08.0010.12408 (12644),               (1649)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"AGREGAPRE": 0.0, "ARTICULO": "IHC62A2CN7     ", "BDALTAFW": null, "BDMODIFW": null, "BLOQUEO": "False", "CCOLOR": "      ", "CODIGO": "969208189043  LI102 IHC62A2CN7                ", "CODORI": "408                 ", "DESCFW": "408                                                                  
+  [2] {"AGREGAPRE": 0.0, "ARTICULO": "IHC62A2CN9     ", "BDALTAFW": null, "BDMODIFW": null, "BLOQUEO": "False", "CCOLOR": "      ", "CODIGO": "969208189043  LI102 IHC62A2CN9                ", "CODORI": "408                 ", "DESCFW": "408                                                                  
+  [3] {"AGREGAPRE": 0.0, "ARTICULO": "IHC62A2CO5     ", "BDALTAFW": null, "BDMODIFW": null, "BLOQUEO": "False", "CCOLOR": "      ", "CODIGO": "969208189043  LI102 IHC62A2CO5                ", "CODORI": "408                 ", "DESCFW": "408                                                                  
+  [4] {"AGREGAPRE": 0.0, "ARTICULO": "IHC62A2CO6     ", "BDALTAFW": null, "BDMODIFW": null, "BLOQUEO": "False", "CCOLOR": "      ", "CODIGO": "969208189043  LI102 IHC62A2CO6                ", "CODORI": "408                 ", "DESCFW": "408                                                                  
+  [5] {"AGREGAPRE": 0.0, "ARTICULO": "IHC62F1CO8     ", "BDALTAFW": null, "BDMODIFW": null, "BLOQUEO": "False", "CCOLOR": "      ", "CODIGO": "969208189043  LI102 IHC62F1CO8                ", "CODORI": "408                 ", "DESCFW": "408                                                                  
+
+================================================================================
+TABLA: REMITOS_LOCAL — 1,180,527 registros
+================================================================================
+
+COLUMNAS:
+  Local                                    varchar(50)
+  ControlSyncId                            varchar(101)
+  Id                                       varchar(50)
+  FechaCreacion                            datetime
+  Comentarios                              varchar(-1)
+  Estado                                   smallint
+  IdLocal                                  varchar(50)
+  IdSecUsuarioResponsable                  varchar(50)
+  NroInterno                               bigint
+  Tipo                                     smallint
+  IdStkAjusteCab                           varchar(50)
+  IdDocCabezal                             varchar(50)
+  IdPresupuestoCab                         varchar(50)
+  Titulo                                   varchar(1000)
+  NroAjusteRemoto                          varchar(50)
+  EmitioEtiqueta                           bit
+  Etiqueta                                 varbinary(-1)
+  Id_Detalle                               varchar(50)
+  Idstk_ControlPorBarrasCab                varchar(50)
+  IdArticulo                               varchar(50)
+  IdArticuloVariante                       varchar(50)
+  IdEtiquetaHistorial                      varchar(50)
+  Cantidad                                 decimal
+  Existencia                               decimal
+  FechaDeCarga                             datetime
+
+ESTADÍSTICAS:
+  Local: 14 valores únicos → [DEPOSITO (186260), MUNDOAL (146959), MTGCBA (141145), NQNALB (124268), MTGJBJ (96258), MTGROCA (81941), MTGBBPS (75224), NQNSHOP (64740), MTGCOM (57663), MTGMDQ (54419)]
+  FechaCreacion: rango 2025-07-20 13:00:49 → 2026-03-25 15:49:02
+  IdLocal: 3 valores únicos → [80704487500070167 (1029850), 80704487500070169 (96258), 80704487500070168 (54419)]
+  NroInterno: min=1, max=1052, avg=373.52
+  IdStkAjusteCab: 8 valores únicos → [None (1178614), 0 (1863), 1407443 (34), 1417346 (11), 1428752 (2), 1417482 (1), 1407334 (1), 1417344 (1)]
+  IdDocCabezal: 1 valores únicos → [None (1180527)]
+  IdPresupuestoCab: 1 valores únicos → [None (1180527)]
+  IdEtiquetaHistorial: 1 valores únicos → [None (1180527)]
+  Cantidad: min=-1.0, max=2097329.0, avg=2.64
+  Existencia: min=-64.0, max=6183.0, avg=0.29
+  FechaDeCarga: rango 2025-07-15 10:52:37 → 2026-03-27 12:13:39
+
+MUESTRA (primeros 20 registros):
+  [1] {"Local": "NQNALB", "ControlSyncId": null, "Id": "52046", "FechaCreacion": null, "Comentarios": "None", "Estado": "3", "IdLocal": "80704487500070167", "IdSecUsuarioResponsable": "None", "NroInterno": null, "Tipo": "3", "IdStkAjusteCab": "None", "IdDocCabezal": "None", "IdPresupuestoCab": "None", "Ti
+  [2] {"Local": "NQNALB", "ControlSyncId": null, "Id": "52047", "FechaCreacion": null, "Comentarios": "", "Estado": "2", "IdLocal": "80704487500070167", "IdSecUsuarioResponsable": "80704487500150404", "NroInterno": "397", "Tipo": "1", "IdStkAjusteCab": "None", "IdDocCabezal": "None", "IdPresupuestoCab": "
+  [3] {"Local": "NQNALB", "ControlSyncId": null, "Id": "52047", "FechaCreacion": null, "Comentarios": "", "Estado": "2", "IdLocal": "80704487500070167", "IdSecUsuarioResponsable": "80704487500150404", "NroInterno": "397", "Tipo": "1", "IdStkAjusteCab": "None", "IdDocCabezal": "None", "IdPresupuestoCab": "
+  [4] {"Local": "NQNALB", "ControlSyncId": null, "Id": "52047", "FechaCreacion": null, "Comentarios": "", "Estado": "2", "IdLocal": "80704487500070167", "IdSecUsuarioResponsable": "80704487500150404", "NroInterno": "397", "Tipo": "1", "IdStkAjusteCab": "None", "IdDocCabezal": "None", "IdPresupuestoCab": "
+  [5] {"Local": "NQNALB", "ControlSyncId": null, "Id": "52047", "FechaCreacion": null, "Comentarios": "", "Estado": "2", "IdLocal": "80704487500070167", "IdSecUsuarioResponsable": "80704487500150404", "NroInterno": "397", "Tipo": "1", "IdStkAjusteCab": "None", "IdDocCabezal": "None", "IdPresupuestoCab": "
+
+================================================================================
+TABLA: STOCKS — 898,360 registros
+================================================================================
+
+COLUMNAS:
+  CODIGO_ARTICULO                          varchar(255)
+  CODIGO_COLOR                             varchar(255)
+  CODIGO_TALLE                             varchar(255)
+  ID                                       varchar(50)
+  STOCK                                    int
+  PRECIO                                   decimal
+  DESCRIPCION                              varchar(-1)
+  LOCAL                                    varchar(255)
+  COSTO                                    decimal
+  MARCA                                    varchar(255)
+  PROVEEDOR                                varchar(255)
+  CODIGO_BARRA                             varchar(255)
+  ID_ARTICULO                              varchar(255)
+  CLAVE                                    varchar(800) NOT NULL
+
+ESTADÍSTICAS:
+  STOCK: min=-114, max=8816, avg=0.23
+  PRECIO: min=0.0, max=1972200.0, avg=162558.03
+  LOCAL: 14 valores únicos → [MUNDOBBPS (81865), MTGCBA (77384), MTGMDQ (74238), MTGJBJ (73923), MUNDOROCA (68806), MUNDOAL (66641), NQNALB (64015), MTGCOM (63869), MTGROCA (63851), MTGBBPS (63808)]
+  COSTO: min=0.0, max=986100.0, avg=71607.61
+
+MUESTRA (primeros 20 registros):
+  [1] {"CODIGO_ARTICULO": "02156", "CODIGO_COLOR": "NAVY", "CODIGO_TALLE": "L", "ID": "880482", "STOCK": "0", "PRECIO": 79999.0, "DESCRIPCION": "CAMISA MC STD PARADISE PALM HOMBRE Variante NAVY;L", "LOCAL": "NQNSHOP", "COSTO": 0.0, "MARCA": "RIP CURL", "PROVEEDOR": "CRISTOBAL COLON SRL", "CODIGO_BARRA": "
+  [2] {"CODIGO_ARTICULO": "02156", "CODIGO_COLOR": "NAVY", "CODIGO_TALLE": "M", "ID": "880484", "STOCK": "0", "PRECIO": 79999.0, "DESCRIPCION": "CAMISA MC STD PARADISE PALM HOMBRE Variante NAVY;M", "LOCAL": "NQNSHOP", "COSTO": 0.0, "MARCA": "RIP CURL", "PROVEEDOR": "CRISTOBAL COLON SRL", "CODIGO_BARRA": "
+  [3] {"CODIGO_ARTICULO": "02156", "CODIGO_COLOR": "NAVY", "CODIGO_TALLE": "S", "ID": "880486", "STOCK": "0", "PRECIO": 79999.0, "DESCRIPCION": "CAMISA MC STD PARADISE PALM HOMBRE Variante NAVY;S", "LOCAL": "NQNSHOP", "COSTO": 0.0, "MARCA": "RIP CURL", "PROVEEDOR": "CRISTOBAL COLON SRL", "CODIGO_BARRA": "
+  [4] {"CODIGO_ARTICULO": "02156", "CODIGO_COLOR": "NAVY", "CODIGO_TALLE": "XL", "ID": "880481", "STOCK": "0", "PRECIO": 79999.0, "DESCRIPCION": "CAMISA MC STD PARADISE PALM HOMBRE Variante NAVY;XL", "LOCAL": "NQNSHOP", "COSTO": 0.0, "MARCA": "RIP CURL", "PROVEEDOR": "CRISTOBAL COLON SRL", "CODIGO_BARRA":
+  [5] {"CODIGO_ARTICULO": "02171", "CODIGO_COLOR": "BONE", "CODIGO_TALLE": "2XL", "ID": "880493", "STOCK": "0", "PRECIO": 89999.0, "DESCRIPCION": "CAMISA MC STD MICROSUN HOMBRE Variante BONE;2XL", "LOCAL": "DEPOSITO", "COSTO": 0.0, "MARCA": "RIP CURL", "PROVEEDOR": "CRISTOBAL COLON SRL", "CODIGO_BARRA": "
+
+================================================================================
+TABLA: DRAGONFISH_VENTAS — 551,983 registros
+================================================================================
+
+COLUMNAS:
+  CLAVE                                    int NOT NULL
+  FECHA                                    date
+  COMPROBANTE                              varchar(20)
+  COMPROBANTE_TIPO                         varchar(40)
+  ARTICULO                                 varchar(200)
+  FECHA_AÑO                                int
+  FECHA_MES                                varchar(10)
+  FECHA_PERIODO                            varchar(10)
+  COLOR                                    varchar(75)
+  COLOR_CODIGO                             varchar(10)
+  COLOR_DESCRIPCION                        varchar(75)
+  TALLE                                    varchar(30)
+  ITEM_CANTIDAD                            int
+  ITEM_DESCUENTOCONIMPUESTOS               decimal
+  ITEM_DESCUENTOSINIMPUESTOS               decimal
+  ITEM_IMPUESTOS                           decimal
+  ITEM_MONTOCONIMPUESTOS                   decimal
+  ITEM_MONTOSINIMPUESTOS                   decimal
+  ITEM_MONTONETO                           decimal
+  ITEM_MONTONETOSINIMPUESTOS               decimal
+  LOCAL                                    varchar(10)
+  PROVEEDOR                                varchar(70)
+  IGNORAR                                  bit
+
+ESTADÍSTICAS:
+  CLAVE: min=1, max=551983, avg=275992.0
+  FECHA: rango 2022-01-01 → 2026-03-10
+  COMPROBANTE_TIPO: 7 valores únicos → [Factura Electrnica (350234), Factura Manual (156772), Factura Fiscal (40241), Nota De Crdito Manual (4109), Nota De Crdito Electrnica (487), Nota De Crdito Fiscal (112), Nota De Dbito Manual (28)]
+  FECHA_AÑO: min=2022, max=2026, avg=2023.64
+  FECHA_MES: 12 valores únicos → [Junio (76686), Julio (66919), Mayo (53570), Diciembre (47505), Agosto (45893), Marzo (41936), Abril (41341), Enero (38344), Febrero (37214), Octubre (36964)]
+  ITEM_CANTIDAD: min=-229, max=1339, avg=0.95
+  ITEM_DESCUENTOCONIMPUESTOS: min=-583324.0, max=1982942.0, avg=6121.1
+  ITEM_DESCUENTOSINIMPUESTOS: min=-482085.95, max=1638795.04, avg=5058.76
+  ITEM_IMPUESTOS: min=-352246.54, max=1073402.89, avg=7057.18
+  ITEM_MONTOCONIMPUESTOS: min=-2029611.0, max=7931768.0, avg=46710.26
+  ITEM_MONTOSINIMPUESTOS: min=-1677364.46, max=6555180.16, avg=38602.08
+  ITEM_MONTONETO: min=-2029611.0, max=6184845.19, avg=40654.06
+  ITEM_MONTONETOSINIMPUESTOS: min=-1677364.46, max=5111442.31, avg=33595.55
+  LOCAL: 16 valores únicos → [NQNALB (110262), MDQ (76934), NQNSHOP (64242), MONBAHIA (55017), MTGCOM (39526), MTGBBPS (37480), DEPOSITO (37237), MTGJBJ (35432), MTGROCA (33604), MUNDOAL (19436)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"CLAVE": "1", "FECHA": "2024-11-06", "COMPROBANTE": "FEN B 0027-00000001", "COMPROBANTE_TIPO": "Factura Electrnica", "ARTICULO": "ZOOTEST Articulo de prueba", "FECHA_AÑO": "2024", "FECHA_MES": "Noviembre", "FECHA_PERIODO": "2024-11", "COLOR": null, "COLOR_CODIGO": null, "COLOR_DESCRIPCION": null, "
+  [2] {"CLAVE": "2", "FECHA": "2024-12-23", "COMPROBANTE": "FCV B 0001-00000181", "COMPROBANTE_TIPO": "Factura Manual", "ARTICULO": "ZOILO240DGF Mates 240 cc Dark Graphite - Acero AISI 304", "FECHA_AÑO": "2024", "FECHA_MES": "Diciembre", "FECHA_PERIODO": "2024-12", "COLOR": null, "COLOR_CODIGO": null, "CO
+  [3] {"CLAVE": "3", "FECHA": "2024-11-23", "COMPROBANTE": "FCV B 0001-00000032", "COMPROBANTE_TIPO": "Factura Manual", "ARTICULO": "ZOILO160WH Mate 160cc Blanco - Acero Waterdog", "FECHA_AÑO": "2024", "FECHA_MES": "Noviembre", "FECHA_PERIODO": "2024-11", "COLOR": null, "COLOR_CODIGO": null, "COLOR_DESCRI
+  [4] {"CLAVE": "4", "FECHA": "2024-12-07", "COMPROBANTE": "FCV B 0001-00000093", "COMPROBANTE_TIPO": "Factura Manual", "ARTICULO": "ZOILO160FP Mates 160 cc Rojo - Acero AISI 304", "FECHA_AÑO": "2024", "FECHA_MES": "Diciembre", "FECHA_PERIODO": "2024-12", "COLOR": null, "COLOR_CODIGO": null, "COLOR_DESCRI
+  [5] {"CLAVE": "5", "FECHA": "2024-12-14", "COMPROBANTE": "FEN B 0027-00000208", "COMPROBANTE_TIPO": "Factura Electrnica", "ARTICULO": "ZOILO160DGF Mate 160cc Dark Graphite - Acero Waterdog", "FECHA_AÑO": "2024", "FECHA_MES": "Diciembre", "FECHA_PERIODO": "2024-12", "COLOR": null, "COLOR_CODIGO": null, "
+
+================================================================================
+TABLA: VENTAS — 313,083 registros
+================================================================================
+
+COLUMNAS:
+  FECHA                                    datetime2
+  CODIGO_ARTICULO                          varchar(-1)
+  CODIGO_COLOR                             varchar(-1)
+  CODIGO_TALLE                             varchar(-1)
+  ARTICULO_DESCRIPCION                     varchar(-1)
+  CANTIDAD_VENDIDA                         int
+  PRECIO_UNIDAD                            decimal
+  COSTO_UNIDAD                             decimal
+  DESCUENTO                                decimal
+  DECLARADO                                varchar(-1)
+  LOCAL                                    varchar(100)
+  COMPROBANTE_NUMERO                       varchar(255)
+  COMPROBANTE_TIPO                         varchar(255)
+  ID_FILA_VENTA                            varchar(255)
+  IDVENTA                                  varchar(255)
+  MONTO_VENTA_NETO_IVA                     decimal
+  MONTO_NETO_SINIVA                        decimal
+  MEDIO_PAGO                               varchar(255)
+  MARCA                                    varchar(255)
+  CLAVE                                    varchar(800) NOT NULL
+  VENDEDOR                                 varchar(200)
+  IDPROMO                                  bigint
+  NOMBREPROMOCION                          varchar(200)
+  CODIGOPROMOCION                          varchar(30)
+
+ESTADÍSTICAS:
+  FECHA: rango 2024-04-30 00:00:00 → 2026-03-27 13:11:07
+  CANTIDAD_VENDIDA: min=-77419, max=86000, avg=2.9
+  PRECIO_UNIDAD: min=-330000.0, max=1866000.0, avg=82781.59
+  COSTO_UNIDAD: min=0.0, max=863603.31, avg=36250.17
+  DESCUENTO: min=-24999000.01, max=24999000.01, avg=24011.38
+  DECLARADO: 2 valores únicos → [DECLARADO (210337), SIN DECLARAR (102746)]
+  LOCAL: 28 valores únicos → [DRAGONFISH_NQNALB (45484), DRAGONFISH_NQNSHOP (30232), MTGMDQ (26184), DRAGONFISH_MTGMDQ (24994), DRAGONFISH_MTGCOM (20650), DRAGONFISH_MTGROCA (18216), DRAGONFISH_MTGBBPS (13899), DRAGONFISH_DEPOSITO (13416), DRAGONFISH_MTGCBA (11626), DRAGONFISH_MUNDOCAB (10781)]
+  MONTO_VENTA_NETO_IVA: min=-24949001.01, max=24949001.01, avg=59963.57
+  MONTO_NETO_SINIVA: min=-24949001.01, max=24949001.01, avg=52096.99
+  IDPROMO: min=410, max=30828, avg=12827.02
+  NOMBREPROMOCION: 29 valores únicos → [None (50469), DESCUENTO  20% COMUNIDAD MONTAGNE (2333), DESCUENTO 25% COMUNIDAD MONTAGNE (1087), DESCUENTO 15% COMUNIDAD MONTAGNE (857), 20% DESCUENTO (686), DESCUENTO 30% COMUNIDAD MONTAGNE (587), 50% DESCUENTO EFECTIVO (536), DESCUENTO 20% CALZADO MONTAGNE (480), PROMOCION 2X1 (328), 10% DESCUENTO (282)]
+  CODIGOPROMOCION: 28 valores únicos → [None (50469), COM20 (2333), COM25 (1087), COM15 (857), 020 (686), COM30 (587), MDQ50 (505), MID20 (480), 2X1 (328), 010 (282)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"FECHA": "2025-07-25 00:00:00", "CODIGO_ARTICULO": "NMTGA0EMCA     ", "CODIGO_COLOR": "NEGRO", "CODIGO_TALLE": "ST", "ARTICULO_DESCRIPCION": "MANTA CORDERITO GRANDE MONTAGNE UNISEX", "CANTIDAD_VENDIDA": "1", "PRECIO_UNIDAD": 29918.0, "COSTO_UNIDAD": 13008.0, "DESCUENTO": 17950.0, "DECLARADO": "SIN 
+  [2] {"FECHA": "2025-03-01 00:00:00", "CODIGO_ARTICULO": "466-I          ", "CODIGO_COLOR": null, "CODIGO_TALLE": null, "ARTICULO_DESCRIPCION": "Cartucho Descartable De 227 Grs. Gas Butano. (Brogas) UNISEX", "CANTIDAD_VENDIDA": "1", "PRECIO_UNIDAD": 4730.0, "COSTO_UNIDAD": 1885.0, "DESCUENTO": 16240.0, "
+  [3] {"FECHA": "2024-09-27 00:00:00", "CODIGO_ARTICULO": "BCLMO5040      ", "CODIGO_COLOR": null, "CODIGO_TALLE": null, "ARTICULO_DESCRIPCION": "BOLSA CON LOGO 50*40 MUNDO OUTDOOR", "CANTIDAD_VENDIDA": "1", "PRECIO_UNIDAD": 0.0, "COSTO_UNIDAD": 0.0, "DESCUENTO": null, "DECLARADO": "DECLARADO", "LOCAL": "
+  [4] {"FECHA": "2024-08-17 00:00:00", "CODIGO_ARTICULO": "IJLYCKISHK     ", "CODIGO_COLOR": "PRINT ETNICO MARINO", "CODIGO_TALLE": "0/XS", "ARTICULO_DESCRIPCION": "Guante Shiroki Montagne HOMBRE", "CANTIDAD_VENDIDA": "1", "PRECIO_UNIDAD": 79508.0, "COSTO_UNIDAD": 34569.0, "DESCUENTO": null, "DECLARADO": 
+  [5] {"FECHA": "2025-12-16 00:00:00", "CODIGO_ARTICULO": "2204456        ", "CODIGO_COLOR": null, "CODIGO_TALLE": null, "ARTICULO_DESCRIPCION": "Streeterville 1180 ml inkycap topgear UNISEX", "CANTIDAD_VENDIDA": "1", "PRECIO_UNIDAD": 65752.0, "COSTO_UNIDAD": 32876.0, "DESCUENTO": null, "DECLARADO": "DECL
+
+================================================================================
+TABLA: VTEX — 163,565 registros
+================================================================================
+
+COLUMNAS:
+  refId                                    varchar(500) NOT NULL
+  skuId                                    int
+  productId                                int
+  nombreSKU                                varchar(500)
+  ean                                      varchar(100)
+  activo                                   bit
+  productName                              varchar(350)
+  productRefId                             varchar(200)
+  descripcion                              varchar(8000)
+  brand                                    varchar(100)
+  brandId                                  varchar(50)
+  categoryId                               varchar(50)
+  Color                                    varchar(300)
+  Talle                                    varchar(300)
+  imagen_1                                 varchar(800)
+  imagen_2                                 varchar(800)
+  imagen_3                                 varchar(800)
+  imagen_4                                 varchar(800)
+  imagen_5                                 varchar(800)
+  imagen_6                                 varchar(800)
+  imagen_7                                 varchar(800)
+  imagen_8                                 varchar(800)
+  imagen_9                                 varchar(800)
+  imagen_10                                varchar(800)
+  imagen_11                                varchar(800)
+  imagen_12                                varchar(800)
+  imagen_13                                varchar(800)
+  imagen_14                                varchar(800)
+  imagen_15                                varchar(800)
+  imagen_16                                varchar(800)
+  imagen_17                                varchar(800)
+  imagen_18                                varchar(800)
+  imagen_19                                varchar(800)
+  imagen_20                                varchar(800)
+  imagen_21                                varchar(800)
+  imagen_22                                varchar(800)
+  imagen_23                                varchar(800)
+  imagen_24                                varchar(800)
+  imagen_25                                varchar(800)
+  imagen_26                                varchar(800)
+  imagen_27                                varchar(800)
+  imagen_28                                varchar(800)
+  imagen_29                                varchar(800)
+  imagen_30                                varchar(800)
+  imagen_31                                varchar(800)
+  imagen_32                                varchar(800)
+  imagen_33                                varchar(800)
+  imagen_34                                varchar(800)
+
+ESTADÍSTICAS:
+  skuId: min=-91798, max=207211, avg=114037.33
+  productId: min=2, max=91936, avg=42100.3
+  brand: 1 valores únicos → [ (121260)]
+  brandId: 50 valores únicos → [2000075.0 (42889), 2000079 (32410), 2000073.0 (27452), 2000038.0 (17120), 2000079.0 (15359), 2000073 (5675), 2000075 (5608), 2000039.0 (3884), 2000003.0 (2153), 2000003 (2141)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"refId": "", "skuId": "207051", "productId": "91928", "nombreSKU": "S/A-UNICO", "ean": null, "activo": "False", "productName": "BEANIE ZORRO", "productRefId": "1251103", "descripcion": "", "brand": null, "brandId": "2000075", "categoryId": "549", "Color": "", "Talle": "", "imagen_1": null, "imagen_
+  [2] {"refId": "_PARACAMBIAR", "skuId": "23", "productId": "23", "nombreSKU": "ANTIPARRA TEAHUPOO WHITE ORANGE MIRROW OMBAK", "ean": "", "activo": "False", "productName": "Antiparra Teahupoo White Orange Mirrow Ombak", "productRefId": "_PARACAMBIAR", "descripcion": "<br/>", "brand": "", "brandId": "20000
+  [3] {"refId": "0002879249", "skuId": "135569", "productId": "34185", "nombreSKU": "NARANJA-TALLE UNICO", "ean": "", "activo": "False", "productName": "Flotador MOR 160CM CEG", "productRefId": "001551", "descripcion": "", "brand": "", "brandId": "2000075.0", "categoryId": "549.0", "Color": "NARANJA", "Ta
+  [4] {"refId": "0004542031", "skuId": "129995", "productId": "39255", "nombreSKU": "-", "ean": "", "activo": "False", "productName": "Zapatilla EEZE`Z APRON I Hi-Tec Outlet", "productRefId": "0004542-031", "descripcion": "", "brand": "", "brandId": "2000075.0", "categoryId": "549.0", "Color": "", "Talle"
+  [5] {"refId": "0007334832", "skuId": "52459", "productId": "31022", "nombreSKU": "NEGRO-XS", "ean": "", "activo": "False", "productName": "Babucha Rustica New Donkap", "productRefId": "BABDONKAP", "descripcion": "", "brand": "", "brandId": "2000075.0", "categoryId": "549.0", "Color": "NEGRO", "Talle": "
+
+================================================================================
+TABLA: ARTICULOS — 121,249 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    varchar(100)
+  DESCRIPCION                              varchar(300)
+  CODIGO_BARRAS                            varchar(80)
+  CANTIDAD                                 int
+  IDARTICULO                               varchar(50)
+  CODIGO_ARTICULO                          varchar(50)
+  COLOR_DESCRIPCION                        varchar(80)
+  TALLE_DESCRIPCION                        varchar(80)
+  PROVEEDOR                                varchar(100)
+  MARCA                                    varchar(100)
+  FECHA_ACTUALIZACION                      datetime
+  CLAVE                                    varchar(800) NOT NULL
+  ID_VARIANTE                              varchar(200)
+
+ESTADÍSTICAS:
+  LOCAL: 1 valores únicos → [ADMIN (121249)]
+  CANTIDAD: min=-195, max=15, avg=-0.0
+  PROVEEDOR: 40 valores únicos → [WINNERS PRODUCTOS DEPORTIVOS SA (39416), MONTAGNE OUTDOORS SA (26554), WORLD SPORT SRL (18094), CAMPAMENTO SA (13142), MIDING SRL (8345), SCANDINAVIAN OUTDOORS SA (4947), CRISTOBAL COLON SRL (3147), FLORIDA IMPORTA SA (1501), DG DISTRIBUTION SRL (1087), CALZADOS BLANCO SA (745)]
+  FECHA_ACTUALIZACION: rango 2025-07-12 15:18:59.677000 → 2026-03-26 12:11:47.933000
+
+MUESTRA (primeros 20 registros):
+  [1] {"LOCAL": "ADMIN", "DESCRIPCION": "BEANIE PETREL CRUDO OMBAK", "CODIGO_BARRAS": "0610063600160", "CANTIDAD": "0", "IDARTICULO": "80704487502233010", "CODIGO_ARTICULO": "06/10063", "COLOR_DESCRIPCION": "BEANIE PETREL CRUDO OMBAK", "TALLE_DESCRIPCION": "None", "PROVEEDOR": "GRUPUK SRL", "MARCA": "OMBA
+  [2] {"LOCAL": "ADMIN", "DESCRIPCION": "BEANIE PETREL VERDE OMBAK", "CODIGO_BARRAS": "0610062600300", "CANTIDAD": "0", "IDARTICULO": "80704487502233009", "CODIGO_ARTICULO": "06/10062", "COLOR_DESCRIPCION": "BEANIE PETREL VERDE OMBAK", "TALLE_DESCRIPCION": "None", "PROVEEDOR": "GRUPUK SRL", "MARCA": "OMBA
+  [3] {"LOCAL": "ADMIN", "DESCRIPCION": "BEANIE PETREL NEGRO OMBAK", "CODIGO_BARRAS": "0610061600600", "CANTIDAD": "0", "IDARTICULO": "80704487502233008", "CODIGO_ARTICULO": "06/10061", "COLOR_DESCRIPCION": "BEANIE PETREL NEGRO OMBAK", "TALLE_DESCRIPCION": "None", "PROVEEDOR": "GRUPUK SRL", "MARCA": "OMBA
+  [4] {"LOCAL": "ADMIN", "DESCRIPCION": "ANTEOJOS MUNDAKA GRIS PLOMO MATE GRIS FLASH POL OMBAK", "CODIGO_BARRAS": "0810025800600", "CANTIDAD": "0", "IDARTICULO": "80704487502233028", "CODIGO_ARTICULO": "08/10025", "COLOR_DESCRIPCION": "ANTEOJOS MUNDAKA GRIS PLOMO MATE GRIS FLASH POL OMBAK", "TALLE_DESCRIP
+  [5] {"LOCAL": "ADMIN", "DESCRIPCION": "ANTEOJOS MUNDAKA VERDE MILITAR VERDE G15 POL OMBAK", "CODIGO_BARRAS": "0810027800300", "CANTIDAD": "0", "IDARTICULO": "80704487502233030", "CODIGO_ARTICULO": "08/10027", "COLOR_DESCRIPCION": "ANTEOJOS MUNDAKA VERDE MILITAR VERDE G15 POL OMBAK", "TALLE_DESCRIPCION":
+
+================================================================================
+TABLA: REMITOS — 62,284 registros
+================================================================================
+
+COLUMNAS:
+  ID                                       bigint NOT NULL
+  IdResponsable                            bigint NOT NULL
+  Comentarios                              varchar(250)
+  Fecha                                    datetime2
+  TipoAjuste                               varchar(100)
+  NroFactura                               varchar(100)
+  NroInterno                               int
+  IDARTICULO                               bigint NOT NULL
+  cantidad                                 decimal
+  control                                  bigint NOT NULL
+  ID_VARIANTE                              bigint
+
+ESTADÍSTICAS:
+  ID: min=80704487506317418, max=80704487506390029, avg=8.070448750634504e+16
+  IdResponsable: min=80704487500070168, max=80704487500070168, avg=8.070448750005974e+16
+  Fecha: rango 2025-07-16 15:04:15.390000 → 2026-03-27 13:10:48.383000
+  TipoAjuste: 2 valores únicos → [Ajuste (62283), Venta Local Web (1)]
+  NroFactura: 1 valores únicos → [None (1)]
+  NroInterno: min=0, max=158639, avg=144566.42
+  IDARTICULO: min=80704487502196572, max=80704487502256224, avg=8.070448750217856e+16
+  cantidad: min=0.0, max=4000.0, avg=4.14
+  control: min=80704487506096747, max=80704487506125895, avg=8.070448750616458e+16
+  ID_VARIANTE: min=721547, max=80704487502256110, avg=326528978538023.56
+
+MUESTRA (primeros 20 registros):
+  [1] {"ID": "80704487506317418", "IdResponsable": "80704487500070168", "Comentarios": "Ingreso por remito", "Fecha": "2025-07-16 15:04:15.390000", "TipoAjuste": "Ajuste", "NroFactura": null, "NroInterno": "121189", "IDARTICULO": "80704487502196800", "cantidad": 2.0, "control": "80704487506096747", "ID_VA
+  [2] {"ID": "80704487506317419", "IdResponsable": "80704487500070168", "Comentarios": "Ingreso por remito", "Fecha": "2025-07-16 15:04:15.390000", "TipoAjuste": "Ajuste", "NroFactura": null, "NroInterno": "121189", "IDARTICULO": "80704487502196800", "cantidad": 2.0, "control": "80704487506096747", "ID_VA
+  [3] {"ID": "80704487506317420", "IdResponsable": "80704487500070168", "Comentarios": "Ingreso por remito", "Fecha": "2025-07-16 15:04:15.390000", "TipoAjuste": "Ajuste", "NroFactura": null, "NroInterno": "121189", "IDARTICULO": "80704487502196800", "cantidad": 2.0, "control": "80704487506096747", "ID_VA
+  [4] {"ID": "80704487506317421", "IdResponsable": "80704487500070168", "Comentarios": "Ingreso por remito", "Fecha": "2025-07-16 15:04:15.390000", "TipoAjuste": "Ajuste", "NroFactura": null, "NroInterno": "121189", "IDARTICULO": "80704487502196800", "cantidad": 3.0, "control": "80704487506096747", "ID_VA
+  [5] {"ID": "80704487506317422", "IdResponsable": "80704487500070168", "Comentarios": "Ingreso por remito", "Fecha": "2025-07-16 15:04:15.390000", "TipoAjuste": "Ajuste", "NroFactura": null, "NroInterno": "121189", "IDARTICULO": "80704487502196800", "cantidad": 2.0, "control": "80704487506096747", "ID_VA
+
+================================================================================
+TABLA: MELI_ADS — 57,006 registros
+================================================================================
+
+COLUMNAS:
+  item_id                                  varchar(30)
+  campaign_id                              int
+  ad_group_id                              int
+  title                                    varchar(1100)
+  status                                   varchar(130)
+  has_discount                             bit
+  catalog_listing                          bit
+  logistic_type                            varchar(115)
+  domain_id                                varchar(150)
+  tags                                     varchar(400)
+  official_store_id                        int
+  advertiser_id                            int
+  current_level                            varchar(140)
+  image_quality                            varchar(150)
+  clicks                                   int
+  prints                                   int
+  cost                                     decimal
+  cpc                                      decimal
+  organic_units_amount                     int
+  sov                                      decimal
+  ctr                                      decimal
+  cvr                                      decimal
+  roas                                     decimal
+  campaign_name                            varchar(160)
+  date                                     date
+  CUENTA                                   varchar(130)
+  CLAVE                                    varchar(400) NOT NULL
+  date_created                             datetime2
+
+ESTADÍSTICAS:
+  campaign_id: min=353373075, max=356134320, avg=354198249.0
+  ad_group_id: min=69280785, max=2145719292, avg=1239664205.76
+  status: 3 valores únicos → [hold (38546), active (17511), paused (949)]
+  logistic_type: 5 valores únicos → [drop_off (18799), fulfillment (16807), cross_docking (11654), xd_drop_off (9626), not_specified (120)]
+  tags: 1 valores únicos → [sll (10614)]
+  official_store_id: min=54759, max=54759, avg=54759.0
+  advertiser_id: min=9591, max=774265, avg=478072.2
+  current_level: 4 valores únicos → [unknown (26606), green (25045), newbie (5141), yellow (214)]
+  image_quality: 3 valores únicos → [good_quality_thumbnail (48085), unknown (8785), poor_quality_thumbnail (136)]
+  clicks: min=0, max=665, avg=2.92
+  prints: min=0, max=320348, avg=1739.99
+  cost: min=0.0, max=43479.88, avg=261.01
+  cpc: min=0.0, max=1143.75, avg=10.19
+  organic_units_amount: min=0, max=1596000, avg=3067.94
+  sov: min=0.0, max=100.0, avg=2.49
+  ctr: min=0.0, max=100.0, avg=0.09
+  cvr: min=0.0, max=100.0, avg=0.3
+  roas: min=0.0, max=11851.07, avg=6.08
+  campaign_name: 7 valores únicos → [Campaña Rentabilidad Modif (19379), Campaña Montagne Rentabilidad (12957), CALZADO MOUNTAIN (8220), Calzado nuevo Visibilidad (5000), Campaña Accesorios  (4268), Campaña Rentabilidad 2 (4124), Campaña Rentabilidad (3058)]
+  date: rango 2025-11-10 → 2026-03-25
+  CUENTA: 2 valores únicos → [MELINEUQUEN (34925), MELI (22081)]
+  date_created: rango 2017-03-21 13:22:50 → 2026-02-27 15:55:32
+
+MUESTRA (primeros 20 registros):
+  [1] {"item_id": "MLA1125088956", "campaign_id": "355156045", "ad_group_id": "153636043", "title": "Pantalon De Hombre Argus Montagne Repelente Al Agua ", "status": "active", "has_discount": "False", "catalog_listing": "False", "logistic_type": "xd_drop_off", "domain_id": "MLA-PANTS", "tags": "sll", "off
+  [2] {"item_id": "MLA1125088956", "campaign_id": "355156045", "ad_group_id": "153636043", "title": "Pantalon De Hombre Argus Montagne Repelente Al Agua ", "status": "active", "has_discount": "False", "catalog_listing": "False", "logistic_type": "xd_drop_off", "domain_id": "MLA-PANTS", "tags": "sll", "off
+  [3] {"item_id": "MLA1125088956", "campaign_id": "355156045", "ad_group_id": "153636043", "title": "Pantalon De Hombre Argus Montagne Repelente Al Agua ", "status": "active", "has_discount": "False", "catalog_listing": "False", "logistic_type": "xd_drop_off", "domain_id": "MLA-PANTS", "tags": "sll", "off
+  [4] {"item_id": "MLA1125088956", "campaign_id": "355156045", "ad_group_id": "153636043", "title": "Pantalon De Hombre Argus Montagne Repelente Al Agua ", "status": "active", "has_discount": "False", "catalog_listing": "False", "logistic_type": "xd_drop_off", "domain_id": "MLA-PANTS", "tags": "sll", "off
+  [5] {"item_id": "MLA1125088956", "campaign_id": "355156045", "ad_group_id": "153636043", "title": "Pantalon De Hombre Argus Montagne Repelente Al Agua ", "status": "active", "has_discount": "False", "catalog_listing": "False", "logistic_type": "xd_drop_off", "domain_id": "MLA-PANTS", "tags": "sll", "off
+
+================================================================================
+TABLA: ARTICULOS_MERCADOLIBRE — 45,792 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    varchar(50)
+  ITEM_ID                                  varchar(80)
+  VARIATION_ID                             varchar(80) NOT NULL
+  TITULO                                   varchar(250)
+  SELLER_FIELD                             varchar(200)
+  CATEGORY_ID                              varchar(10)
+  CATEGORY_NAME                            varchar(80)
+  STATUS                                   varchar(20)
+  PRICE                                    decimal
+  CURRENCY_ID                              varchar(5)
+  CONDITION                                varchar(30)
+  LISTING_TYPE_ID                          varchar(30)
+  FREE_SHIPPING                            bit
+  LOGISTIC_TYPE                            varchar(20)
+  SHIPPING_MODE                            varchar(20)
+  VARIATION_ATTRIBUTES                     varchar(280)
+  BRAND                                    varchar(100)
+  MODEL                                    varchar(100)
+  WARRANTY                                 varchar(60)
+  PERMALINK                                varchar(-1)
+  DATE_CREATED                             datetime2
+  LAST_UPDATED                             datetime2
+  CATALOG_PRODUCT_ID                       varchar(40)
+  CATALOG_LISTING                          bit
+  HEALTH                                   decimal
+  DOMAIN_ID                                varchar(150)
+  OFFICIAL_STORE_ID                        int
+  PICTURES_COUNT                           int
+  TAGS                                     varchar(-1)
+  SELLER_CUSTOM_FIELD                      varchar(120)
+  FAMILY_ID                                varchar(100)
+
+ESTADÍSTICAS:
+  LOCAL: 3 valores únicos → [MELI (30451), MELINEUQUEN (9124), URBAN (6217)]
+  STATUS: 4 valores únicos → [paused (26837), active (16599), under_review (1416), closed (940)]
+  PRICE: min=439.11, max=99999999.0, avg=934736.56
+  CURRENCY_ID: 1 valores únicos → [ARS (45792)]
+  CONDITION: 2 valores únicos → [new (45791), used (1)]
+  LISTING_TYPE_ID: 2 valores únicos → [gold_special (32862), gold_pro (12930)]
+  LOGISTIC_TYPE: 6 valores únicos → [drop_off (36396), cross_docking (8036), fulfillment (1135), xd_drop_off (173), not_specified (49), custom (3)]
+  SHIPPING_MODE: 3 valores únicos → [me2 (45740), not_specified (49), custom (3)]
+  WARRANTY: 22 valores únicos → [Garantía de fábrica: 3 meses (24760), Garantía de fábrica: 6 meses (8129), Garantía de fábrica: 30 días (5144), Sin garantía (2953), Garantía de fábrica: 1 años (2354), Garantía del vendedor: 2 meses (988), Garantía de fábrica: 2 años (464), Garantía del vendedor: 3 meses (430), Garantía de fábrica: 3 días (232), Garantía de fábrica: 90 días (72)]
+  DATE_CREATED: rango 2017-03-07 11:41:36 → 2026-03-26 12:04:47.728000
+  LAST_UPDATED: rango 2025-10-13 13:33:47.186000 → 2026-03-26 18:35:32.602000
+  HEALTH: min=0.45, max=1.0, avg=0.77
+  OFFICIAL_STORE_ID: min=54759, max=54759, avg=54759.0
+  PICTURES_COUNT: min=1, max=128, avg=20.5
+
+MUESTRA (primeros 20 registros):
+  [1] {"LOCAL": "MELI", "ITEM_ID": "MLA656920733", "VARIATION_ID": "14935080807", "TITULO": "Campera Abrigo Impermeable Hombre Nix Con Polar Montagne", "SELLER_FIELD": "NZQTA0A781NN003", "CATEGORY_ID": "MLA109096", "CATEGORY_NAME": "Camperas, Tapados y Trenchs", "STATUS": "active", "PRICE": 210452.0, "CUR
+  [2] {"LOCAL": "MELI", "ITEM_ID": "MLA656920733", "VARIATION_ID": "14935080810", "TITULO": "Campera Abrigo Impermeable Hombre Nix Con Polar Montagne", "SELLER_FIELD": "NZQTA0A781NN004", "CATEGORY_ID": "MLA109096", "CATEGORY_NAME": "Camperas, Tapados y Trenchs", "STATUS": "active", "PRICE": 210452.0, "CUR
+  [3] {"LOCAL": "MELI", "ITEM_ID": "MLA656920733", "VARIATION_ID": "14935080813", "TITULO": "Campera Abrigo Impermeable Hombre Nix Con Polar Montagne", "SELLER_FIELD": "NZQTA0A781NN005", "CATEGORY_ID": "MLA109096", "CATEGORY_NAME": "Camperas, Tapados y Trenchs", "STATUS": "active", "PRICE": 210452.0, "CUR
+  [4] {"LOCAL": "MELI", "ITEM_ID": "MLA656923814", "VARIATION_ID": "14935328594", "TITULO": "Rompeviento Impermeable Hombre Nix Con Red Montagne ", "SELLER_FIELD": "NZQTDHA679NN002", "CATEGORY_ID": "MLA109096", "CATEGORY_NAME": "Camperas, Tapados y Trenchs", "STATUS": "active", "PRICE": 165946.0, "CURRENC
+  [5] {"LOCAL": "MELI", "ITEM_ID": "MLA656923814", "VARIATION_ID": "14935328604", "TITULO": "Rompeviento Impermeable Hombre Nix Con Red Montagne ", "SELLER_FIELD": "NZQTDHA679NN003", "CATEGORY_ID": "MLA109096", "CATEGORY_NAME": "Camperas, Tapados y Trenchs", "STATUS": "active", "PRICE": 165946.0, "CURRENC
+
+================================================================================
+TABLA: FICHACOMPRO — 42,954 registros
+================================================================================
+
+COLUMNAS:
+  CLAVE                                    varchar(450) NOT NULL
+  Cantidad                                 int
+  Genero                                   varchar(50)
+  Edad                                     varchar(30)
+  Categoria                                varchar(100)
+  Subcategoria                             varchar(150)
+  Otro                                     varchar(-1)
+  Compro                                   varchar(-1)
+  Stock                                    varchar(150)
+  Pregunto_por                             varchar(150)
+  Hora                                     varchar(30)
+  Local                                    varchar(50) NOT NULL
+  Fecha                                    date
+
+ESTADÍSTICAS:
+  Cantidad: min=0, max=100, avg=1.43
+  Local: 15 valores únicos → [BBPS (5721), MONBAHIA (5135), MUNDOCAB (4733), MUNDOAL (4685), MTGCBA (4004), MDQ (3368), MUNDOROCA (3278), MTGROCA (2566), NQNSHOP (2364), NQNALB (2072)]
+  Fecha: rango 2005-11-19 → 2026-03-26
+
+MUESTRA (primeros 20 registros):
+  [1] {"CLAVE": "!|Mujer|35-60|Accesorios||Cuello montagne|Si|Con Stock||16|MUNDOAL|2025-01-16|13", "Cantidad": null, "Genero": "Mujer", "Edad": "35-60", "Categoria": "Accesorios", "Subcategoria": "", "Otro": "Cuello montagne", "Compro": "Si", "Stock": "Con Stock", "Pregunto_por": "", "Hora": "16", "Local
+  [2] {"CLAVE": "-|-|-|-|-|-|-|-|No funcionaba la computadora!|17|MUNDOAL|2026-03-05|2", "Cantidad": null, "Genero": "-", "Edad": "-", "Categoria": "-", "Subcategoria": "-", "Otro": "-", "Compro": "-", "Stock": "-", "Pregunto_por": "No funcionaba la computadora!", "Hora": "17", "Local": "MUNDOAL", "Fecha"
+  [3] {"CLAVE": "-|||||ENTRARON A MIRAR|No|||18|MUNDOCAB|2025-09-24|22", "Cantidad": null, "Genero": "", "Edad": "", "Categoria": "", "Subcategoria": "", "Otro": "ENTRARON A MIRAR", "Compro": "No", "Stock": "", "Pregunto_por": "", "Hora": "18", "Local": "MUNDOCAB", "Fecha": "2025-09-24"}
+  [4] {"CLAVE": "-|||||entraron a ver zapatillas|No|||13|MUNDOCAB|2025-09-20|28", "Cantidad": null, "Genero": "", "Edad": "", "Categoria": "", "Subcategoria": "", "Otro": "entraron a ver zapatillas", "Compro": "No", "Stock": "", "Pregunto_por": "", "Hora": "13", "Local": "MUNDOCAB", "Fecha": "2025-09-20"}
+  [5] {"CLAVE": "-|||||entro a mirar pantalones desmontables pero buscaba uno de tela gruesa||||17|MUNDOCAB|2025-07-19|19", "Cantidad": null, "Genero": "", "Edad": "", "Categoria": "", "Subcategoria": "", "Otro": "entro a mirar pantalones desmontables pero buscaba uno de tela gruesa", "Compro": "", "Stock
+
+================================================================================
+TABLA: CAJAS — 37,188 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    varchar(50) NOT NULL
+  Id                                       bigint NOT NULL
+  MCImporte                                decimal
+  FechaActualizacion                       datetime2
+  FPCodigo                                 varchar(50)
+  DescripcionMovimiento                    varchar(255)
+  TipoMovimiento                           int
+  ImporteMovsCajMov                        decimal
+  idcab                                    bigint
+
+ESTADÍSTICAS:
+  LOCAL: 14 valores únicos → [MTGMDQ (9785), MTGCBA (3682), MTGJBJ (3451), MUNDOBBPS (3412), MTGCOM (2391), NQNALB (2367), MUNDOROCA (2317), MTGROCA (2103), MTGBBPS (1812), NQNSHOP (1773)]
+  Id: min=5982108, max=6325885, avg=6101609.21
+  MCImporte: min=-4000000.0, max=1953664.4, avg=69283.34
+  FechaActualizacion: rango 2025-07-14 14:37:48 → 2026-03-27 13:11:08
+  FPCodigo: 14 valores únicos → [E (14910), T (12969), None (3882), QR (2004), D (1341), M (742), CTACTE (370), TR (273), B (261), 2 (256)]
+  DescripcionMovimiento: 22 valores únicos → [Cobro de Factura de ventas (27795), RETIRO DE EFECTIVO (1588), Para Cambio (1515), Ingreso por Cambio (1497), Sobrante (1226), RETIRO DE DINERO (730), Faltante (653), COMPRAS Y GASTOS VARIOS (618), COMPRAS (528), GASTOS VARIOS (318)]
+  TipoMovimiento: min=0, max=1, avg=0.83
+  ImporteMovsCajMov: min=-4000000.0, max=1953664.4, avg=95490.45
+  idcab: min=6160669, max=6160669, avg=6160669.0
+
+MUESTRA (primeros 20 registros):
+  [1] {"LOCAL": "MTGMDQ", "Id": "6035992", "MCImporte": 159900.0, "FechaActualizacion": "2025-07-19 16:27:20", "FPCodigo": "CTACTE", "DescripcionMovimiento": "Cobro de Factura de ventas", "TipoMovimiento": "1", "ImporteMovsCajMov": 179900.0, "idcab": null}
+  [2] {"LOCAL": "MTGMDQ", "Id": "6035993", "MCImporte": -320000.0, "FechaActualizacion": "2025-07-19 16:32:00", "FPCodigo": "None", "DescripcionMovimiento": "RETIRO DE DINERO", "TipoMovimiento": "0", "ImporteMovsCajMov": -320000.0, "idcab": null}
+  [3] {"LOCAL": "MTGMDQ", "Id": "6035994", "MCImporte": 95920.0, "FechaActualizacion": "2025-07-19 16:37:32", "FPCodigo": "E", "DescripcionMovimiento": "Cobro de Factura de ventas", "TipoMovimiento": "1", "ImporteMovsCajMov": 95920.0, "idcab": null}
+  [4] {"LOCAL": "MTGMDQ", "Id": "6035995", "MCImporte": 359800.0, "FechaActualizacion": "2025-07-19 17:04:04", "FPCodigo": "T", "DescripcionMovimiento": "Cobro de Factura de ventas", "TipoMovimiento": "1", "ImporteMovsCajMov": 359800.0, "idcab": null}
+  [5] {"LOCAL": "MTGMDQ", "Id": "6035996", "MCImporte": 52321.0, "FechaActualizacion": "2025-07-19 17:04:04", "FPCodigo": "T", "DescripcionMovimiento": "Cobro de Factura de ventas", "TipoMovimiento": "1", "ImporteMovsCajMov": 52321.0, "idcab": null}
+
+================================================================================
+TABLA: LISTAPRECIOS — 35,887 registros
+================================================================================
+
+COLUMNAS:
+  IdListaPreciosDet                        bigint NOT NULL
+  Marca                                    varchar(100)
+  CodBarrasEditable                        varchar(150)
+  ArtDesLar                                varchar(-1)
+  Fecha                                    datetime2
+  PRECIOS                                  decimal
+  LISTADEPRECIOS                           varchar(40)
+  NombreListaPrecio                        varchar(150)
+  IdArticulo                               bigint NOT NULL
+
+ESTADÍSTICAS:
+  IdListaPreciosDet: min=80704487501210239, max=80704487501276526, avg=8.070448750123126e+16
+  Fecha: rango 2025-07-13 22:06:49.757000 → 2026-03-26 17:04:25.287000
+  PRECIOS: min=0.0, max=4198950.0, avg=91929.37
+  LISTADEPRECIOS: 7 valores únicos → [V (17837), Z (14480), ML (3414), L (50), W (41), A (37), M (28)]
+  NombreListaPrecio: 7 valores únicos → [Ventas Publico (17837), PRECIO DE COMPRA (14480), Precio Mercado Libre (3414), Precio Tienda Lista (50), Precio Tienda Promo (41), Acopios (37), M (28)]
+  IdArticulo: min=80704487502196570, max=80704487502256227, avg=8.07044875021765e+16
+
+MUESTRA (primeros 20 registros):
+  [1] {"IdListaPreciosDet": "80704487501210239", "Marca": "MONTAGNE", "CodBarrasEditable": "NMIDAFAAUA", "ArtDesLar": "BOTA AURA HOMBRE", "Fecha": "2025-07-13 22:06:49.757000", "PRECIOS": 84950.0, "LISTADEPRECIOS": "Z", "NombreListaPrecio": "PRECIO DE COMPRA", "IdArticulo": "80704487502196959"}
+  [2] {"IdListaPreciosDet": "80704487501210240", "Marca": "MONTAGNE", "CodBarrasEditable": "NMIDAFAAUA", "ArtDesLar": "BOTA AURA HOMBRE", "Fecha": "2025-07-13 22:06:49.757000", "PRECIOS": 169900.0, "LISTADEPRECIOS": "V", "NombreListaPrecio": "Ventas Publico", "IdArticulo": "80704487502196959"}
+  [3] {"IdListaPreciosDet": "80704487501210241", "Marca": "MONTAGNE", "CodBarrasEditable": "NMIDAFAJUL", "ArtDesLar": "BOTA PRE SKI RAIVAL HOMBRE", "Fecha": "2025-07-13 22:06:49.757000", "PRECIOS": 114950.0, "LISTADEPRECIOS": "Z", "NombreListaPrecio": "PRECIO DE COMPRA", "IdArticulo": "80704487502196806"}
+  [4] {"IdListaPreciosDet": "80704487501210242", "Marca": "MONTAGNE", "CodBarrasEditable": "NMIDAFAJUL", "ArtDesLar": "BOTA PRE SKI RAIVAL HOMBRE", "Fecha": "2025-07-13 22:06:49.757000", "PRECIOS": 229900.0, "LISTADEPRECIOS": "V", "NombreListaPrecio": "Ventas Publico", "IdArticulo": "80704487502196806"}
+  [5] {"IdListaPreciosDet": "80704487501210243", "Marca": "MONTAGNE", "CodBarrasEditable": "NMIDAFAJUQ", "ArtDesLar": "BOTA SEILAS GTX MID HOMBRE", "Fecha": "2025-07-13 22:06:49.757000", "PRECIOS": 89950.0, "LISTADEPRECIOS": "Z", "NombreListaPrecio": "PRECIO DE COMPRA", "IdArticulo": "80704487502197182"}
+
+================================================================================
+TABLA: COSTOS_MERCADOLIBRE — 23,157 registros
+================================================================================
+
+COLUMNAS:
+  order_id                                 bigint NOT NULL
+  sale_fee                                 decimal
+  sender_cost                              decimal
+  PACK_ID                                  varchar(30)
+
+ESTADÍSTICAS:
+  order_id: min=2000010682140664, max=2000015726137858, avg=2000013534451708.2
+  sale_fee: min=1305.0, max=390217.5, avg=17141.87
+  sender_cost: min=0.0, max=93167.92, avg=6965.11
+
+MUESTRA (primeros 20 registros):
+  [1] {"order_id": "2000010682140664", "sale_fee": 47200.66, "sender_cost": 4805.99, "PACK_ID": ""}
+  [2] {"order_id": "2000010682324974", "sale_fee": 24127.25, "sender_cost": 5437.99, "PACK_ID": ""}
+  [3] {"order_id": "2000010682396348", "sale_fee": 20679.3, "sender_cost": 5802.49, "PACK_ID": ""}
+  [4] {"order_id": "2000010683885376", "sale_fee": 18182.37, "sender_cost": 4805.99, "PACK_ID": ""}
+  [5] {"order_id": "2000010684153512", "sale_fee": 12213.87, "sender_cost": 5437.99, "PACK_ID": ""}
+
+================================================================================
+TABLA: VENTAS_MERCADOLIBRE — 23,155 registros
+================================================================================
+
+COLUMNAS:
+  ORDER_ID                                 varchar(20)
+  DATE_CREATED                             date
+  TOTAL_AMOUNT                             decimal
+  AMOUNT_NO_IVA                            decimal
+  CURRENCY_ID                              varchar(50)
+  STATUS                                   varchar(50)
+  LOCAL                                    varchar(20)
+  PRODUCT_NAME                             varchar(300)
+  SELLER_FIELD                             varchar(200)
+  CATEGORY_ID                              varchar(100)
+  CATEGORY_NAME                            varchar(150)
+  CANTIDAD                                 int
+  ESTADO                                   varchar(50)
+  ENVIO                                    varchar(80)
+  CLAVE                                    varchar(300) NOT NULL
+  PACK_ID                                  varchar(30)
+  ITEM_ID                                  varchar(50)
+  VARIATION_ID                             varchar(50)
+
+ESTADÍSTICAS:
+  DATE_CREATED: rango 2025-02-07 → 2026-03-27
+  TOTAL_AMOUNT: min=1500.0, max=1596000.0, avg=110001.48
+  AMOUNT_NO_IVA: min=1239.67, max=1319008.26, avg=90910.31
+  CURRENCY_ID: 1 valores únicos → [ARS (23155)]
+  STATUS: 3 valores únicos → [paid (19853), cancelled (3286), partially_refunded (16)]
+  LOCAL: 3 valores únicos → [MELI (14317), MELINEUQUEN (8566), URBAN (272)]
+  CANTIDAD: min=1, max=42, avg=1.02
+  ESTADO: 3 valores únicos → [VENTA_COMPLETADA (19853), CANCELADA (3286), PARTIALLY_REFUNDED (16)]
+  ENVIO: 6 valores únicos → [drop_off (13841), fulfillment (4069), xd_drop_off (2875), self_service (1115), cross_docking (972),  (283)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"ORDER_ID": "2000010682324974", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 155659.7, "AMOUNT_NO_IVA": 128644.38, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Campera De Mujer Blair Montagne", "SELLER_FIELD": "NMP1B0HCBJ-PJ6-44", "CATEGORY_ID": "MLA66334", "CATEGORY_N
+  [2] {"ORDER_ID": "2000010682396348", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 153180.0, "AMOUNT_NO_IVA": 126595.04, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Botas Borcegos Trekking Hitec Altitude Lite Wp Impermeables", "SELLER_FIELD": "07/1-145615-56-T45", "CATEGORY
+  [3] {"ORDER_ID": "2000010683885376", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 117305.6, "AMOUNT_NO_IVA": 96946.78, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Pantalón Liviano Mujer Sasha Montagne Impermeable Abrigo", "SELLER_FIELD": "NYSSB4EPFD-NN0-44", "CATEGORY_ID":
+  [4] {"ORDER_ID": "2000010684153512", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 87241.92, "AMOUNT_NO_IVA": 72100.76, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Sandalia Montagne Zymic Anfibia Hydro System", "SELLER_FIELD": "NMIDKSDZYH-AC0-T40", "CATEGORY_ID": "MLA416005
+  [5] {"ORDER_ID": "2000010684161108", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 125230.0, "AMOUNT_NO_IVA": 103495.87, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Campera Abrigo Impermeable Hombre Nix Con Polar Montagne", "SELLER_FIELD": "NZQTA0A781-RNU-05", "CATEGORY_ID"
+
+================================================================================
+TABLA: BENEFICIO_MERCADO_VIEJO — 15,031 registros
+================================================================================
+
+COLUMNAS:
+  ORDER_ID                                 varchar(20)
+  DATE_CREATED                             date
+  TOTAL_AMOUNT                             decimal
+  AMOUNT_NO_IVA                            decimal
+  CURRENCY_ID                              varchar(50)
+  STATUS                                   varchar(50)
+  LOCAL                                    varchar(20)
+  PRODUCT_NAME                             varchar(300)
+  SELLER_FIELD                             varchar(200)
+  CATEGORY_ID                              varchar(100)
+  CATEGORY_NAME                            varchar(150)
+  CANTIDAD                                 int
+  ESTADO                                   varchar(50)
+  ENVIO                                    varchar(80)
+  CLAVE                                    varchar(300) NOT NULL
+  PACK_ID                                  varchar(30)
+  ITEM_ID                                  varchar(50)
+  VARIATION_ID                             varchar(50)
+  FART_EXTRACTO                            varchar(100)
+  CMV_TOTAL                                numeric
+  costo_envio_ponderado                    float
+  sale_fee_ponderado                       float
+  BENEFICIO                                float
+
+ESTADÍSTICAS:
+  DATE_CREATED: rango 2025-02-07 → 2026-02-11
+  TOTAL_AMOUNT: min=1541.0, max=932630.94, avg=107576.08
+  AMOUNT_NO_IVA: min=1273.55, max=770769.37, avg=88905.85
+  CURRENCY_ID: 1 valores únicos → [ARS (15031)]
+  STATUS: 2 valores únicos → [paid (15020), partially_refunded (11)]
+  LOCAL: 3 valores únicos → [MELI (10066), MELINEUQUEN (4737), URBAN (228)]
+  CANTIDAD: min=1, max=16, avg=1.02
+  ESTADO: 2 valores únicos → [VENTA_COMPLETADA (15020), PARTIALLY_REFUNDED (11)]
+  ENVIO: 6 valores únicos → [drop_off (10085), xd_drop_off (2502), fulfillment (1545), self_service (432), cross_docking (246),  (221)]
+  CMV_TOTAL: min=0.0, max=574999.0, avg=56583.39
+  costo_envio_ponderado: min=0.0, max=93167.92, avg=5930.4
+  sale_fee_ponderado: min=0.0, max=236816.19, avg=16479.41
+  BENEFICIO: min=-508668.8, max=246913.96, avg=9912.65
+
+MUESTRA (primeros 20 registros):
+  [1] {"ORDER_ID": "2000011161858998", "DATE_CREATED": "2025-03-29", "TOTAL_AMOUNT": 110924.62, "AMOUNT_NO_IVA": 91673.24, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Campera De Mujer Kilian Montagne Impermeable", "SELLER_FIELD": "NWSXB0ECKK-NN0-46", "CATEGORY_ID": "MLA109096
+  [2] {"ORDER_ID": "2000011162846732", "DATE_CREATED": "2025-03-29", "TOTAL_AMOUNT": 160756.8, "AMOUNT_NO_IVA": 132856.86, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Zapatillas Mujer Salomon - Ultra Flow - Trail Running", "SELLER_FIELD": "475936-936S-8M", "CATEGORY_ID": "MLA
+  [3] {"ORDER_ID": "2000011166827876", "DATE_CREATED": "2025-03-29", "TOTAL_AMOUNT": 159900.0, "AMOUNT_NO_IVA": 132148.76, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Botas Trekking Montagne Huts Hombre  Trail Impermeables", "SELLER_FIELD": "NMIDKTHZHT-NVS-T43", "CATEGORY_ID"
+  [4] {"ORDER_ID": "2000011174234984", "DATE_CREATED": "2025-03-30", "TOTAL_AMOUNT": 60465.99, "AMOUNT_NO_IVA": 49971.89, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Chomba Hombre Shocker Montagne Secado Rapido Respirable", "SELLER_FIELD": "NMJRDE1SHO-NN0-05", "CATEGORY_ID": 
+  [5] {"ORDER_ID": "2000010684153512", "DATE_CREATED": "2025-02-07", "TOTAL_AMOUNT": 87241.92, "AMOUNT_NO_IVA": 72100.76, "CURRENCY_ID": "ARS", "STATUS": "paid", "LOCAL": "MELI", "PRODUCT_NAME": "Sandalia Montagne Zymic Anfibia Hydro System", "SELLER_FIELD": "NMIDKSDZYH-AC0-T40", "CATEGORY_ID": "MLA416005
+
+================================================================================
+TABLA: COSTOS_DRAGONFISH — 13,235 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    varchar(30)
+  FECHA                                    date
+  CANTIDAD                                 int
+  COSTO                                    decimal
+  IGNORAR                                  bit
+  CLAVE                                    int NOT NULL
+
+ESTADÍSTICAS:
+  LOCAL: 17 valores únicos → [NQNSHOP (1474), NQNALB (1207), MDQ (1183), DEPOSITO (1156), MONBAHIA (1110), MTGJBJ (1001), MTGBBPS (916), MTGROCA (824), MELI (803), MUNDOAL (760)]
+  FECHA: rango 2022-01-01 → 2026-03-10
+  CANTIDAD: min=-99, max=7505, avg=42.09
+  COSTO: min=-14234037.0, max=19635942.0, avg=1353099.2
+  CLAVE: min=1, max=13235, avg=6618.0
+
+MUESTRA (primeros 20 registros):
+  [1] {"LOCAL": "WOO", "FECHA": "2023-02-16", "CANTIDAD": "1", "COSTO": 0.0, "IGNORAR": "False", "CLAVE": "1"}
+  [2] {"LOCAL": "WOO", "FECHA": "2023-02-21", "CANTIDAD": "3", "COSTO": 431400.0, "IGNORAR": "False", "CLAVE": "2"}
+  [3] {"LOCAL": "WOO", "FECHA": "2023-03-03", "CANTIDAD": "17", "COSTO": 665820.0, "IGNORAR": "False", "CLAVE": "3"}
+  [4] {"LOCAL": "WOO", "FECHA": "2023-03-08", "CANTIDAD": "16", "COSTO": 956223.0, "IGNORAR": "False", "CLAVE": "4"}
+  [5] {"LOCAL": "WOO", "FECHA": "2023-03-12", "CANTIDAD": "2", "COSTO": 88736.0, "IGNORAR": "False", "CLAVE": "5"}
+
+================================================================================
+TABLA: SCRAPPER — 12,864 registros
+================================================================================
+
+COLUMNAS:
+  EAN                                      varchar(60)
+  Nombre                                   varchar(150)
+  Variante                                 varchar(80)
+  Precio_Lista                             decimal
+  Precio_Venta                             decimal
+  Link                                     varchar(150)
+  desc                                     varchar(-1)
+  CLAVE                                    varchar(200) NOT NULL
+  MARCA                                    varchar(100)
+
+ESTADÍSTICAS:
+  Precio_Lista: min=0.0, max=1569990.0, avg=108138.68
+  Precio_Venta: min=0.0, max=1569990.0, avg=115032.32
+  MARCA: 11 valores únicos → [MONTAGNE (3214), BURTON (1954), WATERDOG (1541), DC (1439), QK (1270), ANSILTA (1135), RVCA (1048), ROXY (671), C1RCA (292), GRIZZLY (196)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"EAN": "100LBS", "Nombre": "Cable de acero Waterdog x 50 m", "Variante": "100lbs", "Precio_Lista": 12341.0, "Precio_Venta": 8639.0, "Link": "https://waterdog.com.ar/productos/cable-acero-waterdog/", "desc": "Cable de acero Waterdog x 50 m\nDescubre la fiabilidad y resistencia de nuestros cables de 
+  [2] {"EAN": "100LBS-10", "Nombre": "Cable de acero 100 lbs Waterdog x 10 m con 10 tubitos", "Variante": "100lbs", "Precio_Lista": 4476.0, "Precio_Venta": 3133.0, "Link": "https://waterdog.com.ar/productos/cable-acero-con-tubitos/", "desc": "Cable de acero 100 lbs Waterdog x 10 m con 10 tubitos\nDescubre
+  [3] {"EAN": "114160", "Nombre": "campera piuquen plumón 800fp urbana niños", "Variante": "Azul Capri", "Precio_Lista": 263000.0, "Precio_Venta": 223550.0, "Link": "https://www.ansilta.com/articulo/1261-campera-piuquen-plumon-800fp-urbana-ninos.html", "desc": "Finalmente llegó la campera de abrigo que no
+  [4] {"EAN": "114160", "Nombre": "campera piuquen plumón 800fp urbana niños", "Variante": "GRIS / FUCSIA", "Precio_Lista": null, "Precio_Venta": 263000.0, "Link": "https://www.ansilta.com/articulo/807-campera-piuquen-ninos.html", "desc": "Finalmente llegó la campera de abrigo que nos pedían para niños. L
+  [5] {"EAN": "114160", "Nombre": "campera piuquen plumón 800fp urbana niños", "Variante": "Negro", "Precio_Lista": null, "Precio_Venta": 263000.0, "Link": "https://www.ansilta.com/articulo/807-campera-piuquen-ninos.html", "desc": "Finalmente llegó la campera de abrigo que nos pedían para niños. Liviana, 
+
+================================================================================
+TABLA: IMAGENES_CLOUDFARE — 11,627 registros
+================================================================================
+
+COLUMNAS:
+  CLAVE                                    varchar(200) NOT NULL
+  imagen_1                                 varchar(250)
+  imagen_2                                 varchar(250)
+  imagen_3                                 varchar(250)
+  imagen_4                                 varchar(250)
+  imagen_5                                 varchar(250)
+  imagen_6                                 varchar(250)
+  imagen_7                                 varchar(250)
+  imagen_8                                 varchar(250)
+  imagen_9                                 varchar(250)
+  imagen_10                                varchar(250)
+  imagen_11                                varchar(250)
+  imagen_12                                varchar(250)
+  imagen_13                                varchar(250)
+  imagen_14                                varchar(250)
+  imagen_15                                varchar(250)
+  imagen_16                                varchar(250)
+  imagen_17                                varchar(250)
+  imagen_18                                varchar(250)
+  imagen_19                                varchar(250)
+  imagen_20                                varchar(250)
+  imagen_21                                varchar(250)
+  imagen_22                                varchar(250)
+  imagen_23                                varchar(250)
+  imagen_24                                varchar(250)
+  imagen_25                                varchar(250)
+  imagen_26                                varchar(250)
+  imagen_27                                varchar(250)
+  imagen_28                                varchar(250)
+  imagen_29                                varchar(250)
+  imagen_30                                varchar(250)
+
+ESTADÍSTICAS:
+  imagen_19: 45 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FADB_Cereza_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FADB_Arena_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC3_Negro / Gris Melange_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC3_Crudo / Gris Melange_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC2_Tiza_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC2_Negro_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC2_Ciruela_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DERS _Arena / Negro_imagen_19/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Negro / Negro_imagen_19/public (1)]
+  imagen_20: 34 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V5MC1DYE_006_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V4BF1MMN_888_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I5ML1NEL_006_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I4BP1CTS_888_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0HBB8_Blanco Coco_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Negro_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC3_Negro / Gris Melange_imagen_20/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FAC3_Crudo / Gris Melange_imagen_20/public (1)]
+  imagen_21: 23 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V6RO1IVD_006_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V6BF1SUS_888_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V5MP1RET_006_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V5MC1DYE_006_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V4BF1MMN_888_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I5ML1NEL_006_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I4BP1CTS_888_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Negro_imagen_21/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_21/public (1)]
+  imagen_22: 17 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V6BF1SUS_888_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V4BF1MMN_888_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I4BP1CTS_888_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Negro_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Negro / Negro_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Blanco / Negro_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Cosmic Ultravioleta / Negro_imagen_22/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Negro_imagen_22/public (1)]
+  imagen_23: 17 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V6BF1SUS_888_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V4BF1MMN_888_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I4BP1CTS_888_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Negro_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Negro / Negro_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Blanco / Negro_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Cosmic Ultravioleta / Negro_imagen_23/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Negro_imagen_23/public (1)]
+  imagen_24: 13 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V6BF1SUS_888_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/V4BF1MMN_888_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/I4BP1CTS_888_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Negro_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Blanco / Negro_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Cosmic Ultravioleta / Negro_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Negro_imagen_24/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Mostaza_imagen_24/public (1)]
+  imagen_25: 8 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/B0FANC_Cereza_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Marble Blanco / Negro_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0DCQU_Cosmic Ultravioleta / Negro_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Negro_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Mostaza_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_25/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0ATRS_Militar_imagen_25/public (1)]
+  imagen_26: 5 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_26/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Negro_imagen_26/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Mostaza_imagen_26/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_26/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0ATRS_Militar_imagen_26/public (1)]
+  imagen_27: 3 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_27/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Mostaza_imagen_27/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_27/public (1)]
+  imagen_28: 3 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/DHAANB_Amarillo_imagen_28/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Mostaza_imagen_28/public (1), https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_28/public (1)]
+  imagen_29: 1 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_29/public (1)]
+  imagen_30: 1 valores únicos → [https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/A0BCLG_Negro / Azul Acero_imagen_30/public (1)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"CLAVE": "100LBS_100lbs", "imagen_1": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/100LBS_100lbs_imagen_1/public", "imagen_2": null, "imagen_3": null, "imagen_4": null, "imagen_5": null, "imagen_6": null, "imagen_7": null, "imagen_8": null, "imagen_9": null, "imagen_10": null, "imagen_11": nul
+  [2] {"CLAVE": "100LBS-10_100lbs", "imagen_1": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/100LBS-10_100lbs_imagen_1/public", "imagen_2": null, "imagen_3": null, "imagen_4": null, "imagen_5": null, "imagen_6": null, "imagen_7": null, "imagen_8": null, "imagen_9": null, "imagen_10": null, "imagen_11
+  [3] {"CLAVE": "114160_Azul Capri", "imagen_1": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Azul Capri_imagen_1/public", "imagen_2": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Azul Capri_imagen_2/public", "imagen_3": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Azul
+  [4] {"CLAVE": "114160_GRIS / FUCSIA", "imagen_1": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_GRIS / FUCSIA_imagen_1/public", "imagen_2": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_GRIS / FUCSIA_imagen_2/public", "imagen_3": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/11
+  [5] {"CLAVE": "114160_Negro", "imagen_1": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Negro_imagen_1/public", "imagen_2": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Negro_imagen_2/public", "imagen_3": "https://imagedelivery.net/PkV_3EBfSxDG0m4j4pQYrQ/114160_Negro_imagen_3/publ
+
+================================================================================
+TABLA: ML_CLINK — 8,899 registros
+================================================================================
+
+COLUMNAS:
+  Id                                       bigint NOT NULL
+  IdTienda                                 bigint
+  productid                                bigint
+  sku                                      varchar(300)
+  Value                                    varchar(300)
+  barcode                                  varchar(300)
+  ActualizarPrecio                         bit
+
+ESTADÍSTICAS:
+  Id: min=121802, max=130702, avg=126251.05
+  IdTienda: min=1510060975, max=198023892671, avg=161793772183.29
+  productid: min=1510060975, max=3106140652, avg=2011703817.03
+
+MUESTRA (primeros 20 registros):
+  [1] {"Id": "121802", "IdTienda": "2180382154", "productid": "2180382154", "sku": "None", "Value": ";Sin Variante", "barcode": "5968340460883", "ActualizarPrecio": null}
+  [2] {"Id": "121803", "IdTienda": "189018861297", "productid": "2180381806", "sku": "None", "Value": ";Negro;43 AR", "barcode": "None", "ActualizarPrecio": "True"}
+  [3] {"Id": "121804", "IdTienda": "189018861305", "productid": "2180381806", "sku": "None", "Value": ";Gris;41 AR", "barcode": "None", "ActualizarPrecio": "True"}
+  [4] {"Id": "121805", "IdTienda": "189018861285", "productid": "2180381806", "sku": "None", "Value": ";Gris;42 AR", "barcode": "None", "ActualizarPrecio": "True"}
+  [5] {"Id": "121806", "IdTienda": "189018861287", "productid": "2180381806", "sku": "None", "Value": ";Gris;43 AR", "barcode": "None", "ActualizarPrecio": "True"}
+
+================================================================================
+TABLA: CMV_RESUMEN — 7,953 registros
+================================================================================
+
+COLUMNAS:
+  ORDER_ID                                 bigint NOT NULL
+  CMV_TOTAL                                float
+  CMV_DESCUENTOS                           float
+  MARCA                                    varchar(150)
+  PROVEEDOR                                varchar(150)
+
+ESTADÍSTICAS:
+  ORDER_ID: min=2000014531923480, max=2000015707361944, avg=2000015171222804.0
+  CMV_TOTAL: min=0.0, max=898846.2, avg=49142.31
+  CMV_DESCUENTOS: min=0.0, max=765816.9624, avg=45114.53
+  MARCA: 22 valores únicos → [MONTAGNE (5815), COLUMBIA (170), MOUNTAIN (135), ANSILTA (66), SALOMON (58), ROXY (58), DC SHOES (53), QUIKSILVER (42), NEXXT (12), MEISO (9)]
+  PROVEEDOR: 19 valores únicos → [MIDING SRL (3464), MONTAGNE OUTDOORS SA (2486), SCANDINAVIAN OUTDOORS SA (182), WORLD SPORT SRL (150), CAMPAMENTO SA (60), WINNERS PRODUCTOS DEPORTIVOS SA (58), COMPRANDOENGRUPO.NET SA (13), CAMPAMENTO S.A (6), BE OUTSIDE SA (6), None (3)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"ORDER_ID": "2000014531923480", "CMV_TOTAL": "0.0", "CMV_DESCUENTOS": "0.0", "MARCA": null, "PROVEEDOR": null}
+  [2] {"ORDER_ID": "2000014531949290", "CMV_TOTAL": "0.0", "CMV_DESCUENTOS": "0.0", "MARCA": null, "PROVEEDOR": null}
+  [3] {"ORDER_ID": "2000014531962304", "CMV_TOTAL": "0.0", "CMV_DESCUENTOS": "0.0", "MARCA": null, "PROVEEDOR": null}
+  [4] {"ORDER_ID": "2000014532206810", "CMV_TOTAL": "44950.0", "CMV_DESCUENTOS": "42814.875", "MARCA": "MONTAGNE", "PROVEEDOR": "MIDING SRL"}
+  [5] {"ORDER_ID": "2000014532447500", "CMV_TOTAL": "0.0", "CMV_DESCUENTOS": "0.0", "MARCA": null, "PROVEEDOR": null}
+
+================================================================================
+TABLA: MODELOS_OLLAMA — 6,049 registros
+================================================================================
+
+COLUMNAS:
+  EAN                                      varchar(60) NOT NULL
+  DESCRIPCION                              varchar(-1)
+  METADESCRIPCION                          varchar(200)
+  PALABRAS_SUSTITUTAS                      varchar(-1)
+
+ESTADÍSTICAS:
+
+MUESTRA (primeros 20 registros):
+  [1] {"EAN": "100LBS", "DESCRIPCION": "- Fiabilidad y resistencia enrollada en un solo cable\n- Excepcional relación calidad-precio\n- Disponibilidad en medidas variadas para adaptarse a diferentes técnicas y modalidades de pesca\n- Resistente al desgaste y a la corrosión en ambientes de agua dulce y sal
+  [2] {"EAN": "100LBS-10", "DESCRIPCION": "- Fiabilidad y resistencia en todos los condiciones de pesca\n- Excelente relación entre duración y manejo\n- Permite enfrentar desde peces pequeños hasta grandes ejemplares con total confianza\n- Disponibles en una gama completa de medidas para adaptarse a disti
+  [3] {"EAN": "114160", "DESCRIPCION": "- Materiales resistentes y livianos\n- Diseño ergonómico para una mejor adaptación al cuerpo\n- Ajuste perfecto para niños de todas las edades\n- Capa de aislamiento térmico para mantener la temperatura corporal constante\n- Multifunción ideal para actividades al ai
+  [4] {"EAN": "115102", "DESCRIPCION": "- Lightweight and elastic prenda ideal for aerobic activities that require low weight and excellent breathability\n- Made with PERTEX® Air and POLARTEC® Alpha for maximum comfort and performance", "METADESCRIPCION": "Stay cool and comfortable during your workouts wi
+  [5] {"EAN": "115103", "DESCRIPCION": "- Ultralight y elástica\n- Ideal para actividades aeróbicas de bajo peso y buena respirabilidad\n- Confeccionada con PERTEX® Air y POLARTEC® Alpha", "METADESCRIPCION": "Prenda revolucionaria para entrenamientos intensivos, liviana y respiratoria.", "PALABRAS_SUSTITU
+
+================================================================================
+TABLA: NAALOO — 2,046 registros
+================================================================================
+
+COLUMNAS:
+  cargo                                    varchar(150)
+  area                                     varchar(150)
+  fechaIngreso                             datetime
+  activo                                   bit
+  antiguedadAnterior                       decimal
+  legajo                                   bigint
+  legajoId                                 bigint
+  modalidadId                              int
+  antiguedad                               decimal
+  image                                    varchar(500)
+  imageFr                                  varchar(500)
+  nombre                                   varchar(100)
+  apellido                                 varchar(100)
+  nombreCompleto                           varchar(200)
+  dni                                      bigint
+  fechaNacimiento                          date
+  genero                                   int
+  cuil                                     varchar(25)
+  telefonos                                varchar(200)
+  email                                    varchar(150)
+  confirmarEmail                           varchar(20)
+  oficinaNombre                            varchar(150)
+  profileCompleteness                      decimal
+  relationshipPosition                     int
+  id                                       bigint
+  sector                                   varchar(150)
+  cuenta_origen                            varchar(150)
+  fecha                                    varchar(20)
+  clave                                    varchar(300) NOT NULL
+
+ESTADÍSTICAS:
+  cargo: 37 valores únicos → [Vendedor Mtgroca (204), Vendedor Mtgnqn (171), Vendedor Mtgshop (146), Vendedor Mundoroc (140), MARKETING (126), MDQ GUEMES (110), Mundo Palermo (104), Vendedor Mtgcom (96), MONTAGNE ALSINA (88), BBPS MUNDO (69)]
+  area: 20 valores únicos → [Ventas (933), Mundo Outdoor San Martin (219), Montagne Guemes (126), Marketing (126), Montagne Bahia Blanca (110), Mundo Outdoor Bs As (99), Montagne BBPS (87), MUNDO  BBPS (64), Montagne Juan B Justo (61), Mundo Outdoor alsina (36)]
+  fechaIngreso: rango 2003-02-04 03:00:00 → 2026-03-02 03:00:00
+  antiguedadAnterior: min=0.0, max=2.03, avg=0.03
+  legajo: min=22845500, max=96082855, avg=41501876.36
+  legajoId: min=1, max=249, avg=83.27
+  modalidadId: min=0, max=10, avg=6.17
+  antiguedad: min=0.0, max=23.01, avg=1.23
+  dni: min=22845500, max=96082855, avg=41496965.06
+  fechaNacimiento: rango 1972-08-14 → 2025-08-01
+  genero: min=0, max=2, avg=1.58
+  confirmarEmail: 2 valores únicos → [0 (1998), 1 (48)]
+  oficinaNombre: 28 valores únicos → [MONTAGNE CENTRO (209), Administración (190), MUNDO OUTDOOR ROCA (186), MONTAGNE ROCA (160), MUNDO SM (148), MONTAGNE SHOPPING ANONIMA (147), MONTAGNE GÜEMES (144), Mundo Palermo (128), MONTAGNE ALTO COMAHUE (114), SHOPP BBPS (78)]
+  profileCompleteness: min=32.43, max=100.0, avg=83.06
+  relationshipPosition: min=0, max=0, avg=None
+  id: min=1, max=249, avg=83.27
+  sector: 5 valores únicos → [comercial (933), Marketing (108), Montagne Bahia Blanca (77), Administrativo (15), Empleado mdq (4)]
+  cuenta_origen: 2 valores únicos → [cuenta_1 (1098), cuenta_2 (948)]
+  fecha: 18 valores únicos → [11/2025 (118), 07/2025 (117), 02/2025 (117), 03/2025 (117), 10/2025 (117), 10/2024 (117), 11/2024 (117), 05/2025 (117), 04/2025 (117), 01/2025 (117)]
+
+MUESTRA (primeros 20 registros):
+  [1] {"cargo": "BBPS", "area": "Montagne BBPS", "fechaIngreso": "2003-02-04 03:00:00", "activo": "True", "antiguedadAnterior": 0.0, "legajo": "22845500", "legajoId": "38", "modalidadId": "0", "antiguedad": 22.08, "image": "https://cdn.naaloo.com/2f7b69d99d70a4caa58d552446b3e6cb/d22fb3e5-e6ca-4bd5-b9bb-76
+  [2] {"cargo": "BBPS MONTAGNE", "area": "Montagne BBPS", "fechaIngreso": "2003-02-04 03:00:00", "activo": "True", "antiguedadAnterior": 0.0, "legajo": "22845500", "legajoId": "38", "modalidadId": "10", "antiguedad": 22.11, "image": "https://cdn.naaloo.com/2f7b69d99d70a4caa58d552446b3e6cb/d22fb3e5-e6ca-4b
+  [3] {"cargo": "BBPS", "area": "Montagne BBPS", "fechaIngreso": "2003-02-04 03:00:00", "activo": "True", "antiguedadAnterior": 0.0, "legajo": "22845500", "legajoId": "38", "modalidadId": "0", "antiguedad": 22.08, "image": "https://cdn.naaloo.com/2f7b69d99d70a4caa58d552446b3e6cb/d22fb3e5-e6ca-4bd5-b9bb-76
+  [4] {"cargo": "BBPS MONTAGNE", "area": "Montagne BBPS", "fechaIngreso": "2003-02-04 03:00:00", "activo": "True", "antiguedadAnterior": 0.0, "legajo": "22845500", "legajoId": "38", "modalidadId": "10", "antiguedad": 22.11, "image": "https://cdn.naaloo.com/2f7b69d99d70a4caa58d552446b3e6cb/d22fb3e5-e6ca-4b
+  [5] {"cargo": "BBPS", "area": "Montagne BBPS", "fechaIngreso": "2003-02-04 03:00:00", "activo": "True", "antiguedadAnterior": 0.0, "legajo": "22845500", "legajoId": "38", "modalidadId": "0", "antiguedad": 22.08, "image": "https://cdn.naaloo.com/2f7b69d99d70a4caa58d552446b3e6cb/d22fb3e5-e6ca-4bd5-b9bb-76
+
+================================================================================
+TABLA: LOCALES — 18 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    varchar(20) NOT NULL
+  EMPRESA                                  varchar(30) NOT NULL
+  TIPO                                     varchar(30) NOT NULL
+  LOCALIDAD                                varchar(50) NOT NULL
+  APERTURA                                 date NOT NULL
+  CIERRE                                   date
+  CLAVE                                    int NOT NULL
+
+ESTADÍSTICAS:
+  LOCAL: 18 valores únicos → [WOO (1), OUTLET (1), NQNSHOP (1), NQNALB (1), MUNDOROC (1), MUNDOCAB (1), MUNDOBBPS (1), MUNDOAL (1), MTGROCA (1), MTGJBJ (1)]
+  EMPRESA: 2 valores únicos → [RM INDUMENTARIA (11), RM NEUQUEN (7)]
+  TIPO: 2 valores únicos → [MUNDO (9), MONTAGNE (9)]
+  LOCALIDAD: 8 valores únicos → [BAHIA BLANCA (6), NEUQUEN (3), MERCADO LIBRE (2), MAR DEL PLATA (2), ROCA (2), WEB (1), CORDOBA (1), CABA (1)]
+  APERTURA: 6 valores únicos → [2020-01-01 (12), 2020-10-01 (2), 2025-10-01 (1), 2025-06-01 (1), 2024-10-01 (1), 2023-01-01 (1)]
+  APERTURA: rango 2020-01-01 → 2025-10-01
+  CIERRE: 1 valores únicos → [2025-03-01 (1)]
+  CIERRE: rango 2025-03-01 → 2025-03-01
+  CLAVE: min=1, max=18, avg=9.5
+
+MUESTRA (primeros 18 registros):
+  [1] {"LOCAL": "DEPOSITO", "EMPRESA": "RM INDUMENTARIA", "TIPO": "MUNDO", "LOCALIDAD": "BAHIA BLANCA", "APERTURA": "2020-01-01", "CIERRE": null, "CLAVE": "1"}
+  [2] {"LOCAL": "MDQ", "EMPRESA": "RM INDUMENTARIA", "TIPO": "MONTAGNE", "LOCALIDAD": "MAR DEL PLATA", "APERTURA": "2020-01-01", "CIERRE": null, "CLAVE": "2"}
+  [3] {"LOCAL": "MELI", "EMPRESA": "RM INDUMENTARIA", "TIPO": "MUNDO", "LOCALIDAD": "MERCADO LIBRE", "APERTURA": "2020-01-01", "CIERRE": null, "CLAVE": "3"}
+  [4] {"LOCAL": "MELINEUQUEN", "EMPRESA": "RM NEUQUEN", "TIPO": "MUNDO", "LOCALIDAD": "MERCADO LIBRE", "APERTURA": "2020-01-01", "CIERRE": null, "CLAVE": "4"}
+  [5] {"LOCAL": "MONBAHIA", "EMPRESA": "RM INDUMENTARIA", "TIPO": "MONTAGNE", "LOCALIDAD": "BAHIA BLANCA", "APERTURA": "2020-01-01", "CIERRE": null, "CLAVE": "5"}
+
+================================================================================
+TABLA: COMPROBANTES — 0 registros
+================================================================================
+
+COLUMNAS:
+  LOCAL                                    nvarchar(25)
+  FechaComprobante                         datetime
+  IdComprobante                            bigint
+  NumeroComprobante                        int
+  TipoComprobante                          nvarchar(30)
+  MedioPago                                nvarchar(50)
+  ImporteMedioPago                         decimal
+  CLAVE                                    varchar(280) NOT NULL
+
+
+================================================================================
+TOTAL: 25 tablas, 5,297,538 registros totales
