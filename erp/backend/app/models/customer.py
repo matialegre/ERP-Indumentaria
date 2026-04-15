@@ -10,12 +10,12 @@ Arquitectura:
 
 import enum
 from sqlalchemy import (
-    String, Boolean, ForeignKey, Numeric, Text, Date, Enum,
+    String, Boolean, ForeignKey, Numeric, Text, Date, DateTime, Enum,
     Integer, JSON, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from app.db.base import Base, TimestampMixin
 
@@ -86,6 +86,15 @@ class Customer(Base, TimestampMixin):
 
     notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # ── CRM fields ──
+    club_mundo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+    tier: Mapped[Optional[str]] = mapped_column(String(20), default="bronze")
+    points: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    orders_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
+    total_spent: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False, server_default="0")
+    last_purchase_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    preferences: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     company_data = relationship(

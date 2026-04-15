@@ -47,11 +47,37 @@ from app.models.supertrend import CompetitorEntry, TrendIndicator, TrendDirectio
 # PUNTUACIÓN DE EMPLEADOS
 from app.models.employee_score import EmployeeScore, CATEGORIAS_DEFAULT
 
+# MÓDULO RRHH (Recursos Humanos — Naaloo style)
+from app.models.rrhh import (
+    Empleado, EstadoEmpleado, ModalidadEmpleado,
+    Ausencia, TipoAusencia, EstadoAusencia,
+    Fichaje, TipoFichaje, OrigenFichaje, EstadoFichaje,
+    DocumentoRRHH, TipoDocumentoRRHH, EstadoFirma,
+    ComunicacionRRHH, TipoComunicacion, LecturaComunicacion,
+)
+
+# MENSAJERÍA INTERNA
+from app.models.message import Message
+
 # DEPOSITO — gestión de depósito para indumentaria
 from app.models.deposito import (
     StockLocal, Transferencia, TransferenciaItem,
     ConteoInventario, ConteoItem,
     TransferenciaEstado, ConteoEstado,
+)
+
+# MERCADOLIBRE — módulo de depósito y picking
+from app.models.meli_order import MeliOrder
+from app.models.meli_config import MeliConfig
+from app.models.meli_webhook import MeliWebhookEvent
+
+# CRM Avanzado (módulo completo)
+from app.models.crm import (
+    CrmIdentity, CrmMessage, CrmConversation, CrmCampaign,
+    CrmContentPost, CrmPointsTransaction, CrmClubCoupon,
+    CrmInboxThread, CrmTag, CrmCustomerTag,
+    CrmIntegrationRecord, CrmReportDefinition, CrmReportRun, CrmEvent,
+    CrmAdsMeta, CrmAdsGoogle, CrmCalendarItem, CrmResource,
 )
 
 # Sincronización, AFIP, Storage, WhatsApp, MercadoPago
@@ -97,6 +123,14 @@ __all__ = [
     "CompetitorEntry", "TrendIndicator", "TrendDirection",
     # PUNTUACIÓN DE EMPLEADOS
     "EmployeeScore", "CATEGORIAS_DEFAULT",
+    # MÓDULO RRHH
+    "Empleado", "EstadoEmpleado", "ModalidadEmpleado",
+    "Ausencia", "TipoAusencia", "EstadoAusencia",
+    "Fichaje", "TipoFichaje", "OrigenFichaje", "EstadoFichaje",
+    "DocumentoRRHH", "TipoDocumentoRRHH", "EstadoFirma",
+    "ComunicacionRRHH", "TipoComunicacion", "LecturaComunicacion",
+    # MENSAJERÍA INTERNA
+    "Message",
     # DEPOSITO
     "StockLocal", "Transferencia", "TransferenciaItem",
     "ConteoInventario", "ConteoItem",
@@ -110,4 +144,12 @@ __all__ = [
     "AfipAmbiente", "AfipQueueStatus",
     "StorageBackend", "SyncPriority",
     "WAMessageStatus", "MPTransactionStatus",
+    # MERCADOLIBRE
+    "MeliOrder",
+    # CRM Avanzado
+    "CrmIdentity", "CrmMessage", "CrmConversation", "CrmCampaign",
+    "CrmContentPost", "CrmPointsTransaction", "CrmClubCoupon",
+    "CrmInboxThread", "CrmTag", "CrmCustomerTag",
+    "CrmIntegrationRecord", "CrmReportDefinition", "CrmReportRun", "CrmEvent",
+    "CrmAdsMeta", "CrmAdsGoogle", "CrmCalendarItem", "CrmResource",
 ]
