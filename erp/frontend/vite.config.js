@@ -16,10 +16,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Proxy para desarrollo local (no se usa en build de producción)
+    headers: {
+      // Evita que browsers cacheen chunks del dev server — elimina el error "preload-helper"
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8001",
         changeOrigin: true,
       },
     },

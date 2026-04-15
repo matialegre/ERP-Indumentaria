@@ -43,6 +43,12 @@ from app.api.v1.sync import sync_router, storage_router
 from app.api.v1.importacion import router as importacion_router
 from app.api.v1.employee_scores import router as employee_scores_router
 from app.api.v1.informes import router as informes_router
+from app.api.v1.messages import router as messages_router
+from app.api.v1.ml import router as ml_router
+from app.api.v1.ml_competitor import router as ml_competitor_router
+from app.api.v1.pc_licenses import router as pc_licenses_router
+from app.api.v1.rrhh import router as rrhh_router
+from app.api.v1.crm import crm_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -108,3 +114,15 @@ api_router.include_router(importacion_router)
 api_router.include_router(employee_scores_router)
 # Módulo Informes (SQL Server)
 api_router.include_router(informes_router)
+# Módulo Mensajería interna
+api_router.include_router(messages_router)
+# Módulo MercadoLibre (integración API)
+api_router.include_router(ml_router)
+# Módulo ML Competitor Tracker (seguimiento competencia sin auth)
+api_router.include_router(ml_competitor_router)
+# Licencias por PC
+api_router.include_router(pc_licenses_router)
+# Módulo RRHH (Recursos Humanos — inspirado en Naaloo)
+api_router.include_router(rrhh_router)
+# Módulo CRM Completo
+api_router.include_router(crm_router)

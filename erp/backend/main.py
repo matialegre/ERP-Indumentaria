@@ -81,6 +81,23 @@ def create_initial_data(db: Session) -> None:
         db.add_all(default_plans)
         db.commit()
 
+    # Seed ML competitor: TODOAIRELIBREGD
+    from app.models.ml_competitor import MLTrackedSeller
+    existing_seed = db.query(MLTrackedSeller).filter(MLTrackedSeller.seller_id == "32898018").first()
+    if not existing_seed:
+        first_company = db.query(Company).first()
+        if first_company:
+            seed_seller = MLTrackedSeller(
+                company_id=first_company.id,
+                seller_id="32898018",
+                nickname="TODOAIRELIBREGD",
+                notes="Competidor principal - Todo Aire Libre GD",
+                is_active=True,
+                check_interval_hours=24,
+            )
+            db.add(seed_seller)
+            db.commit()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -186,6 +203,11 @@ def dynamic_manifest(db: Session = Depends(get_db)):
         ],
     }
 
+
+# ── Servir imágenes de mejoras (accesibles por frontend y Copilot) ────────────
+MEJORAS_IMAGES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\mejoras_images"
+if os.path.isdir(MEJORAS_IMAGES_DIR):
+    app.mount("/mejoras-img", StaticFiles(directory=MEJORAS_IMAGES_DIR), name="mejoras-img")
 
 # ── Servir frontend buildeado (producción: un solo puerto 8000) ──────────────
 # Si existe el dist/ del frontend, lo servimos como archivos estáticos.

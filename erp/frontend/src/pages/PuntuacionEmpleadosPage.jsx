@@ -337,6 +337,15 @@ export default function PuntuacionEmpleadosPage() {
                       <div className="w-40 hidden sm:block">
                         <ScoreBar value={emp.promedio} />
                       </div>
+                      {/* Total ventas */}
+                      <div className="text-right shrink-0 hidden sm:block min-w-[90px]">
+                        <p className="text-xs text-gray-400">Ventas</p>
+                        <p className="text-sm font-semibold text-emerald-600">
+                          {emp.total_ventas > 0
+                            ? `$${emp.total_ventas.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                            : <span className="text-gray-300">—</span>}
+                        </p>
+                      </div>
                       {/* Promedio */}
                       <div className="text-right shrink-0">
                         <span className={`text-lg font-bold ${emp.promedio >= 8 ? "text-emerald-600" : emp.promedio >= 6 ? "text-amber-500" : "text-red-500"}`}>

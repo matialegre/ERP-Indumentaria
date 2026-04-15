@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime, timezone
 import json
+import os
+import base64
+import uuid
 
 from app.db.session import get_db
 from app.models.improvement_note import ImprovementNote
@@ -14,6 +17,50 @@ from app.services.copilot_hook import trigger_copilot
 from app.core.config import get_settings
 
 router = APIRouter(prefix="/improvement-notes", tags=["improvement-notes"])
+
+# Carpeta donde se guardan las imágenes de mejoras (accesible por Copilot)
+MEJORAS_IMAGES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\mejoras_images"
+os.makedirs(MEJORAS_IMAGES_DIR, exist_ok=True)
+
+
+def _save_base64_image(data_url: str, note_id: int, index: int) -> str:
+    """Decode a base64 data URL, save to disk, return the relative URL path."""
+    try:
+        header, b64data = data_url.split(",", 1)
+        ext = "png"
+        if "image/jpeg" in header:
+            ext = "jpg"
+        elif "image/webp" in header:
+            ext = "webp"
+        elif "image/gif" in header:
+            ext = "gif"
+
+        filename = f"nota_{note_id}_{index}_{uuid.uuid4().hex[:8]}.{ext}"
+        filepath = os.path.join(MEJORAS_IMAGES_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(base64.b64decode(b64data))
+        return f"/mejoras-img/{filename}"
+    except Exception:
+        return data_url  # fallback: keep original if decode fails
+
+
+def _process_images(images: List[str], note_id: int) -> List[str]:
+    """Convert base64 data URLs to saved files, return list of URL paths."""
+    result = []
+    for i, img in enumerate(images):
+        if img.startswith("data:image/"):
+            result.append(_save_base64_image(img, note_id, i))
+        else:
+            result.append(img)  # already a path
+    return result
+
+
+def _image_disk_path(url_path: str) -> str:
+    """Convert a /mejoras-img/filename URL to the absolute disk path."""
+    if url_path.startswith("/mejoras-img/"):
+        filename = url_path.split("/mejoras-img/", 1)[1]
+        return os.path.join(MEJORAS_IMAGES_DIR, filename)
+    return url_path
 
 
 class NoteCreate(BaseModel):
@@ -46,6 +93,8 @@ class NoteOut(BaseModel):
     admin_note: Optional[str]
     admin_note_by: Optional[str]
     admin_note_at: Optional[datetime]
+    approved_by: Optional[str]
+    approved_at: Optional[datetime]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     model_config = {"from_attributes": True}
@@ -102,21 +151,20 @@ def create_note(
         page_label=data.page_label,
         text=data.text,
         priority=data.priority,
-        images=data.images or [],
+        images=[],
         author_id=current_user.id,
         author_name=current_user.full_name or current_user.username,
     )
     db.add(note)
+    db.flush()  # get the ID before saving images
+
+    # Save base64 images to disk and store paths
+    if data.images:
+        note.images = _process_images(data.images, note.id)
+
     db.commit()
     db.refresh(note)
     _export_markdown(db)
-    # ── Hook Copilot Automator (fire & forget) ──────────────────────────────
-    trigger_copilot(
-        module=note.page_label or note.page,
-        user=note.author_name or "desconocido",
-        text=note.text,
-        note_id=note.id,
-    )
     return _normalize(note)
 
 
@@ -284,15 +332,21 @@ def approve_note(
         raise HTTPException(404, "Nota no encontrada")
 
     note.is_done = True
+    note.approved_by = current_user.full_name or current_user.username
+    note.approved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(note)
     _export_markdown(db)
 
     # ── Disparar Copilot Automator con prefijo [APROBADO] ─────────────────
+    image_paths = ""
+    if note.images:
+        paths = [_image_disk_path(p) for p in note.images]
+        image_paths = " [IMÁGENES: " + ", ".join(paths) + "]"
     trigger_copilot(
         module=note.page_label or note.page,
         user=current_user.full_name or current_user.username,
-        text=f"[APROBADO PARA IMPLEMENTAR] {note.text}",
+        text=f"[APROBADO PARA IMPLEMENTAR] {note.text}{image_paths}",
         note_id=note.id,
     )
     return _normalize(note)
@@ -313,6 +367,8 @@ def unapprove_note(
         raise HTTPException(404, "Nota no encontrada")
 
     note.is_done = False
+    note.approved_by = None
+    note.approved_at = None
     db.commit()
     db.refresh(note)
     _export_markdown(db)
@@ -336,19 +392,12 @@ def update_note(
     if data.priority is not None:
         note.priority = data.priority
     if data.images is not None:
-        note.images = data.images
+        note.images = _process_images(data.images, note.id)
     if data.is_done is not None:
         note.is_done = data.is_done
     db.commit()
     db.refresh(note)
     _export_markdown(db)
-    # ── Hook Copilot Automator cuando cambia el texto (fire & forget) ────────
-    if data.text is not None:
-        trigger_copilot(
-            module=note.page_label or note.page,
-            user=current_user.full_name or current_user.username,
-            text=f"[EDICIÓN] {note.text}",
-        )
     return _normalize(note)
 
 
@@ -408,7 +457,10 @@ def _build_markdown(db: Session) -> str:
         lines.append(f"**Autor:** {n.author_name or 'Anónimo'} | **Fecha:** {n.created_at.strftime('%d/%m/%Y %H:%M') if n.created_at else '—'}")
         lines.append(f"\n{n.text}")
         if n.images:
-            lines.append(f"\n_({len(n.images)} imagen(es) adjunta(s))_")
+            lines.append(f"\n**Imágenes adjuntas ({len(n.images)}):**")
+            for img_path in n.images:
+                disk_path = _image_disk_path(img_path)
+                lines.append(f"  - `{disk_path}`")
         lines.append("")
 
     return "\n".join(lines)

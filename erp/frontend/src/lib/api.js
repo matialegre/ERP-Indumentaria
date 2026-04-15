@@ -1,20 +1,21 @@
 // URL dinámica: funciona en localhost, LAN, internet, Capacitor (Android/tablet)
-// y cuando el frontend se sirve desde el mismo puerto 8000 del backend.
-// En modo offline (servidor local 8001), usa erp_server_url de localStorage.
+// El backend ERP corre en puerto 8001 (8000 es el CRM legacy standalone).
+// En modo offline (Electron), usa erp_server_url de localStorage.
 const _isCapacitor = window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost' && !window.location.port;
 const _SERVER_IP = '190.211.201.217'; // IP pública del servidor ERP
+const _ERP_BACKEND_PORT = '8001';     // Puerto del backend ERP (no el CRM viejo en 8000)
 const _port = window.location.port;
 let API_BASE;
 if (_isCapacitor) {
   // Android/tablet: assets cargados localmente, API remota
-  API_BASE = `http://${_SERVER_IP}:8000/api/v1`;
-} else if (_port === '8001') {
-  // Modo offline: Electron sirvió el frontend localmente desde el puerto 8001.
+  API_BASE = `http://${_SERVER_IP}:${_ERP_BACKEND_PORT}/api/v1`;
+} else if (_port === '8001' || _port === '8002') {
+  // Modo offline: Electron sirvió el frontend localmente.
   // La URL real del servidor está guardada en localStorage por el main.js.
   const _override = localStorage.getItem('erp_server_url');
-  API_BASE = _override ? `${_override}/api/v1` : `http://${_SERVER_IP}:8000/api/v1`;
+  API_BASE = _override ? `${_override}/api/v1` : `http://${_SERVER_IP}:${_ERP_BACKEND_PORT}/api/v1`;
 } else {
-  const _apiPort = (_port === "5174" || _port === "5173") ? "8000" : _port || "8000";
+  const _apiPort = (_port === "5174" || _port === "5173") ? _ERP_BACKEND_PORT : _port || _ERP_BACKEND_PORT;
   API_BASE = `${window.location.protocol}//${window.location.hostname}:${_apiPort}/api/v1`;
 }
 const TIMEOUT_MS = 30000; // 30 segundos — consultas pesadas (comisiones, reportes) necesitan más tiempo
@@ -33,7 +34,7 @@ const STATUS_MESSAGES = {
 };
 
 async function request(endpoint, options = {}) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const headers = {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -54,7 +55,7 @@ async function request(endpoint, options = {}) {
     clearTimeout(timeoutId);
 
     if (res.status === 401) {
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
       window.location.href = "/login";
       const err = new Error("Sesión expirada — iniciá sesión de nuevo");
       err.status = 401;
@@ -65,7 +66,7 @@ async function request(endpoint, options = {}) {
       const body = await res.json().catch(() => null);
       const detail = typeof body?.detail === 'string' ? body.detail : '';
       if (detail.startsWith('LICENCIA_SUSPENDIDA') || detail.startsWith('LICENCIA_CANCELADA')) {
-        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
         const msg = detail.startsWith('LICENCIA_SUSPENDIDA')
           ? 'licencia_suspendida'
           : 'licencia_cancelada';
@@ -110,31 +111,31 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   get: (url) => request(url),
-  post: (url, data) => request(url, { method: "POST", body: JSON.stringify(data) }),
+  post: (url, data, opts = {}) => request(url, { method: "POST", body: JSON.stringify(data), ...opts }),
   put: (url, data) => request(url, { method: "PUT", body: JSON.stringify(data) }),
   patch: (url, data) => request(url, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
   delete: (url) => request(url, { method: "DELETE" }),
   uploadFile: (url, formData) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return fetch(`${API_BASE}${url}`, {
       method: "POST",
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
       body: formData,
     }).then(async (res) => {
-      if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
+      if (res.status === 401) { sessionStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
       if (!res.ok) { const err = await res.json().catch(() => ({ detail: "Error del servidor" })); throw new Error(err.detail || `Error ${res.status}`); }
       return res.json();
     });
   },
   postForm: (url, formData) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return fetch(`${API_BASE}${url}`, {
       method: "POST",
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
       body: formData,
     }).then(async (res) => {
       if (res.status === 401) {
-        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
         window.location.href = "/login";
         const err = new Error("Sesión expirada — iniciá sesión de nuevo");
         err.status = 401;

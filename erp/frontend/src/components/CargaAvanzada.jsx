@@ -87,7 +87,7 @@ export default function CargaAvanzada({ onClose, onSuccess }) {
     try {
       const formData = new FormData()
       pdfFiles.forEach(f => formData.append('files', f))
-      const token = localStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       const res = await fetch(`${API_BASE}/pdf-parser/parse-pdfs-masivo`, {
         method: 'POST',
         headers: { ...(token && { Authorization: `Bearer ${token}` }) },
@@ -204,7 +204,7 @@ export default function CargaAvanzada({ onClose, onSuccess }) {
         try {
           const fd = new FormData()
           fd.append('file', doc.file)
-          const token = localStorage.getItem('token')
+          const token = sessionStorage.getItem('token')
           await fetch(`${API_BASE}/purchase-invoices/${saved.id}/upload-pdf`, {
             method: 'POST',
             headers: { ...(token && { Authorization: `Bearer ${token}` }) },

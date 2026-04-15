@@ -138,8 +138,8 @@ function ModulesModal({ user, onClose, onSaved }) {
   const qc = useQueryClient();
 
   const { data: allModules = [], isLoading } = useQuery({
-    queryKey: ["modules"],
-    queryFn: () => api.get("/modules"),
+    queryKey: ["modules-catalog"],
+    queryFn: () => api.get("/modules/catalog"),
   });
 
   // Si modules_override es null → el usuario ve todos los módulos activos de la empresa

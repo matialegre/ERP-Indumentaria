@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useRef } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import AppLayout from "./layouts/AppLayout";
@@ -50,8 +50,33 @@ const StockTallerPage    = lazy(() => import("./pages/taller/StockTallerPage"));
 const SupertrendPage     = lazy(() => import("./pages/SupertrendPage"));
 const PuntuacionEmpleadosPage = lazy(() => import("./pages/PuntuacionEmpleadosPage"));
 const MejorasPage = lazy(() => import("./pages/MejorasPage"));
+const MensajesPage = lazy(() => import("./pages/MensajesPage"));
 const LicenciasPage = lazy(() => import("./pages/LicenciasPage"));
 const InformesPage = lazy(() => import("./pages/InformesPage"));
+const RRHHPage = lazy(() => import("./pages/RRHHPage"));
+const NaalooPage = lazy(() => import("./pages/NaalooPage"));
+const MercadoLibrePage = lazy(() => import("./pages/MercadoLibrePage"));
+
+// CRM Avanzado — prefetch al detectar hover en sidebar (preload inmediato para el Dashboard)
+const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
+const CRMClientes = lazy(() => import("./pages/crm/CRMClientes"));
+const CRMMensajes = lazy(() => import("./pages/crm/CRMMensajes"));
+const CRMClub = lazy(() => import("./pages/crm/CRMClub"));
+const CRMCampanas = lazy(() => import("./pages/crm/CRMCampanas"));
+const CRMPublicidad = lazy(() => import("./pages/crm/CRMPublicidad"));
+const CRMContenido = lazy(() => import("./pages/crm/CRMContenido"));
+const CRMAnalytics = lazy(() => import("./pages/crm/CRMAnalytics"));
+const CRMIntegraciones = lazy(() => import("./pages/crm/CRMIntegraciones"));
+const CRMAIChat = lazy(() => import("./pages/crm/CRMAIChat"));
+const CRMDragonfish = lazy(() => import("./pages/crm/CRMDragonfish"));
+const CRMMeliIndumentaria = lazy(() => import("./pages/crm/CRMMeliIndumentaria"));
+const CRMMeliNeuquen = lazy(() => import("./pages/crm/CRMMeliNeuquen"));
+const CRMVtex = lazy(() => import("./pages/crm/CRMVtex"));
+const CRMVtexInactivos = lazy(() => import("./pages/crm/CRMVtexInactivos"));
+const CRMReportes = lazy(() => import("./pages/crm/CRMReportes"));
+
+// Pre-carga silenciosa del CRM Dashboard después de 2s (para que no tarde al hacer click)
+setTimeout(() => import("./pages/crm/CRMDashboard"), 2000);
 
 function PageLoader() {
   return <LoadingSpinner />;
@@ -59,8 +84,9 @@ function PageLoader() {
 
 // Wraps each lazy-loaded page with its own error boundary + suspense
 function LazyPage({ children }) {
+  const { pathname } = useLocation();
   return (
-    <ErrorBoundary>
+    <ErrorBoundary key={pathname}>
       <Suspense fallback={<PageLoader />}>
         {children}
       </Suspense>
@@ -232,8 +258,29 @@ export default function App() {
             {/* Puntuación de Empleados */}
             <Route path="puntuacion-empleados" element={<LazyPage><PuntuacionEmpleadosPage /></LazyPage>} />
             <Route path="mejoras"              element={<LazyPage><MejorasPage /></LazyPage>} />
+            <Route path="mensajes"             element={<LazyPage><MensajesPage /></LazyPage>} />
             <Route path="licencias"            element={<LazyPage><LicenciasPage /></LazyPage>} />
             <Route path="informes"             element={<LazyPage><InformesPage /></LazyPage>} />
+            <Route path="rrhh"                 element={<LazyPage><RRHHPage /></LazyPage>} />
+            <Route path="naaloo"               element={<LazyPage><NaalooPage /></LazyPage>} />
+            <Route path="mercadolibre"         element={<LazyPage><MercadoLibrePage /></LazyPage>} />
+            {/* CRM Avanzado */}
+            <Route path="crm" element={<LazyPage><CRMDashboard /></LazyPage>} />
+            <Route path="crm/clientes" element={<LazyPage><CRMClientes /></LazyPage>} />
+            <Route path="crm/mensajes" element={<LazyPage><CRMMensajes /></LazyPage>} />
+            <Route path="crm/club" element={<LazyPage><CRMClub /></LazyPage>} />
+            <Route path="crm/campanas" element={<LazyPage><CRMCampanas /></LazyPage>} />
+            <Route path="crm/publicidad" element={<LazyPage><CRMPublicidad /></LazyPage>} />
+            <Route path="crm/contenido" element={<LazyPage><CRMContenido /></LazyPage>} />
+            <Route path="crm/analytics" element={<LazyPage><CRMAnalytics /></LazyPage>} />
+            <Route path="crm/integraciones" element={<LazyPage><CRMIntegraciones /></LazyPage>} />
+            <Route path="crm/ai" element={<LazyPage><CRMAIChat /></LazyPage>} />
+            <Route path="crm/dragonfish" element={<LazyPage><CRMDragonfish /></LazyPage>} />
+            <Route path="crm/meli-indumentaria" element={<LazyPage><CRMMeliIndumentaria /></LazyPage>} />
+            <Route path="crm/meli-neuquen" element={<LazyPage><CRMMeliNeuquen /></LazyPage>} />
+            <Route path="crm/vtex" element={<LazyPage><CRMVtex /></LazyPage>} />
+            <Route path="crm/vtex-inactivos" element={<LazyPage><CRMVtexInactivos /></LazyPage>} />
+            <Route path="crm/reportes" element={<LazyPage><CRMReportes /></LazyPage>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

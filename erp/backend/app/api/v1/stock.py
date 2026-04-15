@@ -71,6 +71,7 @@ router = APIRouter(prefix="/stock", tags=["stock"])
 
 
 @router.get("")
+@router.get("/")
 def list_stock(
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),

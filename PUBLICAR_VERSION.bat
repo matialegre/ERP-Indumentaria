@@ -12,7 +12,7 @@ set BASE=D:\ERP MUNDO OUTDOOR
 REM === 1. Build Frontend ===
 echo [1/5] Compilando frontend React...
 cd /d "%BASE%\erp\frontend"
-call npx vite build --silent
+call npx vite build
 if errorlevel 1 ( echo ERROR: vite build fallo & pause & exit /b 1 )
 echo     OK - Frontend compilado
 
@@ -61,3 +61,4 @@ echo  inicio de la app y se actualizaran solos.
 echo ══════════════════════════════════════════════════════
 echo.
 pause
+

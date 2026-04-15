@@ -28,4 +28,8 @@ class ImprovementNote(Base):
     admin_note_by = Column(String(100), nullable=True)   # nombre del admin
     admin_note_at = Column(DateTime(timezone=True), nullable=True)
 
+    # ── Aprobación ───────────────────────────────────────────────────────────
+    approved_by = Column(String(100), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
     author = relationship("User", foreign_keys=[author_id])

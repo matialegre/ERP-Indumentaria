@@ -17,6 +17,10 @@ import {
   Download,
   WifiOff,
   AlertTriangle,
+  Truck,
+  Building2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const badge = (text, color) => (
@@ -42,6 +46,13 @@ export default function StockPage() {
   const [brandMap, setBrandMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem("stock_ctrl_brands") || "{}"); } catch { return {}; }
   });
+
+  const [repLocalId, setRepLocalId] = useState("");
+  const [repLocalName, setRepLocalName] = useState("");
+  const [repBrands, setRepBrands] = useState(new Set());
+  const [repBrandQtys, setRepBrandQtys] = useState({});
+  const [repItemQtys, setRepItemQtys] = useState({});
+  const [repCollapsed, setRepCollapsed] = useState(new Set());
 
   const { data: stockData, isLoading } = useQuery({
     queryKey: ["stock", search, filter, stockPage, online],
@@ -141,6 +152,26 @@ export default function StockPage() {
     queryFn: () => api.get("/stock/brands-summary"),
   });
 
+  const { data: localsData } = useQuery({
+    queryKey: ["locals-rep"],
+    queryFn: () => api.get("/locals/"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const localsList = localsData?.items ?? [];
+
+  const { data: repStockData, isLoading: repLoading } = useQuery({
+    queryKey: ["stock-rep", [...repBrands].sort().join("|")],
+    queryFn: async () => {
+      if (repBrands.size === 0) return { items: [] };
+      const results = await Promise.all(
+        [...repBrands].map(brand => api.get(`/stock/?brand=${encodeURIComponent(brand)}&limit=500`))
+      );
+      return { items: results.flatMap(r => r.items || []) };
+    },
+    enabled: view === "reposicion",
+  });
+  const repItems = repStockData?.items ?? [];
+
   const brandCheckedCounts = useMemo(() => {
     const counts = {};
     checked.forEach(id => {
@@ -174,6 +205,75 @@ export default function StockPage() {
     const qty = parseInt(adjustQty);
     if (!qty || isNaN(qty)) return;
     adjustMut.mutate({ variant_id: adjustModal.variant_id, quantity: qty, notes: adjustNotes || null });
+  }
+
+  function toggleRepBrand(brand) {
+    setRepBrands(prev => {
+      const next = new Set(prev);
+      if (next.has(brand)) {
+        next.delete(brand);
+      } else {
+        next.add(brand);
+        setRepBrandQtys(q => ({ ...q, [brand]: q[brand] ?? 1 }));
+      }
+      return next;
+    });
+  }
+
+  function setRepDefaultQty(brand, val) {
+    const n = parseInt(val);
+    setRepBrandQtys(prev => ({ ...prev, [brand]: isNaN(n) ? 0 : Math.max(0, n) }));
+  }
+
+  function setRepItemQty(variantId, val) {
+    const n = parseInt(val);
+    setRepItemQtys(prev => ({ ...prev, [variantId]: isNaN(n) || val === "" ? "" : Math.max(0, n) }));
+  }
+
+  function getEffectiveQty(item) {
+    const ov = repItemQtys[item.variant_id];
+    if (ov !== undefined && ov !== "") return Number(ov);
+    return repBrandQtys[item.brand] ?? 0;
+  }
+
+  function generateReposicionExcel() {
+    const data = repItems
+      .map(i => ({
+        local: repLocalName || "—",
+        brand: i.brand || "Sin marca",
+        product: i.product_name,
+        code: i.product_code,
+        sku: i.sku,
+        size: i.size,
+        color: i.color,
+        current_stock: i.stock,
+        qty_to_send: getEffectiveQty(i),
+      }))
+      .filter(i => i.qty_to_send > 0);
+    if (!data.length) return;
+    exportExcel(
+      data,
+      `reposicion-${(repLocalName || "local").replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}`,
+      [
+        { key: "local", label: "Local Destino" },
+        { key: "brand", label: "Marca" },
+        { key: "product", label: "Producto" },
+        { key: "code", label: "Código" },
+        { key: "sku", label: "SKU" },
+        { key: "size", label: "Talle" },
+        { key: "color", label: "Color" },
+        { key: "current_stock", label: "Stock Actual" },
+        { key: "qty_to_send", label: "Cant. a Enviar" },
+      ]
+    );
+  }
+
+  function toggleRepCollapse(brand) {
+    setRepCollapsed(prev => {
+      const next = new Set(prev);
+      next.has(brand) ? next.delete(brand) : next.add(brand);
+      return next;
+    });
   }
 
   const movTypeColors = {
@@ -229,6 +329,9 @@ export default function StockPage() {
           </button>
           <button onClick={() => setView("movements")} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === "movements" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <History size={16} className="inline mr-1" /> Movimientos
+          </button>
+          <button onClick={() => setView("reposicion")} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === "reposicion" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+            <Truck size={16} className="inline mr-1" /> Reposición
           </button>
         </div>
       </div>
@@ -435,6 +538,174 @@ export default function StockPage() {
 
       {view === "movements" && (
         <Pagination total={movTotal} skip={(movPage - 1) * PAGE_SIZE} limit={PAGE_SIZE} onPageChange={setMovPage} />
+      )}
+
+      {view === "reposicion" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Building2 size={16} /> Local destino</h3>
+              <select
+                value={repLocalId}
+                onChange={e => {
+                  setRepLocalId(e.target.value);
+                  const loc = localsList.find(l => String(l.id) === e.target.value);
+                  setRepLocalName(loc?.name || "");
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">— Seleccionar local —</option>
+                {localsList.map(l => (
+                  <option key={l.id} value={l.id}>{l.name} ({l.code})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3 lg:col-span-2">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Package size={16} /> Marcas a reponer</h3>
+              {!brandsSummary || brandsSummary.length === 0 ? (
+                <p className="text-sm text-gray-400">No hay marcas disponibles</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {brandsSummary.map(({ brand }) => (
+                    <div key={brand} className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition cursor-pointer select-none ${repBrands.has(brand) ? "border-blue-300 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
+                      onClick={() => toggleRepBrand(brand)}>
+                      <input
+                        type="checkbox"
+                        checked={repBrands.has(brand)}
+                        onChange={() => toggleRepBrand(brand)}
+                        onClick={e => e.stopPropagation()}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                      />
+                      <span className="text-sm font-medium text-gray-800 flex-1 truncate">{brand}</span>
+                      {repBrands.has(brand) && (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <span className="text-xs text-gray-500 whitespace-nowrap">Cant. predeterminada:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={repBrandQtys[brand] ?? 1}
+                            onChange={e => setRepDefaultQty(brand, e.target.value)}
+                            className="w-14 px-2 py-1 border border-blue-300 rounded text-sm text-center font-bold focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {repBrands.size > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-800">Artículos a preparar</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {repLoading ? "Cargando..." : `${repItems.filter(i => getEffectiveQty(i) > 0).length} items · ${repItems.filter(i => getEffectiveQty(i) > 0).reduce((s, i) => s + getEffectiveQty(i), 0)} unidades totales`}
+                  </p>
+                </div>
+                <button
+                  onClick={generateReposicionExcel}
+                  disabled={repLoading || !repLocalId || repItems.filter(i => getEffectiveQty(i) > 0).length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  <Download size={16} /> Generar Excel
+                </button>
+              </div>
+
+              {repLoading ? (
+                <div className="p-8 text-center text-gray-400">Cargando artículos...</div>
+              ) : repItems.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">Seleccioná al menos una marca para ver los artículos</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {[...repBrands].map(brand => {
+                    const brandItems = repItems.filter(i => (i.brand || "Sin marca") === brand);
+                    if (!brandItems.length) return null;
+                    const collapsed = repCollapsed.has(brand);
+                    const brandTotal = brandItems.reduce((s, i) => s + getEffectiveQty(i), 0);
+                    return (
+                      <div key={brand}>
+                        <div
+                          className="flex items-center justify-between px-5 py-3 bg-blue-50 cursor-pointer hover:bg-blue-100 transition"
+                          onClick={() => toggleRepCollapse(brand)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {collapsed ? <ChevronDown size={16} className="text-blue-600" /> : <ChevronUp size={16} className="text-blue-600" />}
+                            <span className="font-semibold text-blue-800">{brand}</span>
+                            <span className="text-xs text-blue-600">{brandItems.length} variantes · {brandTotal} uds a enviar</span>
+                          </div>
+                        </div>
+                        {!collapsed && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                                <tr>
+                                  <th className="px-4 py-2 text-left">Producto</th>
+                                  <th className="px-4 py-2 text-left">SKU</th>
+                                  <th className="px-4 py-2 text-left">Talle</th>
+                                  <th className="px-4 py-2 text-left">Color</th>
+                                  <th className="px-4 py-2 text-center">Stock actual</th>
+                                  <th className="px-4 py-2 text-center">Cant. a enviar</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {brandItems.map(item => {
+                                  const effQty = getEffectiveQty(item);
+                                  const isOverride = repItemQtys[item.variant_id] !== undefined && repItemQtys[item.variant_id] !== "";
+                                  return (
+                                    <tr key={item.variant_id} className={`hover:bg-gray-50 ${effQty === 0 ? "opacity-40" : ""}`}>
+                                      <td className="px-4 py-2 font-medium text-gray-900">
+                                        <div>{item.product_name}</div>
+                                        <div className="text-xs text-gray-400">{item.product_code}</div>
+                                      </td>
+                                      <td className="px-4 py-2 font-mono text-xs text-gray-500">{item.sku}</td>
+                                      <td className="px-4 py-2">{item.size}</td>
+                                      <td className="px-4 py-2">{item.color}</td>
+                                      <td className="px-4 py-2 text-center">
+                                        <span className={`font-bold ${item.stock <= 0 ? "text-red-600" : item.stock < 5 ? "text-amber-600" : "text-emerald-600"}`}>{item.stock}</span>
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={repItemQtys[item.variant_id] !== undefined && repItemQtys[item.variant_id] !== "" ? repItemQtys[item.variant_id] : (repBrandQtys[brand] ?? 0)}
+                                            onChange={e => setRepItemQty(item.variant_id, e.target.value)}
+                                            className={`w-16 px-2 py-1 border rounded text-sm text-center font-bold focus:ring-1 focus:ring-blue-500 ${isOverride ? "border-blue-400 bg-blue-50" : "border-gray-300"}`}
+                                          />
+                                          {isOverride && (
+                                            <button
+                                              onClick={() => setRepItemQtys(prev => { const next = {...prev}; delete next[item.variant_id]; return next; })}
+                                              className="text-gray-300 hover:text-red-400 transition"
+                                              title="Restablecer al predeterminado"
+                                            ><X size={12} /></button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {repBrands.size > 0 && !repLocalId && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              Seleccioná un local destino para poder generar el Excel de reposición.
+            </div>
+          )}
+        </div>
       )}
 
       {adjustModal && (

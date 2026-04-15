@@ -19,6 +19,7 @@ from app.models.user import User, UserRole
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderStatus
 from app.models.purchase_invoice import PurchaseInvoice, IngresoStatus
 from app.models.payment import PaymentVoucher, PaymentStatus
+from app.models.message import Message
 from app.api.deps import get_current_user, require_roles
 from app.core.metrics import get_metrics_snapshot
 
@@ -103,6 +104,17 @@ def sidebar_counts(
     )
     alertas_reposicion = alertas_sub.count()
 
+    mensajes_unread = (
+        db.query(func.count(Message.id))
+        .filter(
+            Message.is_read == False,
+            Message.from_user_id != current_user.id,
+            (Message.to_user_id == current_user.id) | (Message.is_broadcast == True),
+            *([Message.company_id == company_id] if company_id else []),
+        )
+        .scalar() or 0
+    )
+
     return {
         "pedidos_pendientes": pedidos_pendientes,
         "ingresos_pendientes": ingresos_pendientes,
@@ -110,13 +122,15 @@ def sidebar_counts(
         "pagos_pendientes": pagos_pendientes,
         "facturas_sin_rv": facturas_sin_rv,
         "alertas_reposicion": alertas_reposicion,
+        "mensajes_unread": mensajes_unread,
     }
 
 
 @router.get("/health")
 def health_check():
-    """Chequeo básico — no requiere auth"""
-    return {"status": "ok", "ts": time.time()}
+    """Chequeo básico — no requiere auth. Incluye has_frontend para que el cliente Electron sepa si servir el frontend."""
+    has_frontend = os.path.isfile(_FRONTEND_INDEX)
+    return {"status": "ok", "ts": time.time(), "has_frontend": has_frontend}
 
 
 @router.get("/metrics")

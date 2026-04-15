@@ -281,7 +281,7 @@ export async function fetchWithFallback(endpoint, storeName, options = {}) {
   const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     const API_BASE = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
     const res = await fetch(`${API_BASE}${endpoint}`, {
       headers: {

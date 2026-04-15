@@ -30,6 +30,26 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     AUTOMATOR_SECRET: str = ""
 
+    # ── CRM — VTEX ──
+    CRM_VTEX_ACCOUNT: str = ""
+    CRM_VTEX_ENV: str = "vtexcommercestable"
+    CRM_VTEX_APP_KEY: str = ""
+    CRM_VTEX_APP_TOKEN: str = ""
+
+    # ── CRM — OpenRouter (AI Chatbot) ──
+    CRM_OPENROUTER_API_KEY: str = ""
+    CRM_OPENROUTER_MODEL: str = "openai/gpt-4o-mini"
+
+    # ── CRM — Dragonfish ──
+    CRM_DRAGONFISH_BASE_URL: str = ""
+    CRM_DRAGONFISH_API_KEY: str = ""
+    CRM_DRAGONFISH_ID_CLIENTE: str = ""
+    CRM_DRAGONFISH_AUTHORIZATION: str = ""
+    CRM_DRAGONFISH_BASE_DE_DATOS: str = ""
+
+    # ── CRM — MercadoLibre token paths ──
+    CRM_ML_TOKEN_DIR: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(",")]

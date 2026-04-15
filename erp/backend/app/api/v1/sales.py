@@ -116,6 +116,7 @@ def _to_out(s: Sale) -> SaleOut:
 
 
 @router.get("")
+@router.get("/")
 def list_sales(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),

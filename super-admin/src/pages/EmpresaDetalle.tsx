@@ -4,19 +4,25 @@ import {
   ArrowLeft, Building2, CheckCircle2, XCircle,
   Package, Save, AlertTriangle, ChevronRight,
   Users, RefreshCw, ChevronDown, ChevronUp, Layers,
+  Monitor, Plus, Copy, Trash2, RotateCcw, ShieldCheck, ShieldOff,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import {
   MODULOS, MODULOS_POR_CATEGORIA, LABEL_CATEGORIA, calcularPrecio,
   type Modulo, type Categoria,
 } from '../lib/modules'
-import { getEmpresa, getUser, saveModules, saveUserModules, toggleCompanyActive, type EmpresaDetailAPI, type UserBriefAPI } from '../lib/api'
+import {
+  getEmpresa, getUser, saveModules, saveUserModules, toggleCompanyActive,
+  getPCLicenses, createPCLicense, updatePCLicense, deletePCLicense,
+  type EmpresaDetailAPI, type UserBriefAPI, type PCLicenseAPI,
+} from '../lib/api'
 
 const CAT_COLORS: Record<Categoria, string> = {
   core:          'text-indigo-400  bg-indigo-500/10  border-indigo-500/20',
   operaciones:   'text-sky-400     bg-sky-500/10     border-sky-500/20',
   integraciones: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   reportes:      'text-amber-400   bg-amber-500/10   border-amber-500/20',
+  crm:           'text-pink-400    bg-pink-500/10    border-pink-500/20',
 }
 
 const CORE_SLUGS = MODULOS.filter(m => m.esCore).map(m => m.slug)
@@ -57,7 +63,7 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
     setOverrides(prev => {
       if (prev[u.id] !== undefined) return prev
       const normalized = u.modules_override !== null && u.modules_override !== undefined
-        ? u.modules_override.map(s => s.toLowerCase())
+        ? u.modules_override.map(s => s.toUpperCase())
         : null
       return { ...prev, [u.id]: normalized }
     })
@@ -214,6 +220,205 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
   )
 }
 
+function PCLicenses({ companyId }: { companyId: number }) {
+  const [licenses, setLicenses] = useState<PCLicenseAPI[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [newDesc, setNewDesc] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  async function load() {
+    setLoading(true)
+    setError('')
+    try {
+      setLicenses(await getPCLicenses(companyId))
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [companyId])
+
+  async function handleCreate() {
+    if (!newDesc.trim()) return
+    setCreating(true)
+    try {
+      const lic = await createPCLicense(companyId, newDesc.trim())
+      setLicenses(prev => [lic, ...prev])
+      setNewDesc('')
+      setShowForm(false)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al crear')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function handleToggle(lic: PCLicenseAPI) {
+    try {
+      const updated = await updatePCLicense(lic.id, {
+        is_active: !lic.is_active,
+        deactivated_reason: lic.is_active ? 'Desactivada manualmente' : undefined,
+      })
+      setLicenses(prev => prev.map(l => l.id === lic.id ? updated : l))
+    } catch {}
+  }
+
+  async function handleResetMachine(lic: PCLicenseAPI) {
+    if (!confirm(`Resetear vinculación de equipo para "${lic.description}"?\n\nEsta licencia podrá usarse en una PC diferente.`)) return
+    try {
+      const updated = await updatePCLicense(lic.id, { reset_machine: true })
+      setLicenses(prev => prev.map(l => l.id === lic.id ? updated : l))
+    } catch {}
+  }
+
+  async function handleDelete(lic: PCLicenseAPI) {
+    if (!confirm(`Eliminar licencia "${lic.description}" (${lic.key})?\n\nEsta acción no se puede deshacer.`)) return
+    try {
+      await deletePCLicense(lic.id)
+      setLicenses(prev => prev.filter(l => l.id !== lic.id))
+    } catch {}
+  }
+
+  function copyKey(lic: PCLicenseAPI) {
+    navigator.clipboard.writeText(lic.key)
+    setCopiedId(lic.id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  function fmt(dt: string | null) {
+    if (!dt) return '—'
+    const d = new Date(dt)
+    return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
+  }
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Monitor size={16} className="text-violet-400" />
+          <span className="text-sm font-semibold text-white">Licencias por PC</span>
+          <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{licenses.length}</span>
+        </div>
+        <button
+          onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <Plus size={13} /> Nueva licencia
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="px-5 py-4 border-b border-slate-800 bg-slate-800/30 flex gap-3">
+          <input
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+            placeholder="Descripción (ej: Local Norte - PC Caja)"
+            value={newDesc}
+            onChange={e => setNewDesc(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            autoFocus
+          />
+          <button
+            onClick={handleCreate}
+            disabled={creating || !newDesc.trim()}
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+          >
+            {creating ? 'Creando...' : 'Crear'}
+          </button>
+          <button
+            onClick={() => { setShowForm(false); setNewDesc('') }}
+            className="px-3 py-2 text-slate-400 hover:text-white text-sm rounded-lg transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="px-5 py-3 text-sm text-red-400 bg-red-900/10">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="px-5 py-8 flex justify-center">
+          <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : licenses.length === 0 ? (
+        <div className="px-5 py-8 text-center text-slate-500 text-sm">
+          No hay licencias creadas para esta empresa
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-800/50">
+          {licenses.map(lic => (
+            <div key={lic.id} className="px-5 py-3.5 flex items-start gap-4">
+              <div className="mt-0.5 shrink-0">
+                {lic.is_active
+                  ? <ShieldCheck size={16} className="text-emerald-400" />
+                  : <ShieldOff size={16} className="text-slate-500" />
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-white">{lic.description || '(sin descripción)'}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                    {lic.is_active ? 'Activa' : 'Inactiva'}
+                  </span>
+                  {lic.machine_id && (
+                    <span className="text-xs bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Vinculada</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-xs font-mono text-violet-300 bg-slate-800 px-2 py-0.5 rounded">{lic.key}</code>
+                  <button onClick={() => copyKey(lic)} className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
+                    <Copy size={11} />
+                    {copiedId === lic.id ? 'Copiado!' : 'Copiar'}
+                  </button>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-slate-500">
+                  <span>Creada: {fmt(lic.created_at)}</span>
+                  {lic.activated_at && <span>Vinculada: {fmt(lic.activated_at)}</span>}
+                  {lic.last_seen_at && <span>Última vez: {fmt(lic.last_seen_at)}</span>}
+                </div>
+                {lic.machine_id && (
+                  <div className="text-xs text-slate-600 mt-0.5 truncate max-w-sm">Equipo: {lic.machine_id}</div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => handleToggle(lic)}
+                  title={lic.is_active ? 'Desactivar' : 'Activar'}
+                  className={`p-1.5 rounded-lg text-xs transition-colors ${lic.is_active ? 'text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400'}`}
+                >
+                  {lic.is_active ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
+                </button>
+                {lic.machine_id && (
+                  <button
+                    onClick={() => handleResetMachine(lic)}
+                    title="Resetear equipo vinculado"
+                    className="p-1.5 rounded-lg text-slate-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(lic)}
+                  title="Eliminar"
+                  className="p-1.5 rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function EmpresaDetalle() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -234,8 +439,8 @@ export default function EmpresaDetalle() {
     try {
       const data = await getEmpresa(Number(id))
       setEmpresa(data)
-      // Backend stores slugs in UPPERCASE — normalize to lowercase to match modules.ts
-      const active = data.modules.filter(m => m.is_active).map(m => m.module_slug.toLowerCase())
+      // Backend stores slugs in UPPERCASE — keep as-is to match modules.ts catalog
+      const active = data.modules.filter(m => m.is_active).map(m => m.module_slug.toUpperCase())
       setModulos(active)
       setChanged(false)
     } catch (e: unknown) {
@@ -272,9 +477,9 @@ export default function EmpresaDetalle() {
         }
         next = [...prev, slug]
       }
-      // Auto-guardar inmediatamente
+      // Auto-guardar inmediatamente (slugs ya son UPPERCASE del modules.ts)
       if (empresa) {
-        saveModules(empresa.id, next.map(s => s.toUpperCase()))
+        saveModules(empresa.id, next)
           .then(() => {
             setGuardado(true)
             setTimeout(() => setGuardado(false), 2000)
@@ -294,8 +499,8 @@ export default function EmpresaDetalle() {
     if (!empresa) return
     setGuardando(true)
     try {
-      // Backend expects UPPERCASE slugs
-      await saveModules(empresa.id, modulos.map(s => s.toUpperCase()))
+      // Backend expects UPPERCASE slugs (already UPPERCASE from modules.ts)
+      await saveModules(empresa.id, modulos)
       setGuardado(true)
       setChanged(false)
       setTimeout(() => setGuardado(false), 3000)
@@ -338,7 +543,7 @@ export default function EmpresaDetalle() {
     )
   }
 
-  const categorias: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes']
+  const categorias: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm']
 
   return (
     <div className="p-8 space-y-6 max-w-6xl">
@@ -414,6 +619,9 @@ export default function EmpresaDetalle() {
       {empresa.users.length > 0 && (
         <UsersList users={empresa.users} activeModulos={modulosActivos} />
       )}
+
+      {/* Licencias PC */}
+      <PCLicenses companyId={empresa.id} />
 
       {/* Módulos */}
       <div className="space-y-4">

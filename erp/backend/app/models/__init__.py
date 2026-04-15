@@ -41,8 +41,21 @@ from app.models.customer import (
     MovementType as AccountMovementType,
 )
 
+# CRM Avanzado (módulo completo)
+from app.models.crm import (
+    CrmIdentity, CrmConversation, CrmMessage, CrmCampaign,
+    CrmContentPost, CrmPointsTransaction, CrmClubCoupon,
+    CrmInboxThread, CrmTag, CrmCustomerTag,
+    CrmIntegrationRecord, CrmReportDefinition, CrmReportRun,
+    CrmEvent, CrmAdsMeta, CrmAdsGoogle,
+    CrmCalendarItem, CrmResource,
+)
+
 # SUPERTREND — análisis de competencia y tendencias
 from app.models.supertrend import CompetitorEntry, TrendIndicator, TrendDirection
+
+# SUPERTREND ML — seguimiento de competencia en MercadoLibre
+from app.models.ml_competitor import MLTrackedSeller, MLCompetitorSnapshot, MLCompetitorVariantSnapshot
 
 # PUNTUACIÓN DE EMPLEADOS
 from app.models.employee_score import EmployeeScore, CATEGORIAS_DEFAULT
@@ -119,6 +132,13 @@ __all__ = [
     # Clientes / CRM
     "Customer", "CustomerCompany", "Vehicle", "AccountMovement",
     "CustomerType", "TaxCondition", "FuelType", "AccountMovementType",
+    # CRM Avanzado
+    "CrmIdentity", "CrmConversation", "CrmMessage", "CrmCampaign",
+    "CrmContentPost", "CrmPointsTransaction", "CrmClubCoupon",
+    "CrmInboxThread", "CrmTag", "CrmCustomerTag",
+    "CrmIntegrationRecord", "CrmReportDefinition", "CrmReportRun",
+    "CrmEvent", "CrmAdsMeta", "CrmAdsGoogle",
+    "CrmCalendarItem", "CrmResource",
     # SUPERTREND
     "CompetitorEntry", "TrendIndicator", "TrendDirection",
     # PUNTUACIÓN DE EMPLEADOS
@@ -145,7 +165,7 @@ __all__ = [
     "StorageBackend", "SyncPriority",
     "WAMessageStatus", "MPTransactionStatus",
     # MERCADOLIBRE
-    "MeliOrder",
+    "MeliOrder", "MeliConfig", "MeliWebhookEvent",
     # CRM Avanzado
     "CrmIdentity", "CrmMessage", "CrmConversation", "CrmCampaign",
     "CrmContentPost", "CrmPointsTransaction", "CrmClubCoupon",

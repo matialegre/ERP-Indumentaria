@@ -18,13 +18,14 @@ import {
   type Categoria,
 } from '../lib/modules'
 
-const CAT_ORDER: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes']
+const CAT_ORDER: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm']
 
 const CAT_COLORS: Record<Categoria, string> = {
   core: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
   operaciones: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
   integraciones: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   reportes: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  crm: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
 }
 
 const RUBROS: Record<string, string> = {

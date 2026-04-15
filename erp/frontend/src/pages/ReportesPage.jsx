@@ -1,10 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
-} from "recharts";
+import { CssHBarChart } from "../components/CssCharts";
 import {
   BarChart3, TrendingUp, FileText, Package, AlertTriangle,
   Clock, Loader2, ShoppingCart, DollarSign, CheckCircle,
@@ -137,56 +134,20 @@ function PedidosSection({ data, isLoading }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Por estado">
           {byStatus.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={byStatus} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
-                <Tooltip formatter={(v) => [`${v} pedidos`, "Cantidad"]} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {byStatus.map((d, i) => (
-                    <Cell key={i} fill={STATUS_COLOR_MAP[d.label] || CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <CssHBarChart data={byStatus} valueKey="value" labelKey="label" color="#3b82f6" />
           )}
         </Panel>
 
         <Panel title="Por tipo">
           {byType.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={byType} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
-                <Tooltip formatter={(v) => [`${v} pedidos`, "Cantidad"]} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {byType.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <CssHBarChart data={byType} valueKey="value" labelKey="label" color="#3b82f6" />
           )}
         </Panel>
       </div>
 
       <Panel title="Top 10 proveedores por cantidad de pedidos">
         {byProvider.length === 0 ? <EmptyState /> : (
-          <ResponsiveContainer width="100%" height={Math.max(220, byProvider.length * 38)}>
-            <BarChart data={byProvider} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-              <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={140} />
-              <Tooltip formatter={(v) => [`${v} pedidos`, "Cantidad"]} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {byProvider.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <CssHBarChart data={byProvider} valueKey="value" labelKey="label" color="#3b82f6" />
         )}
       </Panel>
 
@@ -309,17 +270,10 @@ function FacturasSection({ data, isLoading }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel title="Semáforo por local (top 10)">
           {semaforoByLocal.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={Math.max(220, semaforoByLocal.length * 40)}>
-              <BarChart data={semaforoByLocal} layout="vertical" margin={{ left: 10, right: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="local" tick={{ fontSize: 10 }} width={100} />
-                <Tooltip />
-                <Bar dataKey="ROJO" name="Rojo" fill="#ef4444" stackId="a" />
-                <Bar dataKey="AMARILLO" name="Amarillo" fill="#f59e0b" stackId="a" />
-                <Bar dataKey="VERDE" name="Verde" fill="#10b981" stackId="a" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <CssHBarChart
+              data={semaforoByLocal.map(d => ({ label: d.local, value: (d.ROJO || 0) + (d.AMARILLO || 0) + (d.VERDE || 0) }))}
+              valueKey="value" labelKey="label" color="#3b82f6"
+            />
           )}
         </Panel>
 
@@ -442,19 +396,7 @@ function PagosSection({ data, isLoading }) {
 
         <Panel title="Estado de comprobantes">
           {byStatusChart.length === 0 ? <EmptyState /> : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byStatusChart} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={80} />
-                <Tooltip formatter={(v) => [`${v} comprobantes`, "Cantidad"]} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {byStatusChart.map((d, i) => (
-                    <Cell key={i} fill={STATUS_COLOR_MAP[d.label] || CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <CssHBarChart data={byStatusChart} valueKey="value" labelKey="label" color="#3b82f6" />
           )}
         </Panel>
       </div>
@@ -561,19 +503,7 @@ function VentasSection({ diasVentas, setDiasVentas }) {
 
           <Panel title="Ventas por local (bruto)">
             {chartData.length === 0 ? <EmptyState /> : (
-              <ResponsiveContainer width="100%" height={Math.max(220, chartData.length * 38)}>
-                <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => fmtCur(v)} />
-                  <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={130} />
-                  <Tooltip formatter={(v) => [fmtCur(v), "Total bruto"]} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {chartData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <CssHBarChart data={chartData} valueKey="value" labelKey="label" color="#3b82f6" formatValue={(v) => fmtCur(v)} />
             )}
           </Panel>
 

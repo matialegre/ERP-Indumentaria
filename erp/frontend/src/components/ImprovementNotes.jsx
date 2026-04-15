@@ -11,7 +11,7 @@ import { api } from "../lib/api";
 const ROUTE_LABELS = {
   "/": "Dashboard",
   "/dashboard": "Dashboard",
-  "/pedidos-compras": "Pedidos de Compra",
+  "/pedidos-compras": "Notas de Pedido",
   "/facturas-proveedor": "Facturas / Remitos",
   "/facturas": "Facturas Proveedor",
   "/recepcion": "Recepción",
@@ -23,15 +23,41 @@ const ROUTE_LABELS = {
   "/locales": "Locales",
   "/usuarios": "Usuarios",
   "/consultas": "Consultas ERP",
-  "/reportes": "Reportes",
+  "/reportes": "Reportes / Estadísticas",
   "/resumen": "Resumen",
   "/monitoreo": "Monitoreo",
   "/config": "Configuración",
-  "/kanban": "Kanban",
+  "/kanban": "TrellOutdoor (Kanban)",
   "/comparador": "Comparador Precios",
   "/transporte": "Transporte",
   "/ingreso": "Ingreso Mercadería",
   "/facturacion": "Facturación",
+  "/deposito": "Depósito",
+  "/importacion": "Importación",
+  "/supertrend": "SuperTrend",
+  "/mercadolibre": "MercadoLibre — Depósito",
+  "/mejoras": "Mejoras del ERP",
+  "/informes": "Informes",
+  "/mensajes": "Mensajes",
+  "/puntuacion-empleados": "Puntuación Empleados",
+  "/socios-montagne": "Socios Montagne",
+  "/sync-status": "Estado Sync",
+  "/rrhh": "Recursos Humanos",
+  "/comisiones": "Comisiones",
+  "/taller": "Taller — Dashboard",
+  "/taller/ot": "Órdenes de Trabajo",
+  "/taller/clientes": "Clientes Taller",
+  "/taller/stock": "Repuestos",
+  "/crm": "CRM Dashboard",
+  "/crm/clientes": "Clientes 360°",
+  "/crm/mensajes": "Inbox CRM",
+  "/crm/club": "Mundo Club",
+  "/crm/campanas": "Campañas",
+  "/crm/publicidad": "Publicidad",
+  "/crm/contenido": "Contenido",
+  "/crm/analytics": "Analytics CRM",
+  "/crm/integraciones": "Integraciones CRM",
+  "/crm/ai": "Asistente IA",
 };
 
 const PRIORITY_CONFIG = {
@@ -47,6 +73,13 @@ const _apiPort = (_port === "5174" || _port === "5173") ? "8000" : _port || "800
 const SSE_BASE = typeof window !== "undefined"
   ? `${window.location.protocol}//${window.location.hostname}:${_apiPort}`
   : "http://localhost:8000";
+
+// Resolver URL de imagen: si es path relativo (/mejoras-img/...) usar el backend
+const resolveImageUrl = (img) => {
+  if (img.startsWith("data:")) return img; // base64 legacy
+  if (img.startsWith("/")) return `${SSE_BASE}${img}`;
+  return img;
+};
 
 export default function ImprovementNotes() {
   const location = useLocation();
@@ -85,7 +118,7 @@ export default function ImprovementNotes() {
     setStreamingNoteId(noteId);
     setStreamingText("");
 
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     const url = `${SSE_BASE}/api/v1/improvement-notes/${noteId}/ai-stream`;
     console.log("[AI] Conectando a:", url, "| token:", token ? token.substring(0, 20) + "..." : "NO HAY TOKEN");
 
@@ -204,7 +237,7 @@ export default function ImprovementNotes() {
   return (
     <>
       {/* Botón flotante */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2">
         {pendingCount > 0 && !open && (
           <div className="bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center absolute -top-1 -left-1 shadow">
             {pendingCount}
@@ -224,7 +257,7 @@ export default function ImprovementNotes() {
 
       {/* Panel chat */}
       {open && (
-        <div className="fixed bottom-20 right-6 z-40 w-96 max-h-[72vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-96 max-h-[72vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100 shrink-0">
             <div className="flex items-center gap-2">
@@ -364,14 +397,23 @@ function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, 
       {/* Burbuja del usuario (derecha, ámbar) */}
       <div className="flex justify-end">
         <div className={`max-w-[80%] rounded-2xl rounded-tr-sm px-3 py-2 shadow-sm ${note.is_done ? "bg-amber-100 opacity-60" : "bg-amber-500"}`}>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          {/* Módulo y autor */}
+          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+            {note.page_label && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${note.is_done ? "bg-amber-200 text-amber-800" : "bg-amber-400/60 text-white"}`}>
+                📍 {note.page_label}
+              </span>
+            )}
+            <span className={`text-[10px] font-semibold ${note.is_done ? "text-amber-700" : "text-amber-100"}`}>
+              👤 {note.author_name || "Anónimo"}
+            </span>
+            <span className={`text-[9px] ${note.is_done ? "text-amber-500" : "text-amber-200"}`}>
+              {note.created_at ? new Date(note.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+            </span>
             <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${note.is_done ? "bg-amber-200 text-amber-700" : "bg-amber-400 text-white"}`}>
               <div className={`w-1.5 h-1.5 rounded-full ${pConfig.dot}`} />
               {pConfig.label}
             </div>
-            <span className={`text-[9px] ${note.is_done ? "text-amber-600" : "text-amber-100"}`}>
-              {note.author_name || "Anónimo"} · {note.created_at ? new Date(note.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
-            </span>
             {note.is_done && <span className="ml-auto flex items-center gap-1 text-green-700 text-[9px] font-bold"><CheckCircle2 size={10} /> Resuelta</span>}
           </div>
 
@@ -407,8 +449,8 @@ function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, 
               {showImages && (
                 <div className="flex gap-1 flex-wrap mt-1">
                   {note.images.map((img, i) => (
-                    <a key={i} href={img} target="_blank" rel="noopener noreferrer">
-                      <img src={img} alt="" className="w-16 h-16 object-cover rounded-lg border border-amber-300 hover:opacity-80 transition" />
+                    <a key={i} href={resolveImageUrl(img)} target="_blank" rel="noopener noreferrer">
+                      <img src={resolveImageUrl(img)} alt="" className="w-16 h-16 object-cover rounded-lg border border-amber-300 hover:opacity-80 transition" />
                     </a>
                   ))}
                 </div>

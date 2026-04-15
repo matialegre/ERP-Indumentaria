@@ -10,6 +10,7 @@ import io
 
 from app.db.session import get_db
 from app.models.product import Product, ProductVariant
+from app.models.ingreso import Ingreso, IngresoItem
 from app.models.user import User, UserRole
 from app.api.deps import get_current_user, require_roles
 
@@ -77,6 +78,7 @@ def list_products(
     search: Optional[str] = None,
     brand: Optional[str] = None,
     category: Optional[str] = None,
+    provider_id: Optional[int] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     current_user: User = Depends(get_current_user),
@@ -95,6 +97,15 @@ def list_products(
         q = q.filter(Product.brand.ilike(f"%{brand}%"))
     if category:
         q = q.filter(Product.category == category)
+    if provider_id:
+        subq = (
+            db.query(ProductVariant.product_id)
+            .join(IngresoItem, IngresoItem.variant_id == ProductVariant.id)
+            .join(Ingreso, Ingreso.id == IngresoItem.ingreso_id)
+            .filter(Ingreso.provider_id == provider_id)
+            .subquery()
+        )
+        q = q.filter(Product.id.in_(subq))
     q = q.order_by(Product.name)
     total = q.count()
     items = q.offset(skip).limit(limit).all()

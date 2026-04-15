@@ -1,7 +1,9 @@
-const { app, BrowserWindow, dialog, ipcMain, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, nativeImage, session } = require('electron');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 const APP_VERSION = '1.0.0';
@@ -34,6 +36,148 @@ function loadConfig() {
 }
 function saveConfig(data) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+}
+
+// ─── Machine ID ────────────────────────────────────────────────────────────────
+function getMachineId() {
+  const cfg = loadConfig();
+  if (!cfg.machineId) {
+    cfg.machineId = crypto.randomBytes(16).toString('hex');
+    saveConfig(cfg);
+    log(`Generated new machineId: ${cfg.machineId}`);
+  }
+  return cfg.machineId;
+}
+
+// ─── Licencia por PC ──────────────────────────────────────────────────────────
+const LICENSE_FILE = path.join(app.getPath('userData'), 'license.key');
+
+function readLicenseKey() {
+  try {
+    const key = fs.readFileSync(LICENSE_FILE, 'utf8').trim();
+    return key || null;
+  } catch { return null; }
+}
+
+function saveLicenseKey(key) {
+  fs.writeFileSync(LICENSE_FILE, key.trim(), 'utf8');
+}
+
+function validateLicense(serverUrl, key, machineId) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ key, machine_id: machineId });
+    const urlObj = new URL(`${serverUrl}/api/v1/pc-licenses/validate`);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 80,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    };
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { resolve({ valid: false, message: 'Respuesta inválida del servidor' }); }
+      });
+    });
+    req.on('error', () => resolve({ valid: false, message: 'No se pudo contactar el servidor para validar la licencia' }));
+    req.setTimeout(8000, () => { req.destroy(); resolve({ valid: false, message: 'Timeout validando licencia' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function showLicenseEntry() {
+  if (splashWin && !splashWin.isDestroyed()) splashWin.close();
+  const licWin = new BrowserWindow({
+    width: 500, height: 420, frame: true, resizable: false, center: true,
+    autoHideMenuBar: true, title: APP_NAME,
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
+  });
+  licWin.setMenuBarVisibility(false);
+  licWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+    <html><head><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f1f5f9;
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           height:100vh;gap:20px;padding:40px}
+      .icon{font-size:52px;line-height:1}
+      h2{font-size:20px;font-weight:700;color:#fff;text-align:center}
+      p{font-size:13px;color:#94a3b8;text-align:center;max-width:360px;line-height:1.6}
+      textarea{width:100%;padding:12px 14px;background:#1e293b;border:1.5px solid #334155;
+               border-radius:10px;font-size:13px;font-family:monospace;color:#e2e8f0;
+               resize:none;height:72px;outline:none;letter-spacing:.05em}
+      textarea:focus{border-color:#7c3aed}
+      .btn{background:#7c3aed;color:white;border:none;padding:12px 32px;border-radius:10px;
+           font-size:15px;cursor:pointer;font-weight:600;width:100%}
+      .btn:hover{background:#6d28d9}
+      .btn:disabled{opacity:.5;cursor:not-allowed}
+      .err{color:#f87171;font-size:12px;text-align:center}
+    </style></head>
+    <body>
+      <div class=icon>🔑</div>
+      <h2>Activar ERP</h2>
+      <p>Esta instalación requiere una licencia. Ingresá la clave que te proporcionó tu administrador:</p>
+      <textarea id=key placeholder="PC-XXXX-XXXX-XXXX-XXXX" spellcheck="false"></textarea>
+      <div class=err id=err></div>
+      <button class=btn id=btn onclick=activate()>Activar</button>
+      <script>
+        async function activate(){
+          const key = document.getElementById('key').value.trim();
+          if(!key){document.getElementById('err').textContent='Ingresá una clave';return;}
+          document.getElementById('btn').disabled=true;
+          document.getElementById('btn').textContent='Activando...';
+          document.getElementById('err').textContent='';
+          try{
+            await window.__electron?.saveLicenseKey(key);
+          }catch(e){
+            document.getElementById('err').textContent=e?.message||'Error';
+            document.getElementById('btn').disabled=false;
+            document.getElementById('btn').textContent='Activar';
+          }
+        }
+        document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey)activate();});
+      </script>
+    </body></html>
+  `)}`);
+  licWin.once('ready-to-show', () => { licWin.show(); startupComplete = true; });
+}
+
+function showLicenseError(message) {
+  if (splashWin && !splashWin.isDestroyed()) splashWin.close();
+  const errWin = new BrowserWindow({
+    width: 480, height: 380, frame: true, resizable: false, center: true,
+    autoHideMenuBar: true, title: APP_NAME,
+    webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
+  });
+  errWin.setMenuBarVisibility(false);
+  const safeMsg = message.replace(/'/g, "\\'");
+  errWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+    <html><head><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f1f5f9;
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           height:100vh;gap:16px;padding:40px}
+      .icon{font-size:52px}
+      h2{font-size:19px;font-weight:700;color:#fff;text-align:center}
+      p{font-size:13px;color:#94a3b8;text-align:center;max-width:340px;line-height:1.6}
+      .msg{background:#1e293b;border:1px solid #dc2626;border-radius:10px;padding:14px 18px;
+           font-size:13px;color:#fca5a5;text-align:center;width:100%;max-width:380px}
+      .btn{background:#1e293b;color:#94a3b8;border:1px solid #334155;padding:10px 24px;
+           border-radius:8px;font-size:13px;cursor:pointer;margin-top:4px}
+      .btn:hover{color:#fff;border-color:#475569}
+    </style></head>
+    <body>
+      <div class=icon>🚫</div>
+      <h2>Licencia inválida</h2>
+      <div class=msg>${message}</div>
+      <p>Contactá a tu administrador para obtener una nueva licencia.</p>
+      <button class=btn onclick="window.__electron?.clearLicense()">Ingresar otra clave</button>
+    </body></html>
+  `)}`);
+  errWin.once('ready-to-show', () => { errWin.show(); startupComplete = true; });
 }
 
 // ─── Pantalla de carga ────────────────────────────────────────────────────────
@@ -129,6 +273,11 @@ function createMainWindow(url) {
   });
 
   mainWin.loadURL(url);
+  // Limpiar historial de navegación del renderer para que al reabrir
+  // siempre empiece en "/" y no en el último módulo visitado
+  mainWin.webContents.once('did-finish-load', () => {
+    mainWin.webContents.clearHistory();
+  });
 
   // Try to set dynamic company icon on startup
   fetchCompanyIcon(url).then(iconPath => {
@@ -215,6 +364,19 @@ function createMainWindow(url) {
 
   mainWin.webContents.on('did-fail-load', (event, errorCode, errorDesc) => {
     log(`Page load failed: ${errorCode} ${errorDesc}`);
+    // ERR_ABORTED (-3) es normal durante navegación — ignorar
+    if (errorCode === -3) return;
+    // Para otros errores, mostrar la ventana de error de conexión si aún no se mostró
+    if (!startupComplete) {
+      mainWin.close();
+      showConnectionError(url);
+    }
+  });
+
+  mainWin.webContents.on('render-process-gone', (event, details) => {
+    log(`Renderer crashed: reason=${details.reason} exitCode=${details.exitCode}`);
+    dialog.showErrorBox('El ERP se cerró inesperadamente', `Motivo: ${details.reason}\n\nReiniciá la aplicación.`);
+    app.quit();
   });
 
   mainWin.once('ready-to-show', () => {
@@ -228,14 +390,34 @@ function createMainWindow(url) {
 }
 
 // ─── Verificar conectividad ───────────────────────────────────────────────────
-function checkServer(url, retries = 5, delay = 1000) {
+/**
+ * Verifica que el servidor responda Y tenga el frontend buildeado.
+ * Lee la respuesta JSON y valida has_frontend === true (campo agregado al health endpoint).
+ * Si el backend es viejo (sin has_frontend), lo acepta igual para compatibilidad.
+ */
+function checkServer(url, retries = 5, delay = 1000, requireFrontend = false) {
   return new Promise((resolve, reject) => {
     let attempts = 0;
     const check = () => {
       log(`Health check ${url} attempt ${attempts + 1}/${retries}`);
+      let body = '';
       const req = http.get(`${url}/api/v1/system/health`, (res) => {
-        if (res.statusCode === 200) { log(`OK: ${url}`); resolve(url); }
-        else retry();
+        if (res.statusCode !== 200) { retry(); return; }
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          if (requireFrontend) {
+            try {
+              const json = JSON.parse(body);
+              if (json.has_frontend === false) {
+                log(`${url} respondió pero SIN frontend buildeado — descartando`);
+                reject(new Error(`Sin frontend: ${url}`));
+                return;
+              }
+            } catch { /* backend viejo sin has_frontend — aceptar igual */ }
+          }
+          log(`OK: ${url}`);
+          resolve(url);
+        });
       });
       req.on('error', () => retry());
       req.setTimeout(3000, () => { req.destroy(); retry(); });
@@ -251,7 +433,8 @@ function checkServer(url, retries = 5, delay = 1000) {
 
 async function resolveServerUrl(configuredUrl) {
   try {
-    return await checkServer('http://127.0.0.1:8000', 2, 500);
+    // Intentar localhost solo si TAMBIÉN tiene el frontend buildeado
+    return await checkServer('http://127.0.0.1:8000', 2, 500, true);
   } catch {
     return await checkServer(configuredUrl, 5, 1500);
   }
@@ -260,6 +443,18 @@ async function resolveServerUrl(configuredUrl) {
 // ─── IPC ──────────────────────────────────────────────────────────────────────
 ipcMain.handle('save-server-url', (event, url) => {
   saveConfig({ serverUrl: url });
+  app.relaunch();
+  app.exit(0);
+});
+
+ipcMain.handle('save-license-key', (event, key) => {
+  saveLicenseKey(key);
+  app.relaunch();
+  app.exit(0);
+});
+
+ipcMain.handle('clear-license', () => {
+  try { fs.unlinkSync(LICENSE_FILE); } catch {}
   app.relaunch();
   app.exit(0);
 });
@@ -495,15 +690,50 @@ app.on('window-all-closed', () => {
 app.whenReady().then(async () => {
   log(`App ready. Packaged: ${app.isPackaged}`);
 
+  // Deshabilitar cache HTTP — siempre cargar versión fresca del servidor
+  session.defaultSession.clearCache().catch(() => {});
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    details.requestHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    details.requestHeaders['Pragma'] = 'no-cache';
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
   showSplash();
 
   const cfg = loadConfig();
   const serverUrl = cfg.serverUrl || SERVER_URL;
   log(`Server URL: ${serverUrl}`);
 
+  // ── Verificar licencia ──────────────────────────────────────────────────
+  const licenseKey = readLicenseKey();
+  if (!licenseKey && app.isPackaged) {
+    log('No license key found — showing license entry screen');
+    showLicenseEntry();
+    return;
+  }
+  if (licenseKey) log(`License key found: ${licenseKey.substring(0, 7)}...`);
+  else log('Dev mode — skipping license check');
+
   try {
     const resolvedUrl = await resolveServerUrl(serverUrl);
+
+    // Validar licencia contra el servidor
+    if (licenseKey && app.isPackaged) {
+      const machineId = getMachineId();
+      log(`Validating license with machineId: ${machineId.substring(0, 8)}...`);
+      const validation = await validateLicense(resolvedUrl, licenseKey, machineId);
+      log(`License validation result: valid=${validation.valid}, message=${validation.message}`);
+
+      if (!validation.valid) {
+        showLicenseError(validation.message);
+        return;
+      }
+    }
+
     createMainWindow(resolvedUrl);
+
+    // Limpiar caché de Chromium para garantizar que siempre se carga la versión más reciente
+    session.defaultSession.clearCache().catch(() => {});
 
     // Check for updates in background (non-blocking)
     checkForUpdates(resolvedUrl).then(updateInfo => {

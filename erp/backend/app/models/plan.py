@@ -81,3 +81,27 @@ class CompanySubscription(Base):
     # Relationships
     company = relationship("Company", backref="subscriptions")
     plan = relationship("Plan", back_populates="subscriptions")
+
+
+def _gen_pc_key() -> str:
+    """Genera clave de licencia PC: PC-XXXX-XXXX-XXXX-XXXX"""
+    raw = uuid.uuid4().hex.upper()
+    return f"PC-{raw[0:4]}-{raw[4:8]}-{raw[8:12]}-{raw[12:16]}"
+
+
+class PCLicense(Base):
+    __tablename__ = "pc_licenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(64), unique=True, nullable=False, default=_gen_pc_key)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    description = Column(String(200), nullable=False, default="")
+    is_active = Column(Boolean, default=True)
+    machine_id = Column(String(300), nullable=True)  # se fija en el primer uso
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    activated_at = Column(DateTime, nullable=True)   # cuando se vinculó al primer equipo
+    last_seen_at = Column(DateTime, nullable=True)
+    deactivated_reason = Column(String(500), nullable=True)
+
+    company = relationship("Company", backref="pc_licenses")

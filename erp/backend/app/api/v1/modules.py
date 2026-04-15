@@ -97,6 +97,42 @@ def list_modules(
     return result
 
 
+@router.get("/catalog", response_model=list[ModuleOut])
+def list_catalog(
+    db:   Session = Depends(get_db),
+    user: User    = Depends(require_roles(UserRole.MEGAADMIN, UserRole.SUPERADMIN, UserRole.ADMIN)),
+):
+    """Devuelve TODOS los módulos del catálogo con su estado activo/inactivo para la empresa.
+    Nunca filtra por modules_override del usuario — usado por admins para configurar otros usuarios."""
+    if user.company_id is None:
+        return [
+            ModuleOut(
+                slug=m["slug"], nombre=m["nombre"], descripcion=m["descripcion"],
+                rutas=m["rutas"], icono=m["icono"], color=m["color"],
+                is_active=True,
+            )
+            for m in MODULES_CATALOG
+        ]
+
+    company_id = user.company_id
+    _ensure_modules_seeded(db, company_id)
+    rows = {m.module_slug: m for m in db.query(CompanyModule).filter_by(company_id=company_id).all()}
+
+    return [
+        ModuleOut(
+            slug=cat["slug"],
+            nombre=cat["nombre"],
+            descripcion=cat["descripcion"],
+            rutas=cat["rutas"],
+            icono=cat["icono"],
+            color=cat["color"],
+            is_active=(rows[cat["slug"]].is_active if cat["slug"] in rows else False),
+            custom_name=(rows[cat["slug"]].custom_name if cat["slug"] in rows else None),
+        )
+        for cat in MODULES_CATALOG
+    ]
+
+
 @router.patch("/{slug}", response_model=ModuleOut)
 def toggle_module(
     slug:    str,

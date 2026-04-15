@@ -56,42 +56,50 @@ import {
   Lightbulb,
   Key,
   FileBarChart,
+  MessageSquare,
+  Crown,
+  Megaphone,
+  CalendarDays,
+  MessageCircle,
+  Rocket,
+  Bot,
+  Link2,
+  ChevronDown,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/mega-admin",     icon: Shield,          label: "Mega Admin",          roles: ["MEGAADMIN"],                                                            module: null },
   { to: "/",               icon: LayoutDashboard, label: "Dashboard",       roles: null,                                                                    module: null },
-  { to: "/resumen",        icon: Activity,        label: "Resumen",             roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","ADMINISTRACION"],            module: "COMPRAS" },
+  { to: "/resumen",        icon: Activity,        label: "Resumen",             roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","ADMINISTRACION"],            module: "RESUMEN",        moduleAlt: "COMPRAS" },
   // Compras
-  { to: "/pedidos-compras",     icon: ShoppingCart, label: "Notas de Pedido",     roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                    module: "COMPRAS",   badgeKey: "pedidos_pendientes" },
+  { to: "/pedidos-compras",     icon: ShoppingCart, label: "Notas de Pedido",     roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                    module: "NOTAS_PEDIDO",         moduleAlt: "COMPRAS",   badgeKey: "pedidos_pendientes" },
   { to: "/importacion",         icon: Ship,         label: "Importación",         roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                    module: "IMPORTACION" },
-  { to: "/facturas-proveedor",  icon: Receipt,      label: "Facturas / Remitos",  roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                 module: "COMPRAS",   badgeKey: "facturas_sin_rv" },
+  { to: "/facturas-proveedor",  icon: Receipt,      label: "Facturas / Remitos",  roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                 module: "FACTURAS_PROVEEDOR",   moduleAlt: "COMPRAS",   badgeKey: "facturas_sin_rv" },
   { to: "/gestion-pagos",       icon: CreditCard,   label: "Gestión de Pagos",    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],             module: "PAGOS",     badgeKey: "pagos_pendientes" },
   // Depósito
-  { to: "/ingreso",        icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS"],                              module: "COMPRAS",   badgeKey: "ingresos_pendientes" },
-  { to: "/recepcion",      icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL"],                                module: "COMPRAS",   badgeKey: "recepcion_pendiente" },
+  { to: "/ingreso",        icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS"],                              module: "INGRESO",              moduleAlt: "COMPRAS",   badgeKey: "ingresos_pendientes" },
+  { to: "/recepcion",      icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL"],                                module: "RECEPCION",            moduleAlt: "COMPRAS",   badgeKey: "recepcion_pendiente" },
   { to: "/transporte",     icon: Truck,        label: "Transporte",         roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                      module: "TRANSPORTE" },
   { to: "/completados",    icon: CheckCircle,  label: "Completados",        roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL"],                                module: "COMPLETADOS" },
   // Depósito
-  { to: "/deposito",     icon: Boxes,        label: "Depósito",           roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                        module: "STOCK" },
+  { to: "/deposito",     icon: Boxes,        label: "Depósito",           roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                        module: "DEPOSITO",             moduleAlt: "STOCK" },
   // Gestión
   { to: "/stock",          icon: Warehouse,    label: "Stock",              roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],                     module: "STOCK" },
   { to: "/facturacion",    icon: FileText,     label: "Facturación",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                  module: "VENTAS" },
-  { to: "/consultas",      icon: Search,       label: "Consultas ERP",      roles: null,                                                                    module: null },
-  { to: "/comparador",     icon: GitCompare,   label: "Comparador Precios", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "CATALOGO" },
+  { to: "/consultas",      icon: Search,       label: "Consultas ERP",      roles: null,                                                                    module: "CONSULTAS" },
+  { to: "/comparador",     icon: GitCompare,   label: "Comparador Precios", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "COMPARADOR",           moduleAlt: "CATALOGO" },
   { to: "/kanban",         icon: Kanban,       label: "TrellOutdoor",       roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS"],        module: "KANBAN" },
   // Catálogos
-  { to: "/productos",      icon: ShoppingBag,  label: "Productos",          roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "CATALOGO" },
-  { to: "/proveedores",    icon: Truck,        label: "Proveedores",        roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "CATALOGO" },
+  { to: "/productos",      icon: ShoppingBag,  label: "Productos",          roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "PRODUCTOS",            moduleAlt: "CATALOGO" },
+  { to: "/proveedores",    icon: Truck,        label: "Proveedores",        roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "PROVEEDORES",          moduleAlt: "CATALOGO" },
   { to: "/locales",        icon: Store,        label: "Locales",            roles: ["SUPERADMIN","ADMIN"],                                                  module: "LOCALES" },
   { to: "/usuarios",       icon: Users,        label: "Usuarios",           roles: ["SUPERADMIN","ADMIN"],                                                  module: "USUARIOS" },
   // Admin
-  { to: "/reportes",       icon: BarChart3,         label: "Estadísticas",       roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                 module: "REPORTES" },
-  { to: "/comisiones",     icon: BadgeDollarSign,   label: "Comisiones",         roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                 module: "REPORTES" },
+  { to: "/reportes",       icon: BarChart3,         label: "Estadísticas",       roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                 module: "ESTADISTICAS",         moduleAlt: "REPORTES" },
   { to: "/socios-montagne",icon: UserCheck,          label: "Socios Montagne",    roles: ["SUPERADMIN","ADMIN"],                                                  module: "SOCIOS" },
   { to: "/config",              icon: Settings,       label: "Configuración",      roles: ["SUPERADMIN"],           module: null },
   { to: "/config-modulos",      icon: LayoutTemplate, label: "Módulos",            roles: ["SUPERADMIN","ADMIN"],   module: null },
-  { to: "/sync-status",         icon: RefreshCw,      label: "Estado Sync",          roles: null,                     module: null },
+  { to: "/sync-status",         icon: RefreshCw,      label: "Estado Sync",          roles: null,                     module: "SYNC" },
   { to: "/configurador-menu",   icon: LayoutTemplate, label: "Configurador Menú",  roles: ["SUPERADMIN","ADMIN"],   module: null },
   { to: "/monitoreo",           icon: Activity,       label: "Monitoreo",          roles: ["SUPERADMIN","ADMIN"],   module: "MONITOREO" },
   // Taller
@@ -103,10 +111,40 @@ const NAV_ITEMS = [
   { to: "/supertrend",         icon: TrendingUp,     label: "SuperTrend",         roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "SUPERTREND" },
   // Puntuación de Empleados
   { to: "/puntuacion-empleados", icon: Star,          label: "Puntuación Empleados", roles: ["SUPERADMIN","ADMIN","SUPERVISOR"], module: "PUNTUACION_EMPLEADOS" },
-  // Mejoras del ERP
+  // Mejoras
   { to: "/mejoras",              icon: Lightbulb,     label: "Mejoras",              roles: ["SUPERADMIN","ADMIN"],              module: "MEJORAS" },
+  // MercadoLibre
+  { to: "/mercadolibre",     icon: ShoppingCart, label: "MercadoLibre",       roles: ["SUPERADMIN","ADMIN","DEPOSITO"], module: "MERCADOLIBRE" },
+  // Mensajería interna
+  { to: "/mensajes",             icon: MessageSquare, label: "Mensajes",             roles: null,                               module: "MENSAJES",   badgeKey: "mensajes_unread" },
+  // RRHH
+  { to: "/naaloo",               icon: CalendarDays,  label: "Portal Empleado",      roles: null,                                   module: "NAALOO",  moduleAlt: "RRHH" },
+  { to: "/rrhh",                 icon: UserCheck,     label: "RRHH",                 roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"], module: "RRHH" },
+  { to: "/comisiones",     icon: BadgeDollarSign,   label: "Comisiones",         roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                 module: "COMISIONES",           moduleAlt: "RRHH" },
   // Informes
   { to: "/informes",             icon: FileBarChart,  label: "Informes",             roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"], module: "INFORMES" },
+  // CRM Avanzado (grupo colapsable)
+  {
+    icon: Users, label: "CRM", roles: ["SUPERADMIN","ADMIN","VENDEDOR","ADMINISTRACION","GESTION_PAGOS","LOCAL","DEPOSITO","COMPRAS"], module: "CRM",
+    children: [
+      { to: "/crm",                    icon: LayoutDashboard, label: "Dashboard",        module: "CRM_DASHBOARD",      moduleAlt: "CRM" },
+      { to: "/crm/clientes",           icon: Users,           label: "Clientes 360°",    module: "CLIENTES_360",       moduleAlt: "CRM" },
+      { to: "/crm/mensajes",           icon: MessageCircle,   label: "Inbox",            module: "INBOX",              moduleAlt: "CRM" },
+      { to: "/crm/club",               icon: Crown,           label: "Mundo Club",       module: "MUNDO_CLUB",         moduleAlt: "CRM" },
+      { to: "/crm/campanas",           icon: Rocket,          label: "Campañas",         module: "CAMPANAS",           moduleAlt: "CRM" },
+      { to: "/crm/publicidad",         icon: Megaphone,       label: "Publicidad",       module: "PUBLICIDAD",         moduleAlt: "CRM" },
+      { to: "/crm/contenido",          icon: CalendarDays,    label: "Contenido",        module: "CONTENIDO",          moduleAlt: "CRM" },
+      { to: "/crm/analytics",          icon: BarChart3,       label: "Analytics",        module: "ANALYTICS_CRM",      moduleAlt: "CRM" },
+      { to: "/crm/integraciones",      icon: Link2,           label: "Integraciones",    module: "INTEGRACIONES_CRM",  moduleAlt: "CRM" },
+      { to: "/crm/dragonfish",         icon: Package,         label: "Dragonfish",       module: "DRAGONFISH",         moduleAlt: "CRM" },
+      { to: "/crm/meli-indumentaria",  icon: Store,           label: "ML Indumentaria",  module: "ML_INDUMENTARIA",    moduleAlt: "CRM" },
+      { to: "/crm/meli-neuquen",       icon: Store,           label: "ML Neuquén",       module: "ML_NEUQUEN",         moduleAlt: "CRM" },
+      { to: "/crm/vtex",               icon: Store,           label: "VTEX Canal",       module: "VTEX_CANAL",         moduleAlt: "CRM" },
+      { to: "/crm/vtex-inactivos",     icon: Users,           label: "VTEX Inactivos",   module: "VTEX_INACTIVOS",     moduleAlt: "CRM" },
+      { to: "/crm/reportes",           icon: FileText,        label: "Reportes CRM",     module: "REPORTES_CRM",       moduleAlt: "CRM" },
+      { to: "/crm/ai",                 icon: Bot,             label: "Asistente IA",     module: "ASISTENTE_IA",       moduleAlt: "CRM" },
+    ],
+  },
   // Licencias (solo MEGAADMIN)
   { to: "/licencias",            icon: Key,           label: "Licencias",            roles: ["MEGAADMIN"],                      module: null },
 ];
@@ -120,6 +158,31 @@ export default function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [navSearch, setNavSearch] = useState("");
   const [localSelectorOpen, setLocalSelectorOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    // Auto-expand group if current path is inside it
+    const groups = {};
+    NAV_ITEMS.forEach(item => {
+      if (item.children) {
+        const isInGroup = item.children.some(c => window.location.pathname === c.to || window.location.pathname.startsWith(c.to + "/"));
+        if (isInGroup) groups[item.label] = true;
+      }
+    });
+    return groups;
+  });
+  const toggleGroup = (label) => setExpandedGroups(prev => ({ ...prev, [label]: !prev[label] }));
+
+  // Auto-expand group when navigating into it
+  useEffect(() => {
+    NAV_ITEMS.forEach(item => {
+      if (item.children) {
+        const isInGroup = item.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+        if (isInGroup) setExpandedGroups(prev => prev[item.label] ? prev : { ...prev, [item.label]: true });
+      }
+    });
+  }, [location.pathname]);
+
+  const userMenuRef = useRef(null);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("erp-dark") === "true"
   );
@@ -188,25 +251,59 @@ export default function AppLayout() {
   useEffect(() => {
     if (user?.role === 'MEGAADMIN' || !modulesLoaded) return;
 
-    const currentModuleRoute = NAV_ITEMS
-      .filter(item => item.module)
+    // Flatten NAV_ITEMS including children for module guard
+    const allRoutes = NAV_ITEMS.flatMap(item =>
+      item.children
+        ? item.children.map(c => ({ ...c, module: c.module || item.module, moduleAlt: c.moduleAlt || item.module }))
+        : [item]
+    ).filter(item => item.module);
+
+    const currentModuleRoute = allRoutes
       .sort((a, b) => b.to.length - a.to.length)
       .find(item => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`));
 
-    if (currentModuleRoute && !activeModuleSlugs.has(currentModuleRoute.module)) {
+    if (currentModuleRoute && !activeModuleSlugs.has(currentModuleRoute.module) && !(currentModuleRoute.moduleAlt && activeModuleSlugs.has(currentModuleRoute.moduleAlt))) {
       navigate('/', { replace: true });
     }
   }, [activeModuleSlugs, location.pathname, modulesLoaded, navigate, user?.role]);
 
   const visibleItems = useMemo(() => {
-    const filtered = NAV_ITEMS.filter((item) => {
+    const isModActive = (item) => {
+      if (!item.module) return true;
+      if (activeModuleSlugs.has(item.module)) return true;
+      if (item.moduleAlt && activeModuleSlugs.has(item.moduleAlt)) return true;
+      return false;
+    };
+    const canSee = (item) => {
       if (isClientMode && ADMIN_ONLY_ROUTES.includes(item.to)) return false;
       if (user?.role === 'MEGAADMIN') return true;
-      if (item.module && modulesLoaded && activeModuleSlugs.has(item.module)) return true;
+      if (item.module && modulesLoaded && isModActive(item)) return true;
       if (item.roles && !item.roles.includes(user?.role)) return false;
       if (!item.module) return true;
       if (!modulesLoaded) return false;
-      return activeModuleSlugs.has(item.module);
+      return isModActive(item);
+    };
+    const filtered = NAV_ITEMS.filter((item) => {
+      if (item.children) {
+        return canSee(item);
+      }
+      return canSee(item);
+    }).map((item) => {
+      if (item.children) {
+        const visibleChildren = item.children.filter((child) => {
+          if (user?.role === 'MEGAADMIN') return true;
+          if (child.roles && !child.roles.includes(user?.role)) return false;
+          // Check child's own module or fall back to parent module
+          const childMod = child.module || item.module;
+          const childModAlt = child.moduleAlt || item.module;
+          if (childMod && modulesLoaded) {
+            return activeModuleSlugs.has(childMod) || activeModuleSlugs.has(childModAlt);
+          }
+          return true;
+        });
+        return { ...item, children: visibleChildren };
+      }
+      return item;
     });
     filtered.sort((a, b) => a.label.localeCompare(b.label, 'es'));
     return filtered;
@@ -221,6 +318,17 @@ export default function AppLayout() {
     }
     localStorage.setItem("erp-dark", darkMode);
   }, [darkMode]);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Ctrl+K global search
   useEffect(() => {
@@ -320,7 +428,69 @@ export default function AppLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-1 px-2 space-y-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full" style={{scrollbarWidth:'thin',scrollbarColor:'#475569 transparent'}}>
-          {visibleItems.filter(item => !navSearch || item.label.toLowerCase().includes(navSearch.toLowerCase())).map((item) => (
+          {visibleItems.filter(item => {
+            if (!navSearch) return true;
+            const q = navSearch.toLowerCase();
+            if (item.children) return item.label.toLowerCase().includes(q) || item.children.some(c => c.label.toLowerCase().includes(q));
+            return item.label.toLowerCase().includes(q);
+          }).map((item) => {
+            // Grupo colapsable (tiene children)
+            if (item.children) {
+              const isExpanded = expandedGroups[item.label] || !!navSearch;
+              const isActiveGroup = item.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+              const filteredChildren = navSearch
+                ? item.children.filter(c => c.label.toLowerCase().includes(navSearch.toLowerCase()) || item.label.toLowerCase().includes(navSearch.toLowerCase()))
+                : item.children;
+              return (
+                <div key={item.label}>
+                  <button
+                    onClick={() => toggleGroup(item.label)}
+                    onMouseEnter={() => {
+                      // Pre-carga el Dashboard CRM al hacer hover en el grupo
+                      if (item.label === "CRM") import("../pages/crm/CRMDashboard");
+                    }}
+                    className={`w-full relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors ${
+                      isActiveGroup
+                        ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    } ${collapsed ? "justify-center" : ""}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <item.icon size={18} className="shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="truncate">{item.label}</span>
+                        <ChevronDown size={14} className={`ml-auto shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                      </>
+                    )}
+                  </button>
+                  {isExpanded && !collapsed && (
+                    <div className="ml-3 pl-3 border-l border-slate-700/50 mt-0.5 space-y-0.5">
+                      {filteredChildren.map((child) => (
+                        <NavLink
+                          key={child.to}
+                          to={child.to}
+                          end={child.to === "/crm"}
+                          onClick={() => setMobileOpen(false)}
+                          className={({ isActive }) =>
+                            `relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-colors ${
+                              isActive
+                                ? "bg-blue-600/90 text-white shadow-sm"
+                                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                            }`
+                          }
+                        >
+                          <child.icon size={15} className="shrink-0" />
+                          <span className="truncate">{child.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            // Item normal (sin children)
+            return (
             <NavLink
               key={item.to}
               to={item.to}
@@ -350,7 +520,8 @@ export default function AppLayout() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               )}
             </NavLink>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Connection status */}
@@ -454,6 +625,35 @@ export default function AppLayout() {
 
             <InstallPwa />
             <SyncIndicator />
+            {/* User chip */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition text-sm font-medium text-gray-700 max-w-[180px]"
+                title="Usuario activo"
+              >
+                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                  {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <span className="truncate hidden sm:block">{user?.full_name || "Usuario"}</span>
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{user?.full_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.role}</p>
+                    {user?.email && <p className="text-xs text-gray-400 truncate">{user?.email}</p>}
+                  </div>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); logout(); }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition"
+                  >
+                    <LogOut size={15} />
+                    Cerrar sesión / Cambiar usuario
+                  </button>
+                </div>
+              )}
+            </div>
             <span className="text-xs text-gray-400 hidden sm:block">v0.1.0</span>
           </div>
         </header>
@@ -475,8 +675,8 @@ export default function AppLayout() {
         }}
         onClose={() => setLocalSelectorOpen(false)}
       />
-      <ImprovementNotes />
       <SyncProgressWidget />
+      <ImprovementNotes />
     </div>
     </>
   );

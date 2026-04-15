@@ -1,21 +1,26 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import * as XLSX from "xlsx";
 import {
   BarChart3, Users, ShoppingBag, Tag, Package,
   CreditCard, TrendingUp, Store, Calendar, Download,
-  Search, RefreshCw, ChevronRight, FileBarChart,
+  Search, RefreshCw, ChevronRight, ChevronDown, FileBarChart,
   AlertCircle, Loader2, ArrowUpDown, ShoppingCart,
   Star, Clock,
 } from "lucide-react";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const today = () => new Date().toISOString().slice(0, 10);
+const AR_TZ = "America/Argentina/Buenos_Aires";
+const localDate = (d) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: AR_TZ }).format(d);
+const today = () => localDate(new Date());
 const firstOfMonth = () => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: AR_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const y = parts.find(p => p.type === "year").value;
+  const m = parts.find(p => p.type === "month").value;
+  return `${y}-${m}-01`;
 };
 
 function fmt(val) {
@@ -62,6 +67,8 @@ function DataTable({ rows, moneyKeys = [], highlight = null }) {
   const [sortCol, setSortCol] = useState(null);
   const [sortDir, setSortDir] = useState("desc");
   const [search, setSearch] = useState("");
+  const [colWidths, setColWidths] = useState({});
+  const containerRef = useRef(null);
 
   if (!rows || rows.length === 0) {
     return (
@@ -94,32 +101,91 @@ function DataTable({ rows, moneyKeys = [], highlight = null }) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
+  const handleAutoFit = () => {
+    if (!containerRef.current) return;
+    const available = containerRef.current.clientWidth - 2;
+    const w = Math.max(40, Math.floor(available / cols.length));
+    const widths = {};
+    cols.forEach(c => { widths[c] = w; });
+    setColWidths(widths);
+  };
+
+  const handleResetWidths = () => setColWidths({});
+
+  const startResize = (e, col) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = colWidths[col] || 120;
+    const onMove = (ev) => {
+      const newW = Math.max(40, startW + ev.clientX - startX);
+      setColWidths(prev => ({ ...prev, [col]: newW }));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  const hasCustomWidths = Object.keys(colWidths).length > 0;
+
   return (
     <div>
-      <div className="mb-3 relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar en resultados..."
-          className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <div className="mb-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar en resultados..."
+            className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={handleAutoFit}
+          title="Ajustar todas las columnas al ancho visible"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+        >
+          <ArrowUpDown size={12} />
+          Ajustar columnas
+        </button>
+        {hasCustomWidths && (
+          <button
+            onClick={handleResetWidths}
+            title="Restaurar anchos originales"
+            className="px-3 py-2 text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap"
+          >
+            Restablecer
+          </button>
+        )}
       </div>
       <p className="text-xs text-slate-400 mb-2">{data.length} filas{search && ` (filtrado de ${rows.length})`}</p>
-      <div className="overflow-auto rounded-xl border border-slate-200 shadow-sm" style={{ maxHeight: "480px" }}>
-        <table className="w-full text-xs border-collapse">
+      <div ref={containerRef} className="overflow-auto rounded-xl border border-slate-200 shadow-sm" style={{ maxHeight: "480px" }}>
+        <table className="text-xs border-collapse" style={{ tableLayout: hasCustomWidths ? "fixed" : "auto", width: hasCustomWidths ? `${cols.reduce((s, c) => s + (colWidths[c] || 120), 0)}px` : "100%" }}>
           <thead className="sticky top-0 z-10">
             <tr className="bg-gradient-to-r from-slate-700 to-slate-800">
               {cols.map(col => (
                 <th
                   key={col}
                   onClick={() => handleSort(col)}
-                  className="px-3 py-3 text-left text-white font-semibold cursor-pointer hover:bg-white/10 transition-colors whitespace-nowrap select-none"
+                  style={{ width: colWidths[col] || undefined, minWidth: 40, position: "relative" }}
+                  className="px-3 py-3 text-left text-white font-semibold cursor-pointer hover:bg-white/10 transition-colors select-none overflow-hidden"
                 >
-                  <span className="flex items-center gap-1">
-                    {col.replace(/_/g, " ")}
-                    <ArrowUpDown size={10} className="opacity-50" />
+                  <span className="flex items-center gap-1 overflow-hidden">
+                    <span className="truncate">{col.replace(/_/g, " ")}</span>
+                    <ArrowUpDown size={10} className="opacity-50 flex-shrink-0" />
                   </span>
+                  <div
+                    onMouseDown={(e) => startResize(e, col)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: "absolute", right: 0, top: 0, bottom: 0, width: 5,
+                      cursor: "col-resize", background: "transparent",
+                    }}
+                    className="hover:bg-white/30"
+                  />
                 </th>
               ))}
             </tr>
@@ -133,7 +199,7 @@ function DataTable({ rows, moneyKeys = [], highlight = null }) {
                 } hover:bg-blue-50/50`}
               >
                 {cols.map(col => (
-                  <td key={col} className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                  <td key={col} style={{ maxWidth: colWidths[col] || undefined, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: hasCustomWidths ? "nowrap" : "nowrap" }} className="px-3 py-2 text-slate-700">
                     {moneyKeys.includes(col)
                       ? <span className="font-semibold text-emerald-700">{fmtMoney(row[col])}</span>
                       : <span>{fmt(row[col])}</span>
@@ -576,6 +642,11 @@ export default function InformesPage() {
     hasta: today(),
   });
   const [queryEnabled, setQueryEnabled] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState({ Ventas: false, Fichas: false });
+
+  const toggleGroup = (group) => {
+    setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+  };
 
   const report = REPORTS.find(r => r.id === activeId);
 
@@ -654,15 +725,25 @@ export default function InformesPage() {
             const groupReports = REPORTS.filter(r => r.group === group);
             const GroupIcon = GROUP_ICONS[group];
             const groupColor = GROUP_COLORS[group];
+            const isCollapsible = group in collapsedGroups;
+            const isCollapsed = collapsedGroups[group];
             return (
               <div key={group} className="mb-1">
-                <div className="flex items-center gap-2 px-3 py-2 mt-1">
+                <button
+                  onClick={() => isCollapsible && toggleGroup(group)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 mt-1 ${isCollapsible ? "hover:bg-slate-50 cursor-pointer" : "cursor-default"}`}
+                >
                   <GroupIcon size={13} style={{ color: groupColor }} />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: groupColor }}>
+                  <span className="text-xs font-bold uppercase tracking-wider flex-1 text-left" style={{ color: groupColor }}>
                     {group}
                   </span>
-                </div>
-                {groupReports.map(rep => (
+                  {isCollapsible && (
+                    isCollapsed
+                      ? <ChevronRight size={12} style={{ color: groupColor }} />
+                      : <ChevronDown size={12} style={{ color: groupColor }} />
+                  )}
+                </button>
+                {!isCollapsed && groupReports.map(rep => (
                   <button
                     key={rep.id}
                     onClick={() => handleSelectReport(rep.id)}
@@ -750,8 +831,8 @@ export default function InformesPage() {
               <button
                 onClick={() => {
                   const d = new Date();
-                  const desde = new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().slice(0, 10);
-                  const hasta = new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0, 10);
+                  const desde = localDate(new Date(d.getFullYear(), d.getMonth() - 1, 1));
+                  const hasta = localDate(new Date(d.getFullYear(), d.getMonth(), 0));
                   setFilterValues(prev => ({ ...prev, desde, hasta }));
                   setQueryEnabled(false);
                 }}

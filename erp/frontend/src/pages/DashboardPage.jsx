@@ -23,7 +23,7 @@ import {
   PackageCheck,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { CssBarChart } from "../components/CssCharts";
 
 const fmt = new Intl.NumberFormat("es-AR");
 
@@ -321,17 +321,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Pedidos por Mes (últimos 6 meses)</h2>
           {chartData ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, fontSize: 13 }}
-                  formatter={(v) => [fmt.format(v), "Pedidos"]}
-                />
-                <Bar dataKey="pedidos" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <CssBarChart data={chartData} height={260} color="#7c3aed" labelKey="name" valueKey="pedidos" />
           ) : (
             <div className="h-[260px] flex items-center justify-center text-sm text-gray-400">
               Sin datos de pedidos por mes

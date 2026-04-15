@@ -52,9 +52,10 @@ const toProductExportRow = (product) => ({
   status: product.is_active ? "Activo" : "Inactivo",
 });
 
-const buildProductsParams = ({ search = "", skip = 0, limit = PAGE_SIZE }) => {
+const buildProductsParams = ({ search = "", providerId = "", skip = 0, limit = PAGE_SIZE }) => {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
+  if (providerId) params.set("provider_id", providerId);
   params.set("skip", skip);
   params.set("limit", limit);
   return params;
@@ -63,6 +64,7 @@ const buildProductsParams = ({ search = "", skip = 0, limit = PAGE_SIZE }) => {
 export default function ProductosPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [providerId, setProviderId] = useState("");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -71,7 +73,7 @@ export default function ProductosPage() {
   const [importResult, setImportResult] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { setPage(1); }, [search, providerId]);
 
   /* ── Excel import ─────────────────────────────────── */
   const importMut = useMutation({
@@ -94,12 +96,20 @@ export default function ProductosPage() {
   }
 
   /* ── Queries ──────────────────────────────────────── */
+  const { data: providersData } = useQuery({
+    queryKey: ["providers-all"],
+    queryFn: () => api.get("/providers/?limit=500"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const providers = providersData?.items ?? [];
+
   const { data: pageData, isLoading } = useQuery({
-    queryKey: ["products", search, page],
+    queryKey: ["products", search, providerId, page],
     queryFn: () =>
       api.get(
         `/products/?${buildProductsParams({
           search,
+          providerId,
           skip: (page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
         })}`
@@ -154,6 +164,7 @@ export default function ProductosPage() {
         const response = await api.get(
           `/products/?${buildProductsParams({
             search,
+            providerId,
             skip,
             limit: EXPORT_BATCH_SIZE,
           })}`
@@ -250,15 +261,27 @@ export default function ProductosPage() {
       )}
 
       {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Buscar por nombre, código o marca..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, código o marca..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          />
+        </div>
+        <select
+          value={providerId}
+          onChange={(e) => setProviderId(e.target.value)}
+          className="py-2.5 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 min-w-[200px]"
+        >
+          <option value="">Todos los proveedores</option>
+          {providers.map((prov) => (
+            <option key={prov.id} value={prov.id}>{prov.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Table */}

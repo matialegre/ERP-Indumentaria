@@ -6,10 +6,7 @@ import {
   TrendingDown, Check, BarChart2, Calendar, Package,
   AlertCircle, RefreshCw, SlidersHorizontal,
 } from "lucide-react";
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
-} from "recharts";
+import { CssLineChart } from "../components/CssCharts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -252,35 +249,7 @@ function HistoryDrawer({ item, onClose }) {
           ) : chartData.length > 1 ? (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-3">Evolución de Precios</h4>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip formatter={(value) => [fmt(value)]} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="precio"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    name="Neto"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="lista"
-                    stroke="#9ca3af"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 4"
-                    dot={false}
-                    name="Lista"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <CssLineChart data={chartData} height={220} color="#3b82f6" valueKey="precio" labelKey="fecha" />
             </div>
           ) : (
             <div className="text-center py-10 text-gray-400 text-sm">

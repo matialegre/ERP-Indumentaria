@@ -9,7 +9,7 @@ const fmt = (n) =>
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
 
 async function downloadExport(providerId, providerName, format, dateFrom, dateTo) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const params = new URLSearchParams({ format });
   if (dateFrom) params.append("date_from", dateFrom);
   if (dateTo) params.append("date_to", dateTo);

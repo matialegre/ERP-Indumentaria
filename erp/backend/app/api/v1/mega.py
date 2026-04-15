@@ -17,6 +17,7 @@ from app.models.company import Company, IndustryType
 from app.models.user import User, UserRole
 from app.models.local import Local
 from app.models.module import CompanyModule, MODULES_CATALOG
+from app.models.plan import PCLicense
 from app.api.deps import require_mega_admin
 
 
@@ -447,6 +448,98 @@ def set_user_modules_mega(
     db.refresh(user)
     return UserBrief.model_validate(user)
 
+
+# ── PC Licenses ──────────────────────────────────────────────────────────────
+
+class PCLicenseOut(BaseModel):
+    id: int
+    key: str
+    company_id: int
+    description: str
+    is_active: bool
+    machine_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    activated_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+    deactivated_reason: Optional[str] = None
+    model_config = {"from_attributes": True}
+
+
+class PCLicenseCreate(BaseModel):
+    description: str
+
+
+class PCLicenseUpdate(BaseModel):
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    deactivated_reason: Optional[str] = None
+    reset_machine: bool = False
+
+
+@router.get("/companies/{company_id}/pc-licenses", response_model=list[PCLicenseOut])
+def list_pc_licenses(
+    company_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    return db.query(PCLicense).filter(PCLicense.company_id == company_id).order_by(PCLicense.created_at.desc()).all()
+
+
+@router.post("/companies/{company_id}/pc-licenses", response_model=PCLicenseOut)
+def create_pc_license(
+    company_id: int,
+    body: PCLicenseCreate,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    lic = PCLicense(company_id=company_id, description=body.description)
+    db.add(lic)
+    db.commit()
+    db.refresh(lic)
+    return lic
+
+
+@router.patch("/pc-licenses/{license_id}", response_model=PCLicenseOut)
+def update_pc_license(
+    license_id: int,
+    body: PCLicenseUpdate,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    lic = db.query(PCLicense).filter(PCLicense.id == license_id).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="Licencia no encontrada")
+    if body.description is not None:
+        lic.description = body.description
+    if body.is_active is not None:
+        lic.is_active = body.is_active
+        if not body.is_active and body.deactivated_reason:
+            lic.deactivated_reason = body.deactivated_reason
+    if body.reset_machine:
+        lic.machine_id = None
+        lic.activated_at = None
+    db.commit()
+    db.refresh(lic)
+    return lic
+
+
+@router.delete("/pc-licenses/{license_id}", status_code=204)
+def delete_pc_license(
+    license_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    lic = db.query(PCLicense).filter(PCLicense.id == license_id).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="Licencia no encontrada")
+    db.delete(lic)
+    db.commit()
 
 @router.post("/impersonate/{user_id}", response_model=ImpersonateOut)
 def impersonate_user(

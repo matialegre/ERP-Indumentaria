@@ -54,3 +54,11 @@ ULTIMO CONTROL/
 # Sesiones / caches temporales
 A AGREGAR/OPENCLAW/scripts/.ww-session/
 *.err
+
+# Carpetas pesadas standalone (no van al repo)
+CRM/
+MERCADOLIBRE/
+super trend/
+erp/electron-montagne/frontend-dist/
+erp/electron-taller/frontend-dist/
+erp/mejoras_images/

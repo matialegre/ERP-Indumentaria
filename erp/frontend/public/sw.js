@@ -2,8 +2,8 @@
 // Service Worker — ERP Sistema (PWA offline-first, pro-level)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_NAME = "mo-erp-v7";
-const API_CACHE_NAME = "mo-erp-api-v2";
+const CACHE_NAME = "mo-erp-v9";
+const API_CACHE_NAME = "mo-erp-api-v3";
 const VALID_CACHES = new Set([CACHE_NAME, API_CACHE_NAME]);
 
 // Tiempo máximo de vida para entradas de API cache (24 horas en ms)

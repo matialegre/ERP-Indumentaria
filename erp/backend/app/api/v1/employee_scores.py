@@ -5,12 +5,13 @@ employee_scores.py — CRUD de Puntuación de Empleados
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, field_validator
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, require_roles
 from app.models.user import User, UserRole
 from app.models.employee_score import EmployeeScore, CATEGORIAS_DEFAULT
+from app.models.sale import Sale, SaleStatus
 
 router = APIRouter(prefix="/employee-scores", tags=["Puntuación de Empleados"])
 
@@ -60,6 +61,7 @@ class EmployeeSummary(BaseModel):
     promedio:      float
     total_scores:  int
     por_categoria: dict[str, float]
+    total_ventas:  float
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
@@ -119,6 +121,22 @@ def get_resumen(
             emp_map[eid]["por_cat"][cat] = []
         emp_map[eid]["por_cat"][cat].append(s.puntuacion)
 
+    # Ventas por empleado para el periodo
+    ventas_q = (
+        db.query(Sale.created_by_id, func.coalesce(func.sum(Sale.total), 0))
+        .filter(
+            Sale.company_id == user.company_id,
+            Sale.status != SaleStatus.ANULADA,
+        )
+    )
+    if periodo:
+        year, month = int(periodo[:4]), int(periodo[5:7])
+        ventas_q = ventas_q.filter(
+            extract("year", Sale.date) == year,
+            extract("month", Sale.date) == month,
+        )
+    ventas_map = {uid: float(total) for uid, total in ventas_q.group_by(Sale.created_by_id).all()}
+
     result = []
     for info in emp_map.values():
         prom_cat = {cat: round(sum(vs)/len(vs), 2) for cat, vs in info["por_cat"].items()}
@@ -128,6 +146,7 @@ def get_resumen(
             promedio=round(sum(info["scores"]) / len(info["scores"]), 2),
             total_scores=len(info["scores"]),
             por_categoria=prom_cat,
+            total_ventas=ventas_map.get(info["employee_id"], 0.0),
         ))
     result.sort(key=lambda x: x.promedio, reverse=True)
     return result

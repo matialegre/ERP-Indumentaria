@@ -164,3 +164,44 @@ export function saveUserModules(userId: number, modulesOverride: string[] | null
 export function getUser(userId: number): Promise<UserBriefAPI> {
   return request<UserBriefAPI>(`/mega/users/${userId}`)
 }
+
+// ── PC Licenses ─────────────────────────────────────────────────────────────
+
+export interface PCLicenseAPI {
+  id: number
+  key: string
+  company_id: number
+  description: string
+  is_active: boolean
+  machine_id: string | null
+  created_at: string | null
+  activated_at: string | null
+  last_seen_at: string | null
+  deactivated_reason: string | null
+}
+
+export function getPCLicenses(companyId: number): Promise<PCLicenseAPI[]> {
+  return request(`/mega/companies/${companyId}/pc-licenses`)
+}
+
+export function createPCLicense(companyId: number, description: string): Promise<PCLicenseAPI> {
+  return request(`/mega/companies/${companyId}/pc-licenses`, {
+    method: 'POST',
+    body: JSON.stringify({ description }),
+  })
+}
+
+export function updatePCLicense(
+  licenseId: number,
+  data: { description?: string; is_active?: boolean; deactivated_reason?: string; reset_machine?: boolean }
+): Promise<PCLicenseAPI> {
+  return request(`/mega/pc-licenses/${licenseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export function deletePCLicense(licenseId: number): Promise<void> {
+  return request(`/mega/pc-licenses/${licenseId}`, { method: 'DELETE' })
+}
+

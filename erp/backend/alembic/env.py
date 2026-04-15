@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.base import Base
-from app.models import Company, User, Local, Provider  # noqa: F401
+from app.models import *  # noqa: F401,F403 — importa todos los modelos para autogenerate
 from app.core.config import get_settings
 
 config = context.config

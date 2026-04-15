@@ -1,6 +1,25 @@
 # ERP Mundo Outdoor — Copilot Instructions
 
-## ⚠️ REGLA OBLIGATORIA: Deploy automático al terminar
+## ⚠️ REGLA OBLIGATORIA: Sistema de Mejoras — aprobación previa
+
+**NUNCA implementar una mejora que venga del módulo Mejoras sin verificar que esté aprobada.**
+
+El flujo correcto es:
+1. Empleado crea nota en el módulo → queda en `is_done=false` (PENDIENTE)
+2. Admin la revisa en `/mejoras` y aprieta "OK — Aplicar" → pone `is_done=true` (APROBADA) → recién ahí se dispara Copilot
+3. El agente solo debe implementar mejoras cuya nota tiene `is_done=true`
+
+Si recibís un prompt de mejora, antes de implementar verificar:
+```powershell
+cd "D:\ERP MUNDO OUTDOOR\erp\backend" && .\venv\Scripts\python.exe -c "
+from app.db.session import get_db
+from app.models.improvement_note import ImprovementNote
+db = next(get_db())
+notes = db.query(ImprovementNote).filter(ImprovementNote.is_done==True).order_by(ImprovementNote.updated_at.desc()).limit(5).all()
+for n in notes: print(f'id={n.id} is_done={n.is_done} text={n.text[:80]}')
+"
+```
+Solo implementar si la nota aparece con `is_done=True`.
 
 **Después de completar CUALQUIER tarea que modifique archivos del frontend (`erp/frontend/src/`):**
 
