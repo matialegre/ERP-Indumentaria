@@ -16,6 +16,7 @@ class Message(Base):
     subject: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     company_id: Mapped[int] = mapped_column(Integer, ForeignKey("companies.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

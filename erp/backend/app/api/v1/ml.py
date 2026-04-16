@@ -160,6 +160,39 @@ def _ml(method: str, path: str, **kwargs):
 router = APIRouter(prefix="/ml", tags=["mercadolibre"])
 
 
+# ── /cash-flow ────────────────────────────────────────────────────────────────
+
+MP_BASE = "https://api.mercadopago.com"
+
+
+@router.get("/cash-flow")
+def ml_cash_flow(current_user: User = Depends(get_current_user)):
+    """Dinero disponible y a acreditar de cada cuenta ML (vía MP API)."""
+    results = []
+    for name, mgr in _managers.items():
+        entry = {"account": name, "label": mgr.get_label(), "available": None, "pending": None, "total": None, "error": None, "currency": "ARS"}
+        try:
+            token = mgr.get_token()
+            user_id = mgr.get_user_id()
+            resp = _requests.get(
+                f"{MP_BASE}/users/{user_id}/mercadopago_account/balance",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=15,
+            )
+            if resp.ok:
+                data = resp.json()
+                entry["available"] = data.get("available_balance", 0)
+                entry["pending"] = data.get("unavailable_balance", 0)
+                entry["total"] = data.get("total_amount", (entry["available"] or 0) + (entry["pending"] or 0))
+                entry["currency"] = data.get("currency_id", "ARS")
+            else:
+                entry["error"] = f"MP API {resp.status_code}: {resp.text[:200]}"
+        except Exception as e:
+            entry["error"] = str(e)
+        results.append(entry)
+    return results
+
+
 # ── /accounts ─────────────────────────────────────────────────────────────────
 
 @router.get("/accounts")
@@ -923,6 +956,7 @@ def ml_deposito_orders(
     hasta: Optional[str] = Query(None),
     include_all: bool = Query(False, description="Incluir todos los estados"),
     limit: int = Query(300, le=1000),
+    meli_account: Optional[str] = Query(None, description="Filtrar por cuenta ML: 1 o 2"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -930,6 +964,9 @@ def ml_deposito_orders(
     from datetime import datetime as dt
     company_id = current_user.company_id or 1
     q = db.query(MeliOrder).filter(MeliOrder.company_id == company_id)
+
+    if meli_account:
+        q = q.filter(MeliOrder.meli_account == meli_account)
 
     if estado_picking:
         q = q.filter(MeliOrder.estado_picking == estado_picking)
@@ -1465,6 +1502,7 @@ def ml_deposito_print_list(
 
 @router.get("/deposito/stats")
 def ml_deposito_stats(
+    meli_account: Optional[str] = Query(None, description="Filtrar por cuenta ML: 1 o 2"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1473,24 +1511,28 @@ def ml_deposito_stats(
     company_id = current_user.company_id or 1
     hoy_inicio = dt.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
+    base_filter = [MeliOrder.company_id == company_id]
+    if meli_account:
+        base_filter.append(MeliOrder.meli_account == meli_account)
+
     total_pendiente = db.query(MeliOrder).filter(
-        MeliOrder.company_id == company_id, MeliOrder.estado_picking == "PENDIENTE",
+        *base_filter, MeliOrder.estado_picking == "PENDIENTE",
     ).count()
 
     pickeados_hoy = db.query(MeliOrder).filter(
-        MeliOrder.company_id == company_id, MeliOrder.estado_picking == "PICKEADO",
+        *base_filter, MeliOrder.estado_picking == "PICKEADO",
         MeliOrder.fecha_picking >= hoy_inicio,
     ).count()
 
     fallados_hoy = db.query(MeliOrder).filter(
-        MeliOrder.company_id == company_id, MeliOrder.estado_picking == "FALLADO",
+        *base_filter, MeliOrder.estado_picking == "FALLADO",
         MeliOrder.updated_at >= hoy_inicio,
     ).count()
 
-    total_sync = db.query(MeliOrder).filter(MeliOrder.company_id == company_id).count()
+    total_sync = db.query(MeliOrder).filter(*base_filter).count()
 
     sin_asignar = db.query(MeliOrder).filter(
-        MeliOrder.company_id == company_id, MeliOrder.estado_picking == "PENDIENTE",
+        *base_filter, MeliOrder.estado_picking == "PENDIENTE",
         MeliOrder.asignado_flag == False,
     ).count()
 

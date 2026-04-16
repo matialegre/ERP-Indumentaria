@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import ImprovementNotes from "../components/ImprovementNotes";
+import UpdateReadyModal from "../components/UpdateReadyModal";
 import InstallPwa from "../components/InstallPwa";
 import OfflineBanner from "../components/OfflineBanner";
 import SyncProgressWidget from "../components/SyncProgressWidget";
@@ -65,33 +66,48 @@ import {
   Bot,
   Link2,
   ChevronDown,
+  Building2,
+  Banknote,
+  Database,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/mega-admin",     icon: Shield,          label: "Mega Admin",          roles: ["MEGAADMIN"],                                                            module: null },
   { to: "/",               icon: LayoutDashboard, label: "Dashboard",       roles: null,                                                                    module: null },
   { to: "/resumen",        icon: Activity,        label: "Resumen",             roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","ADMINISTRACION"],            module: "RESUMEN",        moduleAlt: "COMPRAS" },
-  // Compras
-  { to: "/pedidos-compras",     icon: ShoppingCart, label: "Notas de Pedido",     roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                    module: "NOTAS_PEDIDO",         moduleAlt: "COMPRAS",   badgeKey: "pedidos_pendientes" },
-  { to: "/importacion",         icon: Ship,         label: "Importación",         roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                    module: "IMPORTACION" },
-  { to: "/facturas-proveedor",  icon: Receipt,      label: "Facturas / Remitos",  roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                 module: "FACTURAS_PROVEEDOR",   moduleAlt: "COMPRAS",   badgeKey: "facturas_sin_rv" },
-  { to: "/gestion-pagos",       icon: CreditCard,   label: "Gestión de Pagos",    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],             module: "PAGOS",     badgeKey: "pagos_pendientes" },
+  // Administración (grupo colapsable con sub-grupos)
+  {
+    icon: Building2, label: "Administración", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS","DEPOSITO","LOCAL"], module: null,
+    children: [
+      { to: "/importacion",   icon: Ship,        label: "Importación",      roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                             module: "IMPORTACION" },
+      { to: "/gestion-pagos", icon: CreditCard,  label: "Gestión de Pagos", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: "PAGOS", badgeKey: "pagos_pendientes" },
+      { to: "/cash-flow",     icon: Banknote,    label: "Cash Flow",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: null },
+      {
+        icon: ClipboardList, label: "Gestión de Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"], module: null,
+        children: [
+          { to: "/pedidos-compras",    icon: ShoppingCart, label: "Notas de Pedido",    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "NOTAS_PEDIDO",       moduleAlt: "COMPRAS", badgeKey: "pedidos_pendientes" },
+          { to: "/recepcion",          icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "RECEPCION",          moduleAlt: "COMPRAS", badgeKey: "recepcion_pendiente" },
+          { to: "/ingreso",            icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS","ADMINISTRACION"],         module: "INGRESO",            moduleAlt: "COMPRAS", badgeKey: "ingresos_pendientes" },
+          { to: "/facturas-proveedor", icon: Receipt,      label: "Facturas / Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL","ADMINISTRACION"], module: "FACTURAS_PROVEEDOR", moduleAlt: "COMPRAS", badgeKey: "facturas_sin_rv" },
+          { to: "/completados",        icon: CheckCircle,  label: "Completados",        roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "COMPLETADOS" },
+        ],
+      },
+      { to: "/proveedores", icon: Truck, label: "Proveedores", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "PROVEEDORES", moduleAlt: "CATALOGO" },
+    ],
+  },
   // Depósito
-  { to: "/ingreso",        icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS"],                              module: "INGRESO",              moduleAlt: "COMPRAS",   badgeKey: "ingresos_pendientes" },
-  { to: "/recepcion",      icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL"],                                module: "RECEPCION",            moduleAlt: "COMPRAS",   badgeKey: "recepcion_pendiente" },
   { to: "/transporte",     icon: Truck,        label: "Transporte",         roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                      module: "TRANSPORTE" },
-  { to: "/completados",    icon: CheckCircle,  label: "Completados",        roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL"],                                module: "COMPLETADOS" },
   // Depósito
   { to: "/deposito",     icon: Boxes,        label: "Depósito",           roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                        module: "DEPOSITO",             moduleAlt: "STOCK" },
   // Gestión
   { to: "/stock",          icon: Warehouse,    label: "Stock",              roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],                     module: "STOCK" },
   { to: "/facturacion",    icon: FileText,     label: "Facturación",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                  module: "VENTAS" },
   { to: "/consultas",      icon: Search,       label: "Consultas ERP",      roles: null,                                                                    module: "CONSULTAS" },
+  { to: "/consultas-sql",  icon: Database,     label: "SQL PC Tomy",        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "CONSULTAS" },
   { to: "/comparador",     icon: GitCompare,   label: "Comparador Precios", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "COMPARADOR",           moduleAlt: "CATALOGO" },
   { to: "/kanban",         icon: Kanban,       label: "TrellOutdoor",       roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS"],        module: "KANBAN" },
   // Catálogos
   { to: "/productos",      icon: ShoppingBag,  label: "Productos",          roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "PRODUCTOS",            moduleAlt: "CATALOGO" },
-  { to: "/proveedores",    icon: Truck,        label: "Proveedores",        roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "PROVEEDORES",          moduleAlt: "CATALOGO" },
   { to: "/locales",        icon: Store,        label: "Locales",            roles: ["SUPERADMIN","ADMIN"],                                                  module: "LOCALES" },
   { to: "/usuarios",       icon: Users,        label: "Usuarios",           roles: ["SUPERADMIN","ADMIN"],                                                  module: "USUARIOS" },
   // Admin
@@ -109,8 +125,7 @@ const NAV_ITEMS = [
   { to: "/taller/stock",       icon: Package,        label: "Repuestos",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"], module: "OT" },
   // SuperTrend — Análisis de competencia
   { to: "/supertrend",         icon: TrendingUp,     label: "SuperTrend",         roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "SUPERTREND" },
-  // Puntuación de Empleados
-  { to: "/puntuacion-empleados", icon: Star,          label: "Puntuación Empleados", roles: ["SUPERADMIN","ADMIN","SUPERVISOR"], module: "PUNTUACION_EMPLEADOS" },
+
   // Mejoras
   { to: "/mejoras",              icon: Lightbulb,     label: "Mejoras",              roles: ["SUPERADMIN","ADMIN"],              module: "MEJORAS" },
   // MercadoLibre
@@ -118,9 +133,15 @@ const NAV_ITEMS = [
   // Mensajería interna
   { to: "/mensajes",             icon: MessageSquare, label: "Mensajes",             roles: null,                               module: "MENSAJES",   badgeKey: "mensajes_unread" },
   // RRHH
-  { to: "/naaloo",               icon: CalendarDays,  label: "Portal Empleado",      roles: null,                                   module: "NAALOO",  moduleAlt: "RRHH" },
-  { to: "/rrhh",                 icon: UserCheck,     label: "RRHH",                 roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"], module: "RRHH" },
-  { to: "/comisiones",     icon: BadgeDollarSign,   label: "Comisiones",         roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                 module: "COMISIONES",           moduleAlt: "RRHH" },
+  {
+    icon: UserCheck, label: "RRHH", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","SUPERVISOR"], module: "RRHH",
+    children: [
+      { to: "/naaloo",               icon: CalendarDays,    label: "Portal Empleado",      roles: null,                                                      module: "NAALOO",              moduleAlt: "RRHH" },
+      { to: "/rrhh",                 icon: UserCheck,       label: "Gestión de Horarios",  roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                    module: "RRHH" },
+      { to: "/comisiones",           icon: BadgeDollarSign, label: "Comisiones",           roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],    module: "COMISIONES",          moduleAlt: "RRHH" },
+      { to: "/puntuacion-empleados", icon: Star,            label: "Puntuación Empleados", roles: ["SUPERADMIN","ADMIN","SUPERVISOR"],                        module: "PUNTUACION_EMPLEADOS" },
+    ]
+  },
   // Informes
   { to: "/informes",             icon: FileBarChart,  label: "Informes",             roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"], module: "INFORMES" },
   // CRM Avanzado (grupo colapsable)
@@ -164,8 +185,15 @@ export default function AppLayout() {
     const groups = {};
     NAV_ITEMS.forEach(item => {
       if (item.children) {
-        const isInGroup = item.children.some(c => window.location.pathname === c.to || window.location.pathname.startsWith(c.to + "/"));
+        const allLeaves = item.children.flatMap(c => c.children ? c.children : [c]);
+        const isInGroup = allLeaves.some(c => window.location.pathname === c.to || window.location.pathname.startsWith(c.to + "/"));
         if (isInGroup) groups[item.label] = true;
+        item.children.forEach(child => {
+          if (child.children) {
+            const isInSub = child.children.some(c => window.location.pathname === c.to || window.location.pathname.startsWith(c.to + "/"));
+            if (isInSub) groups[child.label] = true;
+          }
+        });
       }
     });
     return groups;
@@ -176,8 +204,15 @@ export default function AppLayout() {
   useEffect(() => {
     NAV_ITEMS.forEach(item => {
       if (item.children) {
-        const isInGroup = item.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+        const allLeaves = item.children.flatMap(c => c.children ? c.children : [c]);
+        const isInGroup = allLeaves.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
         if (isInGroup) setExpandedGroups(prev => prev[item.label] ? prev : { ...prev, [item.label]: true });
+        item.children.forEach(child => {
+          if (child.children) {
+            const isInSub = child.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+            if (isInSub) setExpandedGroups(prev => prev[child.label] ? prev : { ...prev, [child.label]: true });
+          }
+        });
       }
     });
   }, [location.pathname]);
@@ -293,13 +328,28 @@ export default function AppLayout() {
         const visibleChildren = item.children.filter((child) => {
           if (user?.role === 'MEGAADMIN') return true;
           if (child.roles && !child.roles.includes(user?.role)) return false;
-          // Check child's own module or fall back to parent module
+          if (child.children) return true; // sub-group: keep if passes role check
           const childMod = child.module || item.module;
           const childModAlt = child.moduleAlt || item.module;
           if (childMod && modulesLoaded) {
             return activeModuleSlugs.has(childMod) || activeModuleSlugs.has(childModAlt);
           }
           return true;
+        }).map((child) => {
+          if (child.children) {
+            const visibleSubChildren = child.children.filter((sub) => {
+              if (user?.role === 'MEGAADMIN') return true;
+              if (sub.roles && !sub.roles.includes(user?.role)) return false;
+              const subMod = sub.module || child.module || item.module;
+              const subModAlt = sub.moduleAlt || child.module || item.module;
+              if (subMod && modulesLoaded) {
+                return activeModuleSlugs.has(subMod) || activeModuleSlugs.has(subModAlt);
+              }
+              return true;
+            });
+            return { ...child, children: visibleSubChildren };
+          }
+          return child;
         });
         return { ...item, children: visibleChildren };
       }
@@ -431,15 +481,25 @@ export default function AppLayout() {
           {visibleItems.filter(item => {
             if (!navSearch) return true;
             const q = navSearch.toLowerCase();
-            if (item.children) return item.label.toLowerCase().includes(q) || item.children.some(c => c.label.toLowerCase().includes(q));
+            if (item.children) {
+              const allLeafLabels = item.children.flatMap(c => c.children ? c.children.map(s => s.label) : [c.label]);
+              return item.label.toLowerCase().includes(q) || allLeafLabels.some(l => l.toLowerCase().includes(q)) || item.children.some(c => c.label.toLowerCase().includes(q));
+            }
             return item.label.toLowerCase().includes(q);
           }).map((item) => {
             // Grupo colapsable (tiene children)
             if (item.children) {
               const isExpanded = expandedGroups[item.label] || !!navSearch;
-              const isActiveGroup = item.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+              const isActiveGroup = item.children.some(c => c.children
+                ? c.children.some(s => location.pathname === s.to || location.pathname.startsWith(s.to + "/"))
+                : location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
               const filteredChildren = navSearch
-                ? item.children.filter(c => c.label.toLowerCase().includes(navSearch.toLowerCase()) || item.label.toLowerCase().includes(navSearch.toLowerCase()))
+                ? item.children.filter(c => {
+                    const q = navSearch.toLowerCase();
+                    if (c.label.toLowerCase().includes(q) || item.label.toLowerCase().includes(q)) return true;
+                    if (c.children) return c.children.some(s => s.label.toLowerCase().includes(q));
+                    return false;
+                  })
                 : item.children;
               return (
                 <div key={item.label}>
@@ -466,24 +526,80 @@ export default function AppLayout() {
                   </button>
                   {isExpanded && !collapsed && (
                     <div className="ml-3 pl-3 border-l border-slate-700/50 mt-0.5 space-y-0.5">
-                      {filteredChildren.map((child) => (
-                        <NavLink
-                          key={child.to}
-                          to={child.to}
-                          end={child.to === "/crm"}
-                          onClick={() => setMobileOpen(false)}
-                          className={({ isActive }) =>
-                            `relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-colors ${
-                              isActive
-                                ? "bg-blue-600/90 text-white shadow-sm"
-                                : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                            }`
-                          }
-                        >
-                          <child.icon size={15} className="shrink-0" />
-                          <span className="truncate">{child.label}</span>
-                        </NavLink>
-                      ))}
+                      {filteredChildren.map((child) => {
+                        if (child.children) {
+                          const isSubExpanded = expandedGroups[child.label] || !!navSearch;
+                          const isActiveSubGroup = child.children.some(s => location.pathname === s.to || location.pathname.startsWith(s.to + "/"));
+                          const filteredSubChildren = navSearch
+                            ? child.children.filter(s => s.label.toLowerCase().includes(navSearch.toLowerCase()) || child.label.toLowerCase().includes(navSearch.toLowerCase()))
+                            : child.children;
+                          return (
+                            <div key={child.label}>
+                              <button
+                                onClick={() => toggleGroup(child.label)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-colors ${
+                                  isActiveSubGroup
+                                    ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
+                                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                                }`}
+                              >
+                                <child.icon size={15} className="shrink-0" />
+                                <span className="truncate">{child.label}</span>
+                                <ChevronDown size={12} className={`ml-auto shrink-0 transition-transform duration-200 ${isSubExpanded ? "rotate-180" : ""}`} />
+                              </button>
+                              {isSubExpanded && (
+                                <div className="ml-3 pl-3 border-l border-slate-700/50 mt-0.5 space-y-0.5">
+                                  {filteredSubChildren.map((sub) => (
+                                    <NavLink
+                                      key={sub.to}
+                                      to={sub.to}
+                                      onClick={() => setMobileOpen(false)}
+                                      className={({ isActive }) =>
+                                        `relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                                          isActive
+                                            ? "bg-blue-600/90 text-white shadow-sm"
+                                            : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                                        }`
+                                      }
+                                    >
+                                      <sub.icon size={13} className="shrink-0" />
+                                      <span className="truncate">{sub.label}</span>
+                                      {sub.badgeKey && counts?.[sub.badgeKey] > 0 && (
+                                        <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                                          {counts[sub.badgeKey] > 99 ? '99+' : counts[sub.badgeKey]}
+                                        </span>
+                                      )}
+                                    </NavLink>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <NavLink
+                            key={child.to}
+                            to={child.to}
+                            end={child.to === "/crm"}
+                            onClick={() => setMobileOpen(false)}
+                            className={({ isActive }) =>
+                              `relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-colors ${
+                                isActive
+                                  ? "bg-blue-600/90 text-white shadow-sm"
+                                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                              }`
+                            }
+                          >
+                            <child.icon size={15} className="shrink-0" />
+                            <span className="truncate">{child.label}</span>
+                            {child.badgeKey && counts?.[child.badgeKey] > 0 && (
+                              <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-4 flex items-center justify-center px-1">
+                                {counts[child.badgeKey] > 99 ? '99+' : counts[child.badgeKey]}
+                              </span>
+                            )}
+                          </NavLink>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -677,6 +793,7 @@ export default function AppLayout() {
       />
       <SyncProgressWidget />
       <ImprovementNotes />
+      <UpdateReadyModal />
     </div>
     </>
   );

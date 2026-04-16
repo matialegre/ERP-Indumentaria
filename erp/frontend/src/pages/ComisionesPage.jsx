@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import {
@@ -12,18 +12,20 @@ import {
   Award,
   Search,
   Download,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function mesAnterior() {
+function mesActual() {
   const hoy = new Date();
-  const primerDiaEsteMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const ultimoDiaMesAnterior = new Date(primerDiaEsteMes - 1);
-  const primerDiaMesAnterior = new Date(ultimoDiaMesAnterior.getFullYear(), ultimoDiaMesAnterior.getMonth(), 1);
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
   return {
-    desde: primerDiaMesAnterior.toISOString().slice(0, 10),
-    hasta: ultimoDiaMesAnterior.toISOString().slice(0, 10),
+    desde: primerDia.toISOString().slice(0, 10),
+    hasta: ultimoDia.toISOString().slice(0, 10),
   };
 }
 
@@ -40,7 +42,7 @@ function formatFecha(iso) {
 function mesesDisponibles() {
   const meses = [];
   const hoy = new Date();
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 0; i <= 3; i++) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
     const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0);
     meses.push({
@@ -126,16 +128,73 @@ function DetalleVendedor({ vendedor, desde, hasta }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
+const COLS = [
+  { key: "vendedor",       label: "Vendedor",      align: "left",  defaultWidth: 200 },
+  { key: "tickets",        label: "Tickets",       align: "right", defaultWidth: 90  },
+  { key: "con_comision",   label: "Con comisión",  align: "right", defaultWidth: 115 },
+  { key: "pct_conv",       label: "% Conv.",       align: "right", defaultWidth: 90  },
+  { key: "articulos",      label: "Artículos",     align: "right", defaultWidth: 90  },
+  { key: "comision",       label: "Comisión",      align: "right", defaultWidth: 130 },
+];
+
 export default function ComisionesPage() {
-  const defaultRange = mesAnterior();
+  const defaultRange = mesActual();
   const meses = mesesDisponibles();
 
   const [desde, setDesde] = useState(defaultRange.desde);
   const [hasta, setHasta] = useState(defaultRange.hasta);
   const [mesLabel, setMesLabel] = useState(meses[0]?.label || "");
-  const [modoPersonalizado, setModoPersonalizado] = useState(false);
   const [expandido, setExpandido] = useState(null);
   const [busqueda, setBusqueda] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: "asc" });
+  const [colWidths, setColWidths] = useState(() =>
+    Object.fromEntries(COLS.map((c) => [c.key, c.defaultWidth]))
+  );
+
+  const resizingCol = useRef(null);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
+  useEffect(() => {
+    function onMouseMove(e) {
+      if (!resizingCol.current) return;
+      const delta = e.clientX - startX.current;
+      const newWidth = Math.max(55, startWidth.current + delta);
+      setColWidths((prev) => ({ ...prev, [resizingCol.current]: newWidth }));
+    }
+    function onMouseUp() {
+      resizingCol.current = null;
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+
+  function startResize(e, colKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingCol.current = colKey;
+    startX.current = e.clientX;
+    startWidth.current = colWidths[colKey];
+  }
+
+  function toggleSort(key) {
+    setSortConfig((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+  }
+
+  function SortIcon({ colKey }) {
+    if (sortConfig.key !== colKey) return <ArrowUpDown size={11} className="text-gray-400 shrink-0" />;
+    return sortConfig.dir === "asc"
+      ? <ArrowUp size={11} className="text-blue-600 shrink-0" />
+      : <ArrowDown size={11} className="text-blue-600 shrink-0" />;
+  }
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["comisiones-resumen", desde, hasta],
@@ -143,25 +202,55 @@ export default function ComisionesPage() {
   });
 
   const vendedores = useMemo(() => {
-    const list = data?.vendedores || [];
-    if (!busqueda.trim()) return list;
-    const q = busqueda.toLowerCase();
-    return list.filter((v) => v.vendedor.toLowerCase().includes(q));
-  }, [data, busqueda]);
+    let list = data?.vendedores || [];
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase();
+      list = list.filter((v) => v.vendedor.toLowerCase().includes(q));
+    }
+    if (sortConfig.key) {
+      list = [...list].sort((a, b) => {
+        let av, bv;
+        switch (sortConfig.key) {
+          case "vendedor":      av = a.vendedor; bv = b.vendedor; break;
+          case "tickets":       av = a.total_tickets; bv = b.total_tickets; break;
+          case "con_comision":  av = a.tickets_con_comision; bv = b.tickets_con_comision; break;
+          case "pct_conv":
+            av = a.total_tickets > 0 ? a.tickets_con_comision / a.total_tickets : 0;
+            bv = b.total_tickets > 0 ? b.tickets_con_comision / b.total_tickets : 0;
+            break;
+          case "articulos":     av = a.total_articulos; bv = b.total_articulos; break;
+          case "comision":      av = a.total_comision; bv = b.total_comision; break;
+          default: return 0;
+        }
+        if (typeof av === "string") {
+          return sortConfig.dir === "asc" ? av.localeCompare(bv, "es") : bv.localeCompare(av, "es");
+        }
+        return sortConfig.dir === "asc" ? av - bv : bv - av;
+      });
+    }
+    return list;
+  }, [data, busqueda, sortConfig]);
+
+  const rankMap = useMemo(() => {
+    const sorted = [...(data?.vendedores || [])].sort((a, b) => b.total_comision - a.total_comision);
+    return Object.fromEntries(sorted.map((v, i) => [v.vendedor, i]));
+  }, [data]);
 
   function seleccionarMes(mes) {
     setDesde(mes.desde);
     setHasta(mes.hasta);
     setMesLabel(mes.label);
-    setModoPersonalizado(false);
     setExpandido(null);
   }
 
   function exportarCSV() {
     if (!vendedores.length) return;
-    const header = "Vendedor,Tickets Totales,Tickets con Comisión,Total Artículos,Total Comisión\n";
+    const header = "Vendedor,Tickets Totales,Tickets con Comisión,% Conversión,Total Artículos,Total Comisión\n";
     const rows = vendedores
-      .map((v) => `"${v.vendedor}",${v.total_tickets},${v.tickets_con_comision},${v.total_articulos},${v.total_comision}`)
+      .map((v) => {
+        const pct = v.total_tickets > 0 ? ((v.tickets_con_comision / v.total_tickets) * 100).toFixed(1) : "0.0";
+        return `"${v.vendedor}",${v.total_tickets},${v.tickets_con_comision},${pct}%,${v.total_articulos},${v.total_comision}`;
+      })
       .join("\n");
     const blob = new Blob(["\ufeff" + header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -186,9 +275,7 @@ export default function ComisionesPage() {
             Comisiones
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {modoPersonalizado
-              ? `${formatFecha(desde)} — ${formatFecha(hasta)}`
-              : mesLabel}
+            {formatFecha(desde)} — {formatFecha(hasta)}
           </p>
         </div>
         <button
@@ -213,7 +300,7 @@ export default function ComisionesPage() {
               key={m.desde}
               onClick={() => seleccionarMes(m)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition capitalize ${
-                desde === m.desde && hasta === m.hasta && !modoPersonalizado
+                desde === m.desde && hasta === m.hasta
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600"
               }`}
@@ -221,39 +308,27 @@ export default function ComisionesPage() {
               {m.label}
             </button>
           ))}
-          <button
-            onClick={() => setModoPersonalizado(!modoPersonalizado)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-              modoPersonalizado
-                ? "bg-purple-600 text-white border-purple-600"
-                : "bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600"
-            }`}
-          >
-            Personalizado
-          </button>
         </div>
-        {modoPersonalizado && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Desde</label>
-              <input
-                type="date"
-                value={desde}
-                onChange={(e) => { setDesde(e.target.value); setExpandido(null); }}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Hasta</label>
-              <input
-                type="date"
-                value={hasta}
-                onChange={(e) => { setHasta(e.target.value); setExpandido(null); }}
-                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Desde</label>
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => { setDesde(e.target.value); setExpandido(null); }}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500">Hasta</label>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => { setHasta(e.target.value); setExpandido(null); }}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -298,106 +373,165 @@ export default function ComisionesPage() {
       </div>
 
       {/* Tabla de vendedores */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          <span>Vendedor</span>
-          <span className="text-right">Tickets</span>
-          <span className="text-right hidden sm:block">Con comisión</span>
-          <span className="text-right hidden sm:block">Artículos</span>
-          <span className="text-right">Comisión</span>
-          <span />
-        </div>
-
-        {isLoading && (
-          <div className="py-16 flex flex-col items-center gap-3 text-gray-400">
-            <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-blue-600" />
-            <span className="text-sm">Consultando SQL Server...</span>
-          </div>
-        )}
-
-        {isError && (
-          <div className="py-12 flex flex-col items-center gap-2 text-red-500">
-            <FileText size={32} className="opacity-40" />
-            <p className="text-sm font-medium">No se pudo conectar al servidor de datos</p>
-            <p className="text-xs text-gray-400">{error?.message || "SQL Server no disponible"}</p>
-          </div>
-        )}
-
-        {!isLoading && !isError && vendedores.length === 0 && (
-          <div className="py-12 flex flex-col items-center gap-2 text-gray-400">
-            <Users size={32} className="opacity-30" />
-            <p className="text-sm">No hay datos para el período seleccionado</p>
-          </div>
-        )}
-
-        {!isLoading && !isError && vendedores.map((v, i) => (
-          <div key={v.vendedor} className={i > 0 ? "border-t border-gray-50" : ""}>
-            {/* Fila principal */}
-            <button
-              className="w-full grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 px-4 py-3.5 hover:bg-gray-50 transition text-left items-center"
-              onClick={() => setExpandido(expandido === v.vendedor ? null : v.vendedor)}
-            >
-              {/* Nombre + medalla */}
-              <div className="flex items-center gap-2 min-w-0">
-                {i === 0 && v.total_comision > 0 && <span className="text-base">🥇</span>}
-                {i === 1 && v.total_comision > 0 && <span className="text-base">🥈</span>}
-                {i === 2 && v.total_comision > 0 && <span className="text-base">🥉</span>}
-                {(i > 2 || v.total_comision === 0) && (
-                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                    {v.vendedor.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="font-medium text-gray-800 truncate text-sm">{v.vendedor}</span>
-              </div>
-
-              <span className="text-right text-sm text-gray-600">{v.total_tickets}</span>
-
-              <span className="text-right text-sm text-gray-600 hidden sm:block">
-                {v.tickets_con_comision > 0 ? (
-                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-medium">
-                    {v.tickets_con_comision}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+        <table style={{ tableLayout: "fixed", width: "100%", borderCollapse: "collapse" }}>
+          <colgroup>
+            {COLS.map((col) => (
+              <col key={col.key} style={{ width: colWidths[col.key] }} />
+            ))}
+            <col style={{ width: 36 }} />
+          </colgroup>
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              {COLS.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => toggleSort(col.key)}
+                  className="relative select-none px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition"
+                  style={{ textAlign: col.align, userSelect: "none" }}
+                >
+                  <span className="inline-flex items-center gap-1 justify-between w-full">
+                    <span>{col.label}</span>
+                    <SortIcon colKey={col.key} />
                   </span>
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </span>
-
-              <span className="text-right text-sm text-gray-600 hidden sm:block">{v.total_articulos}</span>
-
-              <span className={`text-right font-bold text-sm ${v.total_comision > 0 ? "text-green-600" : "text-gray-400"}`}>
-                {v.total_comision > 0 ? formatPeso(v.total_comision) : "—"}
-              </span>
-
-              <span className="text-gray-400">
-                {expandido === v.vendedor ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </span>
-            </button>
-
-            {/* Detalle expandido */}
-            {expandido === v.vendedor && (
-              <DetalleVendedor vendedor={v.vendedor} desde={desde} hasta={hasta} />
+                  <div
+                    onMouseDown={(e) => startResize(e, col.key)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: "absolute", right: 0, top: 0, width: 5,
+                      height: "100%", cursor: "col-resize", zIndex: 10,
+                    }}
+                    className="hover:bg-blue-400 opacity-0 hover:opacity-40 transition-opacity"
+                  />
+                </th>
+              ))}
+              <th className="w-9" />
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-blue-600" />
+                    <span className="text-sm">Consultando SQL Server...</span>
+                  </div>
+                </td>
+              </tr>
             )}
-          </div>
-        ))}
-
-        {/* Fila total */}
-        {!isLoading && !isError && vendedores.length > 0 && (
-          <div className="border-t-2 border-gray-200 grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 px-4 py-3.5 bg-green-50">
-            <span className="font-bold text-gray-800 text-sm">TOTAL</span>
-            <span className="text-right text-sm font-medium text-gray-600">
-              {(data?.vendedores || []).reduce((s, v) => s + v.total_tickets, 0)}
-            </span>
-            <span className="text-right text-sm font-medium text-gray-600 hidden sm:block">
-              {(data?.vendedores || []).reduce((s, v) => s + v.tickets_con_comision, 0)}
-            </span>
-            <span className="text-right text-sm font-medium text-gray-600 hidden sm:block">
-              {(data?.vendedores || []).reduce((s, v) => s + v.total_articulos, 0)}
-            </span>
-            <span className="text-right font-bold text-green-700 text-base">{formatPeso(granTotal)}</span>
-            <span />
-          </div>
-        )}
+            {isError && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center">
+                  <div className="flex flex-col items-center gap-2 text-red-500">
+                    <FileText size={32} className="opacity-40" />
+                    <p className="text-sm font-medium">No se pudo conectar al servidor de datos</p>
+                    <p className="text-xs text-gray-400">{error?.message || "SQL Server no disponible"}</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && vendedores.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-12 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <Users size={32} className="opacity-30" />
+                    <p className="text-sm">No hay datos para el período seleccionado</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {!isLoading && !isError && vendedores.map((v, i) => {
+              const rank = rankMap[v.vendedor] ?? i;
+              return (
+                <>
+                  <tr
+                    key={v.vendedor}
+                    onClick={() => setExpandido(expandido === v.vendedor ? null : v.vendedor)}
+                    className="border-t border-gray-50 hover:bg-gray-50 cursor-pointer transition"
+                  >
+                    <td className="px-3 py-3.5 overflow-hidden">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {rank === 0 && v.total_comision > 0 && <span className="text-base shrink-0">🥇</span>}
+                        {rank === 1 && v.total_comision > 0 && <span className="text-base shrink-0">🥈</span>}
+                        {rank === 2 && v.total_comision > 0 && <span className="text-base shrink-0">🥉</span>}
+                        {(rank > 2 || v.total_comision === 0) && (
+                          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+                            {v.vendedor.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-800 truncate text-sm">{v.vendedor}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-sm text-gray-600">{v.total_tickets}</td>
+                    <td className="px-3 py-3.5 text-right text-sm text-gray-600">
+                      {v.tickets_con_comision > 0 ? (
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-medium">
+                          {v.tickets_con_comision}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-sm">
+                      {v.total_tickets > 0 ? (
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                          (v.tickets_con_comision / v.total_tickets) >= 0.5
+                            ? "bg-emerald-50 text-emerald-700"
+                            : (v.tickets_con_comision / v.total_tickets) >= 0.25
+                            ? "bg-yellow-50 text-yellow-700"
+                            : "bg-red-50 text-red-600"
+                        }`}>
+                          {((v.tickets_con_comision / v.total_tickets) * 100).toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3.5 text-right text-sm text-gray-600">{v.total_articulos}</td>
+                    <td className={`px-3 py-3.5 text-right font-bold text-sm ${v.total_comision > 0 ? "text-green-600" : "text-gray-400"}`}>
+                      {v.total_comision > 0 ? formatPeso(v.total_comision) : "—"}
+                    </td>
+                    <td className="px-2 py-3.5 text-center text-gray-400">
+                      {expandido === v.vendedor ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                    </td>
+                  </tr>
+                  {expandido === v.vendedor && (
+                    <tr key={`${v.vendedor}-detalle`} className="border-t border-gray-100">
+                      <td colSpan={7} className="p-0">
+                        <DetalleVendedor vendedor={v.vendedor} desde={desde} hasta={hasta} />
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+          </tbody>
+          {!isLoading && !isError && vendedores.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-gray-200 bg-green-50">
+                <td className="px-3 py-3.5 font-bold text-gray-800 text-sm">TOTAL</td>
+                <td className="px-3 py-3.5 text-right text-sm font-medium text-gray-600">
+                  {(data?.vendedores || []).reduce((s, v) => s + v.total_tickets, 0)}
+                </td>
+                <td className="px-3 py-3.5 text-right text-sm font-medium text-gray-600">
+                  {(data?.vendedores || []).reduce((s, v) => s + v.tickets_con_comision, 0)}
+                </td>
+                <td className="px-3 py-3.5 text-right text-sm font-medium text-gray-600">
+                  {(() => {
+                    const tt = (data?.vendedores || []).reduce((s, v) => s + v.total_tickets, 0);
+                    const tc = (data?.vendedores || []).reduce((s, v) => s + v.tickets_con_comision, 0);
+                    return tt > 0 ? `${((tc / tt) * 100).toFixed(1)}%` : "—";
+                  })()}
+                </td>
+                <td className="px-3 py-3.5 text-right text-sm font-medium text-gray-600">
+                  {(data?.vendedores || []).reduce((s, v) => s + v.total_articulos, 0)}
+                </td>
+                <td className="px-3 py-3.5 text-right font-bold text-green-700 text-base">{formatPeso(granTotal)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
       </div>
 
       {/* Nota aclaratoria */}

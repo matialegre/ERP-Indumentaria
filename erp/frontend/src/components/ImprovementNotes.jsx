@@ -42,7 +42,7 @@ const ROUTE_LABELS = {
   "/puntuacion-empleados": "Puntuación Empleados",
   "/socios-montagne": "Socios Montagne",
   "/sync-status": "Estado Sync",
-  "/rrhh": "Recursos Humanos",
+  "/rrhh": "Gestión de Horarios",
   "/comisiones": "Comisiones",
   "/taller": "Taller — Dashboard",
   "/taller/ot": "Órdenes de Trabajo",
@@ -67,12 +67,8 @@ const PRIORITY_CONFIG = {
   CRITICA: { label: "Crítica", color: "bg-red-100 text-red-700",       dot: "bg-red-500"    },
 };
 
-// Usar la misma lógica dinámica que api.js
-const _port = typeof window !== "undefined" ? window.location.port : "5174";
-const _apiPort = (_port === "5174" || _port === "5173") ? "8000" : _port || "8000";
-const SSE_BASE = typeof window !== "undefined"
-  ? `${window.location.protocol}//${window.location.hostname}:${_apiPort}`
-  : "http://localhost:8000";
+// SSE usa misma origin (pasa por el proxy de Vite en dev, o por nginx en prod)
+const SSE_BASE = typeof window !== "undefined" ? window.location.origin : "http://localhost:8001";
 
 // Resolver URL de imagen: si es path relativo (/mejoras-img/...) usar el backend
 const resolveImageUrl = (img) => {
@@ -226,6 +222,29 @@ export default function ImprovementNotes() {
     });
   };
 
+  // Ctrl+V pega imágenes del portapapeles directamente en el chat
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    let hasImage = false;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (file.size > 2 * 1024 * 1024) { alert("Imagen muy grande (máx 2MB)"); continue; }
+        const reader = new FileReader();
+        reader.onload = (ev) => setImages(prev => [...prev, ev.target.result]);
+        reader.readAsDataURL(file);
+        hasImage = true;
+      }
+    }
+    if (hasImage) {
+      e.preventDefault();
+      // Abrir el formulario si no está abierto
+      if (!showForm) setShowForm(true);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
@@ -257,7 +276,7 @@ export default function ImprovementNotes() {
 
       {/* Panel chat */}
       {open && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-96 max-h-[72vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-96 max-h-[72vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden" onPaste={handlePaste}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-100 shrink-0">
             <div className="flex items-center gap-2">
@@ -325,7 +344,7 @@ export default function ImprovementNotes() {
                 <textarea
                   value={text}
                   onChange={e => setText(e.target.value)}
-                  placeholder="Describí qué mejorarías en esta sección..."
+                  placeholder="Describí qué mejorarías... (Ctrl+V para pegar imagen)"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:border-amber-400"
                   rows={3}
                   autoFocus

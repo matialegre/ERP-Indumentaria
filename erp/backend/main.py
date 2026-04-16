@@ -209,6 +209,11 @@ MEJORAS_IMAGES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\mejoras_images"
 if os.path.isdir(MEJORAS_IMAGES_DIR):
     app.mount("/mejoras-img", StaticFiles(directory=MEJORAS_IMAGES_DIR), name="mejoras-img")
 
+# ── Servir uploads de mensajes ────────────────────────────────────────────────
+MSG_UPLOADS_DIR = r"D:\ERP MUNDO OUTDOOR\erp\msg_uploads"
+os.makedirs(MSG_UPLOADS_DIR, exist_ok=True)
+app.mount("/msg-uploads", StaticFiles(directory=MSG_UPLOADS_DIR), name="msg-uploads")
+
 # ── Servir frontend buildeado (producción: un solo puerto 8000) ──────────────
 # Si existe el dist/ del frontend, lo servimos como archivos estáticos.
 # Cualquier ruta no-API retorna index.html (SPA routing).

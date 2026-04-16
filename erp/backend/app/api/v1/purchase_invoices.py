@@ -798,3 +798,146 @@ def delete_purchase_invoice(
 
     db.delete(inv)
     db.commit()
+
+
+# ── Exportar items a Excel ─────────────────────────────
+
+@router.get("/{invoice_id}/export-items-excel")
+def export_items_excel(
+    invoice_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Descarga un Excel con los ítems de la factura/remito (PurchaseInvoiceItem)."""
+    import io
+    from fastapi.responses import Response
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl no instalado")
+
+    inv = db.get(PurchaseInvoice, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    if (
+        current_user.role != UserRole.SUPERADMIN
+        and current_user.company_id
+        and inv.company_id != current_user.company_id
+    ):
+        raise HTTPException(status_code=403, detail="Sin acceso a esta factura")
+    items = list(inv.items or [])
+    if not items:
+        raise HTTPException(status_code=404, detail="Este documento no tiene items cargados")
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Items"
+
+    header_fill = PatternFill("solid", fgColor="2563EB")
+    header_font = Font(bold=True, color="FFFFFF")
+    headers = ["Código", "Descripción", "Talle", "Color", "Cant. facturada", "Cant. recibida", "Precio unit.", "Precio lista"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center")
+
+    total_fact = 0
+    total_rec = 0
+    alt_fill = PatternFill("solid", fgColor="EFF6FF")
+    for row_idx, it in enumerate(items, 2):
+        qf = int(it.quantity_invoiced or 0)
+        qr = int(it.quantity_received or 0)
+        ws.cell(row=row_idx, column=1, value=it.code or "")
+        ws.cell(row=row_idx, column=2, value=it.description or "")
+        ws.cell(row=row_idx, column=3, value=it.size or "")
+        ws.cell(row=row_idx, column=4, value=it.color or "")
+        ws.cell(row=row_idx, column=5, value=qf)
+        ws.cell(row=row_idx, column=6, value=qr)
+        ws.cell(row=row_idx, column=7, value=float(it.unit_price) if it.unit_price is not None else None)
+        ws.cell(row=row_idx, column=8, value=float(it.list_price) if it.list_price is not None else None)
+        total_fact += qf
+        total_rec += qr
+        if row_idx % 2 == 0:
+            for c in range(1, 9):
+                ws.cell(row=row_idx, column=c).fill = alt_fill
+
+    total_row = len(items) + 2
+    total_font = Font(bold=True)
+    ws.cell(row=total_row, column=4, value="TOTAL").font = total_font
+    ws.cell(row=total_row, column=5, value=total_fact).font = total_font
+    ws.cell(row=total_row, column=6, value=total_rec).font = total_font
+
+    widths = [22, 55, 10, 18, 15, 15, 14, 14]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    tipo = inv.type.value if inv.type else "DOC"
+    numero = inv.number or str(invoice_id)
+    ws.insert_rows(1)
+    ws.merge_cells("A1:H1")
+    title_cell = ws["A1"]
+    title_cell.value = f"{tipo} — {numero}"
+    title_cell.fill = PatternFill("solid", fgColor="1E3A5F")
+    title_cell.font = Font(bold=True, size=12, color="FFFFFF")
+    title_cell.alignment = Alignment(horizontal="center")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe_numero = numero.replace("/", "-").replace(" ", "_")
+    filename = f"items_{safe_numero}.xlsx"
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── Forzar ingreso (admin) ─────────────────────────────
+
+@router.patch("/{invoice_id}/forzar-ingreso")
+def forzar_ingreso(
+    invoice_id: int,
+    observaciones: str = "",
+    current_user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """Fuerza el ingreso desde admin: marca semáforo VERDE + confirmado admin + ingreso COMPLETO.
+    Acepta `observaciones` como query param para auditoría. El motivo se concatena a
+    `compras_obs` con prefijo estándar "FORZADO, SIN IMAGEN DE CARTA DE PORTE".
+    """
+    inv = db.get(PurchaseInvoice, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Factura/Remito no encontrado")
+    if (
+        current_user.role != UserRole.SUPERADMIN
+        and current_user.company_id
+        and inv.company_id != current_user.company_id
+    ):
+        raise HTTPException(status_code=403, detail="Sin acceso a esta factura")
+
+    now = datetime.datetime.utcnow()
+    inv.estado_semaforo = SemaforoEstado.VERDE
+    inv.ingreso_status = IngresoStatus.COMPLETO
+    inv.ingreso_date = inv.ingreso_date or now
+    inv.confirmado_admin_at = now
+    inv.confirmado_admin_by_id = current_user.id
+
+    obs_base = "FORZADO, SIN IMAGEN DE CARTA DE PORTE"
+    obs_extra = (observaciones or "").strip()
+    obs_final = f"{obs_base}. {obs_extra}" if obs_extra else obs_base
+    prev = (inv.compras_obs or "").strip()
+    inv.compras_obs = f"{prev}\n[{now.strftime('%Y-%m-%d %H:%M')}] {obs_final}".strip()
+
+    db.commit()
+    db.refresh(inv)
+    return {
+        "ok": True,
+        "factura_id": invoice_id,
+        "estado_semaforo": inv.estado_semaforo.value,
+        "ingreso_status": inv.ingreso_status.value,
+        "observaciones": obs_final,
+    }
+

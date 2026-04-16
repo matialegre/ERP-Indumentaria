@@ -195,6 +195,7 @@ class Fichaje(Base, TimestampMixin):
 
     latitud:      Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitud:     Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    foto_selfie:  Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
     observacion:  Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
 
     # Relaciones

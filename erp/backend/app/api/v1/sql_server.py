@@ -398,3 +398,169 @@ def get_articulo(
         return ArticuloOut(codigo_barras=body.codigo_barras, encontrado=False)
     finally:
         conn.close()
+
+
+# ── Consulta libre a SQL Server (PC Tomy) ──────────────
+
+class RVDetalleItem(BaseModel):
+    rv: int
+    comentarios: str
+    anulado: bool
+    model_config = {"from_attributes": True}
+
+
+class ConsultaRemitoOut(BaseModel):
+    numero_buscado: str
+    total_resultados: int
+    resultados: list[RVDetalleItem]
+    model_config = {"from_attributes": True}
+
+
+@router.get("/consultar-remito", response_model=ConsultaRemitoOut)
+def consultar_remito(
+    nro: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Busca en SQL Server (PC Tomy) todos los RVs (NroInterno) cuyo campo Comentarios
+    contenga el número de remito/factura indicado. Devuelve todos los resultados,
+    marcando cuáles están anulados.
+    """
+    if not nro or len(nro.strip()) < 3:
+        raise HTTPException(status_code=400, detail="El número a buscar debe tener al menos 3 caracteres")
+    nro = nro.strip()
+    conn = _get_sql_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT NroInterno, RTRIM(ISNULL(Comentarios,'')) "
+            "FROM REMITOS WHERE Comentarios LIKE ? "
+            "ORDER BY NroInterno DESC",
+            (f"%{nro}%",),
+        )
+        rows = cursor.fetchall()
+    finally:
+        conn.close()
+
+    resultados: list[RVDetalleItem] = []
+    seen: set = set()
+    for rv_int, com in rows:
+        com_clean = (com or "").strip()
+        key = (rv_int, com_clean)
+        if key in seen:
+            continue
+        seen.add(key)
+        resultados.append(
+            RVDetalleItem(
+                rv=int(rv_int),
+                comentarios=com_clean,
+                anulado=(com_clean == "Anulado"),
+            )
+        )
+    return ConsultaRemitoOut(
+        numero_buscado=nro,
+        total_resultados=len(resultados),
+        resultados=resultados,
+    )
+
+
+# ── Búsqueda y reasignación manual de RV ───────────────
+
+class BuscarDocOut(BaseModel):
+    factura_id: int
+    factura_numero: str
+    tipo_documento: str
+    rv_actual: Optional[str] = None
+    local: Optional[str] = None
+    proveedor: Optional[str] = None
+    fecha: Optional[str] = None
+    model_config = {"from_attributes": True}
+
+
+class ReasignarRVBody(BaseModel):
+    factura_id: int
+    nuevo_rv: str  # número, "forzado" o vacío para limpiar
+
+
+class ReasignarRVOut(BaseModel):
+    factura_id: int
+    rv_anterior: Optional[str]
+    rv_nuevo: str
+    ok: bool
+    mensaje: str
+    model_config = {"from_attributes": True}
+
+
+@router.get("/buscar-doc", response_model=list[BuscarDocOut])
+def buscar_doc(
+    q: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Busca facturas/remitos en la BD local por número (LIKE %q%). Usado para reasignar RV."""
+    if not q or len(q.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Mínimo 3 caracteres")
+    q = q.strip()
+    query = (
+        db.query(PurchaseInvoice)
+        .filter(PurchaseInvoice.number.ilike(f"%{q}%"))
+        .filter(PurchaseInvoice.status != PurchaseInvoiceStatus.ANULADO)
+    )
+    # scope por empresa del usuario logueado
+    if getattr(current_user, "company_id", None):
+        query = query.filter(PurchaseInvoice.company_id == current_user.company_id)
+    docs = query.order_by(PurchaseInvoice.id.desc()).limit(20).all()
+
+    resultados: list[BuscarDocOut] = []
+    for d in docs:
+        prov_nombre = d.provider.name if d.provider else None
+        local_nombre = d.local.name if d.local else None
+        fecha_str = d.date.isoformat() if d.date else None
+        resultados.append(
+            BuscarDocOut(
+                factura_id=d.id,
+                factura_numero=d.number or "",
+                tipo_documento=(d.type.value if d.type else ""),
+                rv_actual=d.remito_venta_number,
+                local=local_nombre,
+                proveedor=prov_nombre,
+                fecha=fecha_str,
+            )
+        )
+    return resultados
+
+
+@router.post("/reasignar-rv", response_model=ReasignarRVOut)
+def reasignar_rv(
+    body: ReasignarRVBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Cambia manualmente el remito_venta_number de una factura/remito."""
+    doc = db.get(PurchaseInvoice, body.factura_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    if getattr(current_user, "company_id", None) and doc.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="No pertenece a su empresa")
+
+    rv_anterior = doc.remito_venta_number
+    nuevo = (body.nuevo_rv or "").strip()
+    try:
+        doc.remito_venta_number = nuevo if nuevo else None
+        db.commit()
+        return ReasignarRVOut(
+            factura_id=body.factura_id,
+            rv_anterior=rv_anterior,
+            rv_nuevo=nuevo or "(vacío)",
+            ok=True,
+            mensaje=f"RV actualizado: {rv_anterior or '(sin RV)'} → {nuevo or '(vacío)'}",
+        )
+    except Exception as exc:
+        db.rollback()
+        return ReasignarRVOut(
+            factura_id=body.factura_id,
+            rv_anterior=rv_anterior,
+            rv_nuevo=body.nuevo_rv,
+            ok=False,
+            mensaje=f"Error: {exc}",
+        )

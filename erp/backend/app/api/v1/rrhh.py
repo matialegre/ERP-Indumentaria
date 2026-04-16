@@ -175,6 +175,7 @@ class FichajeCreate(BaseModel):
     estado:       Optional[EstadoFichaje] = EstadoFichaje.OK
     latitud:      Optional[float]         = None
     longitud:     Optional[float]         = None
+    foto_selfie:  Optional[str]           = None
     observacion:  Optional[str]           = None
 
 
@@ -200,6 +201,7 @@ class FichajeOut(BaseModel):
     estado:          str
     latitud:         Optional[float]
     longitud:        Optional[float]
+    foto_selfie:     Optional[str]
     observacion:     Optional[str]
     created_at:      datetime
 
@@ -332,7 +334,9 @@ def _fich_out(f: Fichaje) -> FichajeOut:
         hora_entrada=f.hora_entrada, hora_salida=f.hora_salida,
         horas_trabajadas=f.horas_trabajadas,
         tipo=f.tipo.value, origen=f.origen.value, estado=f.estado.value,
-        latitud=f.latitud, longitud=f.longitud, observacion=f.observacion,
+        latitud=f.latitud, longitud=f.longitud,
+        foto_selfie=f.foto_selfie,
+        observacion=f.observacion,
         created_at=f.created_at,
     )
 
@@ -583,6 +587,7 @@ def create_fichaje(
         estado=body.estado,
         latitud=body.latitud,
         longitud=body.longitud,
+        foto_selfie=body.foto_selfie,
         observacion=body.observacion,
     )
     db.add(fich)
@@ -1086,8 +1091,15 @@ def naaloo_fichaje_hoy(
     }
 
 
+class NaalooFicharRequest(BaseModel):
+    latitud:     Optional[float] = None
+    longitud:    Optional[float] = None
+    foto_selfie: Optional[str]   = None
+
+
 @router.post("/naaloo/fichar")
 def naaloo_fichar(
+    body: NaalooFicharRequest = NaalooFicharRequest(),
     db:   Session = Depends(get_db),
     user: User    = Depends(get_current_user),
 ):
@@ -1106,7 +1118,6 @@ def naaloo_fichar(
         Fichaje.fecha == today,
     ).first()
     if not fich:
-        # Primer fichaje del día → entrada
         fich = Fichaje(
             company_id=cid,
             empleado_id=emp.id,
@@ -1115,19 +1126,29 @@ def naaloo_fichar(
             tipo=TipoFichaje.PRESENCIAL,
             origen=OrigenFichaje.APP,
             estado=EstadoFichaje.OK,
+            latitud=body.latitud,
+            longitud=body.longitud,
+            foto_selfie=body.foto_selfie,
         )
         db.add(fich)
         accion = "ENTRADA"
     elif not fich.hora_salida:
-        # Tiene entrada, falta salida
         fich.hora_salida = now_str
         fich.horas_trabajadas = _calc_horas(fich.hora_entrada, fich.hora_salida)
+        if body.latitud is not None:
+            fich.latitud = body.latitud
+        if body.longitud is not None:
+            fich.longitud = body.longitud
+        if body.foto_selfie:
+            fich.foto_selfie = body.foto_selfie
         accion = "SALIDA"
     else:
-        # Ya fichó entrada y salida — resetear para nuevo ciclo
         fich.hora_salida = None
         fich.hora_entrada = now_str
         fich.horas_trabajadas = None
+        fich.latitud = body.latitud
+        fich.longitud = body.longitud
+        fich.foto_selfie = body.foto_selfie
         accion = "ENTRADA"
     db.commit()
     db.refresh(fich)

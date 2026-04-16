@@ -1,13 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 import datetime
+import uuid
+import shutil
+import pathlib
 
 from app.db.session import get_db
 from app.models.message import Message
 from app.models.user import User
 from app.api.deps import get_current_user
+
+UPLOAD_DIR = pathlib.Path(r"D:\ERP MUNDO OUTDOOR\erp\msg_uploads")
 
 router = APIRouter(prefix="/messages", tags=["Mensajería"])
 
@@ -22,6 +27,7 @@ class MessageOut(BaseModel):
     subject: str
     content: str
     is_read: bool
+    image_url: Optional[str] = None
     company_id: int
     created_at: datetime.datetime
     model_config = {"from_attributes": True}
@@ -32,6 +38,7 @@ class MessageCreate(BaseModel):
     is_broadcast: bool = False
     subject: str
     content: str
+    image_url: Optional[str] = None
 
 
 def _serialize(m: Message) -> dict:
@@ -44,6 +51,7 @@ def _serialize(m: Message) -> dict:
         "is_broadcast": m.is_broadcast,
         "subject": m.subject,
         "content": m.content,
+        "image_url": m.image_url,
         "is_read": m.is_read,
         "company_id": m.company_id,
         "created_at": m.created_at,
@@ -116,7 +124,7 @@ def send_message(
         raise HTTPException(status_code=400, detail="Debe especificar destinatario o enviar como difusión")
     if not body.subject.strip():
         raise HTTPException(status_code=400, detail="El asunto no puede estar vacío")
-    if not body.content.strip():
+    if not body.content.strip() and not body.image_url:
         raise HTTPException(status_code=400, detail="El contenido no puede estar vacío")
 
     company_id = current_user.company_id
@@ -135,6 +143,7 @@ def send_message(
                 is_broadcast=True,
                 subject=body.subject,
                 content=body.content,
+                image_url=body.image_url,
                 is_read=False,
                 company_id=company_id,
             )
@@ -154,6 +163,7 @@ def send_message(
             is_broadcast=False,
             subject=body.subject,
             content=body.content,
+            image_url=body.image_url,
             is_read=False,
             company_id=company_id,
         )
@@ -214,3 +224,22 @@ def delete_message(
     db.delete(m)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    UPLOAD_DIR.mkdir(exist_ok=True)
+    original_ext = pathlib.Path(file.filename or "file").suffix.lower()
+    allowed = {
+        ".jpg", ".jpeg", ".png", ".gif", ".webp",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+        ".zip", ".rar", ".txt", ".csv", ".mp4", ".mov", ".avi",
+    }
+    ext = original_ext if original_ext in allowed else ".bin"
+    filename = f"{uuid.uuid4().hex}{ext}"
+    with open(UPLOAD_DIR / filename, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"url": f"/msg-uploads/{filename}", "filename": file.filename or filename}

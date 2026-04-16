@@ -12,7 +12,7 @@ import {
   Package, Filter, Search, ChevronDown, ChevronUp, AlertTriangle,
   Info, TrendingUp, Clock, Boxes, MapPin, Zap, Eye, X, Printer,
   MessageSquare, User, Calendar, Settings, BarChart3, ScanBarcode,
-  Save, Key, Globe, Warehouse, Send, ArrowUpDown, FileText,
+  Save, Key, Globe, Warehouse, Send, ArrowUpDown, FileText, Layers,
 } from "lucide-react";
 
 // ─────────────────────────── Constants & Helpers ────────────────────────────
@@ -49,6 +49,25 @@ const STOCK_FIELDS = [
   { key: "stock_mundocab", label: "MUNDOCAB" }, { key: "stock_nqnshop", label: "NQNSHOP" },
   { key: "stock_mtgcom", label: "MTGCOM" }, { key: "stock_mtgroca", label: "MTGROCA" },
   { key: "stock_mundoroc", label: "MUNDOROC" }, { key: "stock_nqnalb", label: "NQNALB" },
+];
+
+function getOrderType(order) {
+  const tipo = (order.venta_tipo || "").toUpperCase();
+  const ff = (order.fulfillment || "").toUpperCase();
+  const tags = (order.tags || "").toLowerCase();
+  const sub = (order.shipping_substatus || "").toLowerCase();
+  if (tipo === "FULL" || ff === "FULL") return "FULL";
+  if (tipo === "FLEX" || ff.includes("FLEX")) return "FLEX";
+  if (tipo === "COLECTA" || tags.includes("self_service") || tags.includes("colecta")) return "COLECTA";
+  if (tipo.includes("DEVOL") || sub.includes("return")) return "DEVOLUCIONES";
+  return null;
+}
+
+const TIPOS_CONFIG = [
+  { id: "FULL",        label: "FULL",        bg: "bg-blue-50",   text: "text-blue-700",   activeBg: "bg-blue-600",   border: "border-blue-200" },
+  { id: "FLEX",        label: "FLEX",        bg: "bg-purple-50", text: "text-purple-700", activeBg: "bg-purple-600", border: "border-purple-200" },
+  { id: "COLECTA",     label: "COLECTA",     bg: "bg-green-50",  text: "text-green-700",  activeBg: "bg-green-600",  border: "border-green-200" },
+  { id: "DEVOLUCIONES",label: "DEVOLUCIONES",bg: "bg-red-50",    text: "text-red-700",    activeBg: "bg-red-600",    border: "border-red-200" },
 ];
 
 // ─────────────────────────── Small Components ──────────────────────────────
@@ -602,12 +621,193 @@ function ConfiguracionTab() {
   );
 }
 
+// ─────────────────────── Tipos Resumen Panel (inline) ───────────────────────
+
+function TiposResumenPanel({ orders }) {
+  const [activeType, setActiveType] = useState("FULL");
+
+  const grouped = useMemo(() => {
+    const g = { FULL: [], FLEX: [], COLECTA: [], DEVOLUCIONES: [] };
+    orders.forEach(o => { const t = getOrderType(o); if (t) g[t].push(o); });
+    return g;
+  }, [orders]);
+
+  const items = grouped[activeType] || [];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <Layers size={15} className="text-gray-500" /> Pedidos por tipo de envío
+        </span>
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          {TIPOS_CONFIG.map(t => (
+            <button key={t.id} onClick={() => setActiveType(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition ${
+                activeType === t.id ? `${t.activeBg} text-white` : `${t.bg} ${t.text} hover:opacity-80`
+              }`}>
+              {t.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeType === t.id ? "bg-white/30 text-white" : "bg-white text-gray-600"}`}>
+                {grouped[t.id].length}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-center py-5 text-gray-400 text-sm">No hay órdenes {activeType} en el rango actual</p>
+      ) : (
+        <div className="overflow-x-auto max-h-60 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50 sticky top-0">
+              <tr>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">Producto</th>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">SKU</th>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">Talle</th>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">Estado</th>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">Comprador</th>
+                <th className="px-3 py-2 text-left text-gray-500 font-semibold">Fecha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {items.map(o => (
+                <tr key={o.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 max-w-[200px] truncate text-gray-800 font-medium">{o.item_title || "—"}</td>
+                  <td className="px-3 py-2 font-mono text-gray-500">{o.sku || "—"}</td>
+                  <td className="px-3 py-2 text-gray-700">{o.talle || "—"}</td>
+                  <td className="px-3 py-2"><PickingBadge estado={o.estado_picking} /></td>
+                  <td className="px-3 py-2 text-gray-600">{o.buyer_nickname || "—"}</td>
+                  <td className="px-3 py-2 text-gray-400">{o.fecha_orden ? new Date(o.fecha_orden).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────── Tipos Tab (new tab) ─────────────────────────────────
+
+function TiposTab() {
+  const hace30 = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+  const hoyStr = new Date().toISOString().split("T")[0];
+  const [activeType, setActiveType] = useState("FULL");
+  const [desde, setDesde] = useState(hace30);
+  const [hasta, setHasta] = useState(hoyStr);
+
+  const { data: orders = [], isLoading, refetch } = useQuery({
+    queryKey: ["ml-tipos-orders", desde, hasta],
+    queryFn: () => api.get(`/ml/deposito/orders?include_printed=true&desde=${desde}&hasta=${hasta}`),
+    refetchInterval: 60_000,
+  });
+
+  const grouped = useMemo(() => {
+    const g = { FULL: [], FLEX: [], COLECTA: [], DEVOLUCIONES: [] };
+    orders.forEach(o => { const t = getOrderType(o); if (t) g[t].push(o); });
+    return g;
+  }, [orders]);
+
+  const items = grouped[activeType] || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {TIPOS_CONFIG.map(t => (
+          <div key={t.id} onClick={() => setActiveType(t.id)}
+            className={`bg-white rounded-xl border-2 p-4 cursor-pointer transition hover:shadow-md ${activeType === t.id ? `${t.border} shadow-sm` : "border-gray-200"}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${t.text}`}>{t.label}</p>
+            <p className="text-3xl font-bold text-gray-800 mt-1">{grouped[t.id].length}</p>
+            <p className="text-xs text-gray-400 mt-0.5">órdenes</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 flex-wrap">
+        <Calendar size={14} className="text-gray-400" />
+        <label className="text-xs text-gray-500">Desde</label>
+        <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
+          className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300" />
+        <label className="text-xs text-gray-500">Hasta</label>
+        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
+          className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300" />
+        <button onClick={() => refetch()} disabled={isLoading}
+          className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition">
+          <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
+        </button>
+        <span className="text-xs text-gray-400 ml-auto">{orders.length} órdenes totales en el período</span>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+          {TIPOS_CONFIG.map(t => (
+            <button key={t.id} onClick={() => setActiveType(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                activeType === t.id ? `${t.activeBg} text-white` : `${t.bg} ${t.text} hover:opacity-80`
+              }`}>
+              {t.label} ({grouped[t.id].length})
+            </button>
+          ))}
+        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400">
+            <RefreshCw size={20} className="animate-spin mr-2" /> Cargando…
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-center py-10 text-gray-400">No hay órdenes {activeType} en este período</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {["Producto", "SKU", "Talle", "Color", "Estado picking", "Estado ML", "Comprador", "Depósito", "Fecha"].map(h => (
+                    <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map(o => (
+                  <tr key={o.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 max-w-[220px] truncate font-medium text-gray-800">{o.item_title || "—"}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-gray-500">{o.sku || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{o.talle || "—"}</td>
+                    <td className="px-3 py-2 text-gray-700">{o.color || "—"}</td>
+                    <td className="px-3 py-2"><PickingBadge estado={o.estado_picking} /></td>
+                    <td className="px-3 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${o.order_status === "paid" ? "bg-green-100 text-green-700" : o.order_status === "cancelled" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                        {o.order_status || "—"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-600">{o.buyer_nickname || "—"}</td>
+                    <td className="px-3 py-2">
+                      {o.deposito_asignado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                          <MapPin size={10} />{o.deposito_asignado}
+                        </span>
+                      ) : <span className="text-gray-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-400">
+                      {o.fecha_orden ? new Date(o.fecha_orden).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════ MAIN PAGE ═══════════════════════════════════════
 
 export default function MercadoLibrePage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("ordenes");
   const [toast, setToast] = useState(null);
+  const [mlAccount, setMlAccount] = useState("");
   const scanRef = useRef(null);
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
@@ -630,8 +830,8 @@ export default function MercadoLibrePage() {
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: stats, refetch: refetchStats } = useQuery({
-    queryKey: ["ml-deposito-stats"],
-    queryFn: () => api.get("/ml/deposito/stats"),
+    queryKey: ["ml-deposito-stats", mlAccount],
+    queryFn: () => api.get(`/ml/deposito/stats${mlAccount ? `?meli_account=${mlAccount}` : ""}`),
     refetchInterval: 30_000,
   });
 
@@ -643,11 +843,12 @@ export default function MercadoLibrePage() {
     if (filters.hasta) p.set("hasta", filters.hasta);
     if (filters.deposito) p.set("deposito", filters.deposito);
     if (filters.search) p.set("search", filters.search);
+    if (mlAccount) p.set("meli_account", mlAccount);
     return p.toString();
-  }, [filters]);
+  }, [filters, mlAccount]);
 
   const { data: orders = [], isLoading, refetch } = useQuery({
-    queryKey: ["ml-deposito-orders", filters],
+    queryKey: ["ml-deposito-orders", filters, mlAccount],
     queryFn: () => api.get(`/ml/deposito/orders?${buildParams()}`),
     refetchInterval: 30_000,
   });
@@ -780,9 +981,10 @@ export default function MercadoLibrePage() {
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const TABS = [
-    { id: "ordenes", label: "Órdenes", icon: Package },
-    { id: "estadisticas", label: "Estadísticas", icon: BarChart3 },
-    { id: "configuracion", label: "Configuración", icon: Settings },
+    { id: "ordenes",       label: "Órdenes",       icon: Package },
+    { id: "tipos",         label: "Tipos",          icon: Layers },
+    { id: "estadisticas",  label: "Estadísticas",   icon: BarChart3 },
+    { id: "configuracion", label: "Configuración",  icon: Settings },
   ];
 
   return (
@@ -842,6 +1044,25 @@ export default function MercadoLibrePage() {
         {/* ══════════════ ÓRDENES TAB ══════════════ */}
         {activeTab === "ordenes" && (
           <>
+            {/* Selector de cuenta ML */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Cuenta ML:</span>
+              {[{ key: "", label: "Todas" }, { key: "1", label: "ML 1" }, { key: "2", label: "ML 2" }].map(acc => (
+                <button
+                  key={acc.key}
+                  onClick={() => setMlAccount(acc.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                    mlAccount === acc.key
+                      ? "border-transparent"
+                      : "border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
+                  }`}
+                  style={mlAccount === acc.key ? { backgroundColor: "#facc15", color: "#713f12" } : {}}
+                >
+                  {acc.label}
+                </button>
+              ))}
+            </div>
+
             {/* Stats cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard icon={Package} label="Pendientes" value={stats?.total_pendiente} color="yellow"
@@ -879,6 +1100,7 @@ export default function MercadoLibrePage() {
             </div>
 
             {/* Filters */}
+            <TiposResumenPanel orders={orders} />
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3 flex-wrap flex-1">
@@ -1145,6 +1367,9 @@ export default function MercadoLibrePage() {
             <MLOrdersQuickPanel />
           </>
         )}
+
+        {/* ══════════════ TIPOS TAB ══════════════ */}
+        {activeTab === "tipos" && <TiposTab />}
 
         {/* ══════════════ ESTADÍSTICAS TAB ══════════════ */}
         {activeTab === "estadisticas" && <EstadisticasTab />}

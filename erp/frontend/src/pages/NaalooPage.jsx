@@ -12,6 +12,7 @@ import {
   Send, Gift, Star, Users, Briefcase, ChevronDown, ChevronUp,
   Check, X, Plus, Trash2, Upload, Download, AlertCircle,
   LogIn, LogOut, Coffee, Sun, Sunset, Moon,
+  Camera, MapPin, RefreshCw,
 } from "lucide-react";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -174,7 +175,7 @@ export default function NaalooPage() {
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const ficharMut = useMutation({
-    mutationFn: () => api.post("/rrhh/naaloo/fichar"),
+    mutationFn: (data) => api.post("/rrhh/naaloo/fichar", data ?? {}),
     onSuccess: () => {
       refetchFichaje();
       qc.invalidateQueries(["naaloo-home"]);
@@ -376,7 +377,7 @@ export default function NaalooPage() {
               fichaje={fichaje}
               vinculado={vinculado}
               entrando={entrando}
-              onFichar={() => ficharMut.mutate()}
+              onFichar={(data) => ficharMut.mutate(data)}
               loading={ficharMut.isPending}
             />
           </Section>
@@ -524,6 +525,170 @@ function FichajeWidget({ fichaje, vinculado, entrando, onFichar, loading }) {
   const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
   const fecha = now.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
 
+  // step: "idle" | "camera" | "preview"
+  const [step, setStep] = useState("idle");
+  const [selfieB64, setSelfieB64] = useState(null);
+  const [geo, setGeo] = useState(null);
+  const [geoError, setGeoError] = useState(null);
+  const [camError, setCamError] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  const startCamera = async () => {
+    setCamError(null);
+    setGeoError(null);
+    setSelfieB64(null);
+    setGeo(null);
+    setStep("camera");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch {
+      setCamError("No se pudo acceder a la cámara. Verificá los permisos.");
+    }
+
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+      () => setGeoError("No se pudo obtener la ubicación."),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const captureSelfie = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const b64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
+    setSelfieB64(b64);
+    stopCamera();
+    setStep("preview");
+  };
+
+  const retake = () => {
+    setSelfieB64(null);
+    startCamera();
+  };
+
+  const confirm = () => {
+    onFichar({
+      foto_selfie: selfieB64 || null,
+      latitud: geo?.lat ?? null,
+      longitud: geo?.lng ?? null,
+    });
+    setStep("idle");
+    setSelfieB64(null);
+    setGeo(null);
+  };
+
+  const cancel = () => {
+    stopCamera();
+    setStep("idle");
+    setSelfieB64(null);
+    setGeo(null);
+    setCamError(null);
+    setGeoError(null);
+  };
+
+  if (step === "camera") {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-center text-gray-600 font-medium">
+          {entrando ? "📸 Selfie de salida" : "📸 Selfie de entrada"}
+        </p>
+        {camError ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700 text-center">
+            <AlertCircle size={14} className="inline mr-1" />
+            {camError}
+          </div>
+        ) : (
+          <div className="relative rounded-xl overflow-hidden bg-black">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-xl" style={{ maxHeight: 220, objectFit: "cover" }} />
+          </div>
+        )}
+        <canvas ref={canvasRef} className="hidden" />
+        {geo && (
+          <p className="text-xs text-center text-emerald-600 flex items-center justify-center gap-1">
+            <MapPin size={11} /> {geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}
+          </p>
+        )}
+        {geoError && (
+          <p className="text-xs text-center text-amber-600 flex items-center justify-center gap-1">
+            <MapPin size={11} /> Sin ubicación disponible
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button onClick={cancel} className="flex-1 py-2 text-sm border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition">
+            Cancelar
+          </button>
+          {!camError && (
+            <button onClick={captureSelfie} className="flex-1 py-2 text-sm bg-violet-600 text-white rounded-xl hover:bg-violet-700 font-semibold transition flex items-center justify-center gap-1.5">
+              <Camera size={15} /> Capturar
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "preview") {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-center text-gray-700 font-semibold">Confirmar fichaje</p>
+        {selfieB64 && (
+          <img src={`data:image/jpeg;base64,${selfieB64}`} alt="selfie" className="w-full rounded-xl object-cover" style={{ maxHeight: 200 }} />
+        )}
+        {geo && (
+          <p className="text-xs text-center text-emerald-600 flex items-center justify-center gap-1">
+            <MapPin size={11} /> {geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}
+            {geo.acc && <span className="text-gray-400 ml-1">(±{Math.round(geo.acc)}m)</span>}
+          </p>
+        )}
+        {geoError && (
+          <p className="text-xs text-center text-amber-600 flex items-center justify-center gap-1">
+            <MapPin size={11} /> Ubicación no disponible
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button onClick={retake} className="flex items-center justify-center gap-1 flex-1 py-2 text-sm border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition">
+            <RefreshCw size={13} /> Repetir
+          </button>
+          <button
+            onClick={confirm}
+            disabled={loading}
+            className={`flex-1 py-2 text-sm rounded-xl font-semibold transition disabled:opacity-50 text-white ${
+              entrando ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
+          >
+            {loading ? "..." : entrando ? "⏹ Confirmar Salida" : "▶ Confirmar Entrada"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="text-center space-y-3">
       {fichaje?.hora_entrada && !fichaje.hora_salida ? (
@@ -550,9 +715,25 @@ function FichajeWidget({ fichaje, vinculado, entrando, onFichar, loading }) {
         </div>
       )}
 
+      {fichaje?.foto_selfie && (
+        <div className="flex justify-center">
+          <img
+            src={`data:image/jpeg;base64,${fichaje.foto_selfie}`}
+            alt="selfie fichaje"
+            className="w-16 h-16 rounded-full object-cover border-2 border-violet-200"
+          />
+        </div>
+      )}
+
       {fichaje?.horas_trabajadas && (
         <p className="text-xs text-emerald-700 font-medium">
           ✅ {fichaje.horas_trabajadas.toFixed(2)}h trabajadas hoy
+        </p>
+      )}
+
+      {fichaje?.latitud && fichaje?.longitud && (
+        <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+          <MapPin size={11} /> {fichaje.latitud.toFixed(4)}, {fichaje.longitud.toFixed(4)}
         </p>
       )}
 
@@ -563,14 +744,15 @@ function FichajeWidget({ fichaje, vinculado, entrando, onFichar, loading }) {
         </div>
       ) : (
         <button
-          onClick={onFichar}
+          onClick={startCamera}
           disabled={loading}
-          className={`w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm ${
+          className={`w-full py-3 rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm flex items-center justify-center gap-2 ${
             entrando
               ? "bg-rose-600 hover:bg-rose-700 text-white"
               : "bg-emerald-600 hover:bg-emerald-700 text-white"
           }`}
         >
+          <Camera size={16} />
           {loading ? "..." : entrando
             ? "⏹ Registrar Salida"
             : fichaje?.hora_salida

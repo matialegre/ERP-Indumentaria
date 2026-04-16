@@ -168,6 +168,25 @@ def create_note(
     return _normalize(note)
 
 
+@router.get("/my-updates", response_model=List[NoteOut])
+def my_completed_updates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns notes authored by the current user that are marked as done."""
+    notes = (
+        db.query(ImprovementNote)
+        .filter(
+            ImprovementNote.author_id == current_user.id,
+            ImprovementNote.is_done == True,
+        )
+        .order_by(ImprovementNote.updated_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [_normalize(n) for n in notes]
+
+
 @router.get("/{note_id}/ai-stream")
 async def ai_stream(
     note_id: int,

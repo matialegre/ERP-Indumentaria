@@ -1,0 +1,423 @@
+Perfecto. Ahora tengo todo. Voy a crear un resumen estructurado con los snippets JSX y endpoints:
+
+---
+
+## **EXTRACTO CÓDIGO LEGACY - 3 FEATURES UI PARA PORTAR AL ERP**
+
+### **1. FacturasTab.tsx (INGRESOS) — Pestaña "Ingresos"**
+
+#### **Header + Filtros (líneas 420-460)**
+```jsx
+<div className="space-y-4">
+  <div className="flex justify-between items-center">
+    <div className="flex gap-2 items-center flex-wrap">
+      <button onClick={() => refetch()} className="p-2 hover:bg-gray-100 rounded"><RefreshCw className="h-4 w-4" /></button>
+      <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar: proveedor, N° pedido, N° factura..." className="pl-9 pr-3 py-2 border rounded text-sm w-72" /></div>
+      <button onClick={() => setFiltroTipo(filtroTipo === 'PRECOMPRA' ? null : 'PRECOMPRA')} className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors ${filtroTipo === 'PRECOMPRA' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-indigo-700 border-indigo-300 hover:bg-indigo-50'}`}>PRE</button>
+      <button onClick={() => setFiltroTipo(filtroTipo === 'REPOSICION' ? null : 'REPOSICION')} className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors ${filtroTipo === 'REPOSICION' ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-teal-700 border-teal-300 hover:bg-teal-50'}`}>REP</button>
+      <button onClick={() => setFiltroPendienteRCRV(!filtroPendienteRCRV)} className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors ${filtroPendienteRCRV ? 'bg-red-600 text-white border-red-700' : 'bg-white text-red-600 border-red-300 hover:bg-red-50'}`}>Pend. RV ({countPendRV})</button>
+    </div>
+    <div className="flex items-center gap-2">
+      <button onClick={() => setShowCargaAvanzada(!showCargaAvanzada)} className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-medium border transition-colors`}><Upload className="h-4 w-4" /> Carga Avanzada</button>
+      <button className="flex items-center gap-1.5 px-3 py-2 rounded text-xs font-bold border border-green-400 bg-green-50 text-green-700 hover:bg-green-100">🔗 Re-asociar RV</button>
+      <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700"><Plus className="h-4 w-4" /> Nuevo Ingreso</button>
+    </div>
+  </div>
+</div>
+```
+
+#### **Alertas Reposición Colapsable (líneas 643-698)**
+```jsx
+{reposicionesVencidas.length > 0 && (
+  <div className="mb-1.5">
+    <div className={`flex items-center gap-2 px-3 py-1 border-l-4 border-l-red-500 bg-red-50 border border-red-200 ${seccionesColapsadas.has('ALERTA_REPO') ? 'rounded' : 'rounded-t'} cursor-pointer select-none`} 
+      onClick={() => toggleSeccion('ALERTA_REPO')}>
+      <span className={`text-[9px] text-gray-400 transition-transform ${seccionesColapsadas.has('ALERTA_REPO') ? '' : 'rotate-90'}`}>&#9654;</span>
+      <AlertTriangle className="h-3 w-3 text-red-600" />
+      <span className="text-[11px] font-semibold text-red-700">Alertas de reposición</span>
+      <span className="text-[10px] text-gray-500 font-medium">{reposicionesVencidas.length}</span>
+      <div className="ml-auto flex items-center gap-1">
+        <button onClick={(e) => { e.stopPropagation(); setAlertasRepoFiltro('TODAS') }} className={`px-1.5 py-0 rounded text-[9px] font-bold border leading-4 ${alertasRepoFiltro === 'TODAS' ? 'bg-red-600 text-white border-red-700' : 'bg-white text-red-700 border-red-300'}`}>Todas ({reposicionesVencidas.length})</button>
+        {repoSinFac.length > 0 && <button onClick={(e) => { e.stopPropagation(); setAlertasRepoFiltro('SIN_FACTURA') }} className={`px-1.5 py-0 rounded text-[9px] font-bold border leading-4 ${alertasRepoFiltro === 'SIN_FACTURA' ? 'bg-red-600 text-white border-red-700' : 'bg-white text-red-700 border-red-300'}`}>Sin Fac ({repoSinFac.length})</button>}
+        {repoConFac.length > 0 && <button onClick={(e) => { e.stopPropagation(); setAlertasRepoFiltro('CON_FACTURA') }} className={`px-1.5 py-0 rounded text-[9px] font-bold border leading-4 ${alertasRepoFiltro === 'CON_FACTURA' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-700 border-orange-300'}`}>Con Fac ({repoConFac.length})</button>}
+      </div>
+    </div>
+    {!seccionesColapsadas.has('ALERTA_REPO') && (
+      <div className="border border-t-0 border-red-200 rounded-b overflow-hidden">
+        <div className="flex items-center gap-2 px-2 py-1 bg-red-100/60 border-b border-red-200 text-[9px] font-bold text-red-800 uppercase tracking-wider">
+          <span className="shrink-0 w-[58px] text-center">Estado</span>
+          <span className="shrink-0 w-[140px]">N° Pedido</span>
+          <span className="shrink-0 w-[120px]">Proveedor</span>
+          <span className="flex-1">Local</span>
+          <span className="shrink-0 w-[50px] text-right">Pedido</span>
+          <span className="shrink-0 w-[50px] text-right">Factur.</span>
+          <span className="shrink-0 w-[50px] text-right">Faltan</span>
+          <span className="shrink-0 w-[120px]"></span>
+        </div>
+        {/* Filas: ESP.Nd, PEDIDO, FACTUR, FALTAN */}
+      </div>
+    )}
+  </div>
+)}
+```
+
+#### **Fila FAC↔REM Expandida (líneas 869-1009)**
+Estructura bidireccional FAC-REM (cuando se expande una nota):
+- Pares N:1 (N facturas → 1 remito)
+- Pares 1:N (1 factura → N remitos)
+- Pares 1:1
+- Facturas/Remitos sueltos sin vincular
+
+**Estructura HTML:**
+```jsx
+// Renderiza dos columnas: FAC | REM
+const renderBlock = (key, facsCol, remsCol, footer) => (
+  <div key={key} className="border border-gray-200 rounded overflow-hidden mb-1.5">
+    <div className="flex min-h-[32px]">
+      <div className="flex-1 basis-1/2 py-1 px-2">{facsCol}</div>
+      <div className="w-px bg-gray-200 self-stretch" />
+      <div className="flex-1 basis-1/2 py-1 px-2 bg-orange-50/40">{remsCol}</div>
+    </div>
+    {footer && <div className="flex items-center gap-2 px-2 py-0.5 bg-indigo-50 border-t border-indigo-200 text-[10px]">
+      <span className="font-bold text-indigo-600">{facs.length} fac = {totalFac}u</span>
+      <span className="text-gray-400">vs</span>
+      <span className="font-bold text-orange-600">rem = {totalRem}u</span>
+      {dif === 0 ? <span className="bg-green-100 text-green-700 px-1.5 py-0 rounded font-bold">OK</span> : <span className={`px-1.5 py-0 rounded font-bold ${dif > 0 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{dif > 0 ? '+' : ''}{dif}u</span>}
+    </div>}
+  </div>
+)
+```
+
+#### **Modal "Items Extraídos del PDF" (líneas 1501-1545)**
+```jsx
+{visorItems && (
+  <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={() => setVisorItems(null)}>
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-emerald-50">
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-emerald-600" />
+          <span className="font-bold text-emerald-800">Items extraídos del PDF</span>
+          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-bold">{visorItems.tipo}</span>
+          <span className="font-mono text-sm text-gray-600">{visorItems.numero}</span>
+        </div>
+        <button onClick={() => setVisorItems(null)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+      </div>
+      <div className="overflow-auto flex-1 p-4">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-gray-100 text-gray-600 text-left">
+              <th className="px-2 py-1.5 font-bold">#</th>
+              <th className="px-2 py-1.5 font-bold">Código</th>
+              <th className="px-2 py-1.5 font-bold">Descripción</th>
+              <th className="px-2 py-1.5 font-bold text-right">Cant.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visorItems.items.map((item, i) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <td className="px-2 py-1 text-gray-400">{i + 1}</td>
+                <td className="px-2 py-1 font-mono font-bold text-gray-800">{item.cod}</td>
+                <td className="px-2 py-1 text-gray-600">{item.desc}</td>
+                <td className="px-2 py-1 text-right font-bold">{item.unidades ?? item.packs ?? item.cant ?? '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-300 font-bold bg-gray-100">
+              <td colSpan={3} className="px-2 py-1.5 text-right text-gray-600">TOTAL</td>
+              <td className="px-2 py-1.5 text-right text-emerald-700">{visorItems.items.reduce((s, it) => s + (it.unidades ?? it.packs ?? it.cant ?? 0), 0)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+#### **Endpoints - FacturasTab**
+```
+GET  /notas/ (params: { anulados: false, completados: false|true })
+GET  /facturas/ (params: { anulados: false })
+GET  /proveedores/
+GET  /mail/config
+GET  /sql/re-asociar-rv/preview
+POST /facturas/analizar-masivo (FormData: PDF)
+POST /facturas/ (CREATE)
+POST /historial/ (logging)
+PUT  /facturas/{id} (UPDATE: RV, cantidad, nota_id, VINCULADO_A_ID, etc)
+PATCH /facturas/{id}/anulado?anulado={bool}
+PATCH /notas/{id}/nueva-fecha (cambiar fecha pedido)
+PATCH /notas/{id}/aceptar-diferencia
+POST /facturas/{id}/archivo (upload PDF)
+POST /facturas/{id}/export-items-excel (download)
+GET  /facturas/{id}/pdf (view)
+```
+
+**Datos manejados:**
+- Notas de pedido (PRECOMPRA, REPOSICION, PEDIDO_NUMERO, PROVEEDOR_NOMBRE, LOCAL, PEDIDO_CANTIDAD, COMPRAS_ACEPTO_DIFERENCIA)
+- Documentos (FACTURA, REMITO, REMITO_FACTURA): FACTURA_NUMERO, FACTURA_CANTIDAD, FACTURA_FECHA, REMITO_VENTA_NUMERO
+- Vinculación: FACTURA → REMITO_COMPRA_NUMERO, VINCULADO_A_ID
+- Items extraídos del PDF: items[].cod, items[].desc, items[].unidades
+
+---
+
+### **2. Pedidos.tsx (COMPRAS) — Pestaña "Pedidos"**
+
+#### **Header + Stats + Filtros (líneas 198-301)**
+```jsx
+<div className="space-y-6">
+  <div className="flex justify-between items-start">
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <Package className="h-7 w-7 text-blue-600" />
+        Pedidos Cargados
+      </h1>
+      <p className="text-gray-500 mt-1">Gestión de pedidos y remitos asociados</p>
+    </div>
+    {canEdit && (
+      <button onClick={() => setShowCreateModal(true)} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm transition-colors">
+        <Plus className="h-5 w-5" />
+        Nuevo Pedido
+      </button>
+    )}
+  </div>
+
+  {/* Stats Cards */}
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="bg-white rounded-xl border p-4">
+      <div className="flex items-center gap-3">
+        <div className="bg-blue-100 p-2 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
+        <div><p className="text-2xl font-bold text-gray-900">{totalPedidos}</p><p className="text-xs text-gray-500">Pedidos activos</p></div>
+      </div>
+    </div>
+    <div className="bg-white rounded-xl border p-4">
+      <div className="flex items-center gap-3">
+        <div className="bg-yellow-100 p-2 rounded-lg"><Clock className="h-5 w-5 text-yellow-600" /></div>
+        <div><p className="text-2xl font-bold text-yellow-600">{remitosPendientes}</p><p className="text-xs text-gray-500">Remitos pendientes</p></div>
+      </div>
+    </div>
+    {/* ... más cards ... */}
+  </div>
+
+  {/* Filtros */}
+  <div className="bg-white rounded-xl border p-4">
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-medium text-gray-700">Filtrar:</span>
+      <div className="flex gap-2">
+        <button onClick={() => handleFilterChange(null)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${!enteredFilter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Todos</button>
+        <button onClick={() => handleFilterChange('false')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${enteredFilter === 'false' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}><Clock className="h-4 w-4" /> Pendientes</button>
+        <button onClick={() => handleFilterChange('true')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${enteredFilter === 'true' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}><CheckCircle className="h-4 w-4" /> Ingresados</button>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+#### **Tabla de Remitos dentro de orden (líneas 443-522)**
+```jsx
+{isExpanded && totalRemitosOrder > 0 && (
+  <div className="border-t bg-gray-50 p-4">
+    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+      <FileText className="h-4 w-4" />
+      Remitos Asociados ({totalRemitosOrder})
+    </h4>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-gray-500 border-b">
+            <th className="pb-2 font-medium">Nº Remito</th>
+            <th className="pb-2 font-medium">Fecha Emisión</th>
+            <th className="pb-2 font-medium">Proveedor</th>
+            <th className="pb-2 font-medium">Cantidad</th>
+            <th className="pb-2 font-medium">Ingresó</th>
+            <th className="pb-2 font-medium">Fecha Ingreso</th>
+            {canEdit && <th className="pb-2 font-medium">Acción</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {order.remitos.map((remito) => (
+            <tr key={remito.id} className="border-b border-gray-200 last:border-0">
+              <td className="py-2"><span className="flex items-center gap-1"><Hash className="h-3 w-3 text-gray-400" /><span className="font-medium text-gray-800">{remito.remito_number || '-'}</span></span></td>
+              <td className="py-2 text-gray-600">{remito.issue_date ? formatDate(remito.issue_date) : '-'}</td>
+              <td className="py-2 text-gray-600">{order.provider_name}</td>
+              <td className="py-2 text-gray-800 font-medium">{remito.quantity}</td>
+              <td className="py-2">
+                {remito.entered ? (
+                  <span className="inline-flex items-center gap-1 text-green-600 bg-green-100 px-2 py-0.5 rounded-full text-xs font-medium"><CheckCircle className="h-3 w-3" />SÍ</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-yellow-600 bg-yellow-100 px-2 py-0.5 rounded-full text-xs font-medium"><AlertCircle className="h-3 w-3" />NO</span>
+                )}
+              </td>
+              <td className="py-2 text-gray-600">{remito.entered && remito.entered_at ? formatDateFull(remito.entered_at) : <span className="text-yellow-600 font-medium">Pendiente</span>}</td>
+              {canEdit && (
+                <td className="py-2">
+                  {!remito.entered && (
+                    <button onClick={() => markEnteredMutation.mutate(remito.id)} disabled={markEnteredMutation.isPending} className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50">Marcar ingresado</button>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+```
+
+#### **Endpoints - Pedidos**
+```
+GET  /orders?status=ACTIVE&entered={bool|undefined}
+GET  /providers
+GET  /locals
+POST /orders (CREATE)
+POST /files/upload-excel (upload Excel file)
+POST /files/upload-pdf (upload PDF file)
+PATCH /remitos/{id}/mark-entered
+PATCH /orders/{id}/annul
+DELETE /orders/{id}
+```
+
+**Datos manejados:**
+- Orders: order_number, provider_id, local_id, quantity, observations, source (Web/Excel/Teléfono/Email)
+- Remitos: remito_number, issue_date, quantity, entered (bool), entered_at
+- Stats: totalPedidos, remitosPendientes, pedidosCompletos, totalRemitos
+
+---
+
+### **3. RemitosTab.tsx (RECEPCIÓN) — Pestaña "Remitos"**
+
+#### **Filtros Top (líneas 490-512)**
+```jsx
+<div className="flex items-center gap-1.5 flex-wrap">
+  <button onClick={() => setFiltroLlegada('NO_LLEGO')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroLlegada === 'NO_LLEGO' ? 'bg-red-600 text-white border-red-700' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}`}>
+    ❌ No llegó
+  </button>
+  <button onClick={() => setFiltroLlegada('SI_LLEGO')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroLlegada === 'SI_LLEGO' ? 'bg-green-600 text-white border-green-700' : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'}`}>
+    ✅ Sí llegó
+  </button>
+  <button onClick={() => setFiltroLlegada('TODOS')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroLlegada === 'TODOS' ? 'bg-gray-600 text-white border-gray-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+    Todos
+  </button>
+  <span className="w-px h-5 bg-gray-300 mx-0.5" />
+  <button onClick={() => setFiltroTipo('TODOS')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroTipo === 'TODOS' ? 'bg-gray-600 text-white border-gray-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+    Todos
+  </button>
+  <button onClick={() => setFiltroTipo('REP')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroTipo === 'REP' ? 'bg-teal-600 text-white border-teal-700' : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'}`}>
+    REP
+  </button>
+  <button onClick={() => setFiltroTipo('PRE')} className={`px-2.5 py-1.5 rounded text-xs font-medium border ${filtroTipo === 'PRE' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'}`}>
+    PRE
+  </button>
+  <button onClick={() => refetch()} className="p-1.5 hover:bg-gray-100 rounded"><RefreshCw className="h-3.5 w-3.5" /></button>
+  <div className="relative ml-auto"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar proveedor, NP, RV..." className="pl-8 pr-3 py-1.5 border rounded text-xs w-56" /></div>
+</div>
+```
+
+#### **Tabla Principal "Recepción" (líneas 518-544)**
+```jsx
+<table className="w-full text-[11px]">
+  <thead className="bg-gray-100 border-b">
+    <tr>
+      <th className="text-center px-1.5 py-1.5 w-[36px]">Días</th>
+      <th className="text-left px-1.5 py-1.5">Local</th>
+      <th className="text-left px-1.5 py-1.5">Proveedor / NP</th>
+      <th className="text-left px-1.5 py-1.5 w-[38px]">Tipo</th>
+      <th className="text-left px-1.5 py-1.5 w-[68px]">Fecha</th>
+      <th className="text-left px-1.5 py-1.5">N° Doc.</th>
+      <th className="text-left px-1.5 py-1.5 w-[60px]">RV</th>
+      <th className="text-center px-1.5 py-1.5 w-[38px]">Cant.</th>
+      <th className="text-center px-1.5 py-1.5 w-[55px]">Llegó</th>
+      <th className="text-center px-1.5 py-1.5 w-[45px]">PDFs</th>
+      <th className="text-center px-1.5 py-1.5 w-[48px]">Admin</th>
+      <th className="text-center px-1.5 py-1.5 w-[32px]">Obs.</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-gray-100">
+    {flatDocsFiltrados.map((f) => (
+      <tr key={f.FACTURA_ID} className={`hover:bg-gray-50 ${f._estado === 'COMPLETADO' ? 'bg-green-50/30' : f._notaCompleta ? 'bg-green-50/20' : f._esReposicion ? 'bg-teal-50/40' : f._esPrecompra ? 'bg-indigo-50/30' : ''}`}>
+        <td className="px-1.5 py-1 text-center">
+          <span className={`px-1 py-0 rounded text-[9px] font-bold leading-4 ${
+            f._diasSinConf >= 14 ? 'bg-red-100 text-red-700' :
+            f._diasSinConf >= 7 ? 'bg-orange-100 text-orange-700' :
+            'bg-gray-100 text-gray-500'
+          }`}>{f._diasSinConf}d</span>
+        </td>
+        <td className="px-1.5 py-1 text-[10px] text-gray-600 max-w-[130px] truncate" title={f._local}>{f._local}</td>
+        <td className="px-1.5 py-1">
+          <div className="leading-tight">
+            <span className="text-[10px] text-gray-700 font-medium block max-w-[170px] truncate">{f._proveedor}</span>
+            <button onClick={() => setNotaPopup({ notaId: f._notaId })} className="text-[9px] text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left">{f._pedidoNumero}</button>
+            {f._esPrecompra && <span className="ml-1 bg-indigo-500 text-white px-1 py-0 rounded text-[8px] font-bold leading-3">PRE</span>}
+          </div>
+        </td>
+        <td className="px-1.5 py-1">
+          <span className={`px-1 py-0 rounded text-[9px] font-bold leading-4 ${f.TIPO_DOCUMENTO === 'REMITO' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+            {f.TIPO_DOCUMENTO === 'REMITO' ? 'REM' : 'FAC'}
+          </span>
+        </td>
+        <td className="px-1.5 py-1 text-gray-500">{f.FACTURA_FECHA}</td>
+        <td className="px-1.5 py-1 font-mono text-[10px] font-bold">{f.FACTURA_NUMERO}</td>
+        <td className="px-1.5 py-1">{renderLlego(f)}</td>
+        <td className="px-1.5 py-1 text-center text-[10px] font-bold">{f.FACTURA_CANTIDAD}u</td>
+        <td className="px-1.5 py-1 text-center">{renderLlego(f)}</td>
+        <td className="px-1.5 py-1 text-center flex gap-0.5 justify-center">
+          {f.FACTURA_PDF && <button onClick={() => setVisorPdf(`${API_URL}/facturas/${f.FACTURA_ID}/pdf`)} className="p-0.5 text-blue-500 hover:bg-blue-100 rounded"><FileText className="h-3 w-3" /></button>}
+          {f.REMITO_VENTA_PDF && <button onClick={() => setVisorPdf(`${API_URL}/facturas/${f.FACTURA_ID}/remito-venta-pdf`)} className="p-0.5 text-purple-500 hover:bg-purple-100 rounded"><Truck className="h-3 w-3" /></button>}
+        </td>
+        <td className="px-1.5 py-1 text-center"><button onClick={() => setForzarLlegadaPopup({ id: f.FACTURA_ID, numero: f.FACTURA_NUMERO, obs: '', fecha: '' })} className="text-[9px] bg-slate-600 text-white px-1 py-0.5 rounded hover:bg-slate-700">Forzar</button></td>
+        <td className="px-1.5 py-1 text-center"><button onClick={() => setObsPopup({ titulo: 'Observación', texto: f.OBSERVACIONES || '-', color: 'gray' })} className="text-[9px] text-gray-400 hover:text-gray-600">📝</button></td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+```
+
+#### **Cálculo "Días" (línea 449 + helper)**
+```jsx
+// Parsear fecha: "DD/MM/YYYY" → timestamp
+const parseFechaDoc = (f) => {
+  if (!f) return 0
+  const p = f.split('/')
+  if (p.length !== 3) return 0
+  return new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`).getTime()
+}
+
+// Calcular días desde doc hasta hoy
+const ahora = Date.now()
+_diasSinConf = f.FACTURA_FECHA ? Math.floor((ahora - parseFechaDoc(f.FACTURA_FECHA)) / 86400000) : 0
+```
+
+#### **Endpoints - RemitosTab**
+```
+GET  /facturas/ (params: { anulados: false })
+GET  /notas/ (params: { anulados: false, completados: false|true })
+GET  /mail/config
+POST /notas/reabrir-diferencias-incorrectas
+POST /sql/confirmacion-rv (POST array de RVs → status de confirmación por RV)
+POST /sql/reasignar-rv (cambiar RV de doc)
+GET  /sql/detalle-variante/{rv} (detalles de llegada por RV)
+PATCH /notas/{id}/auto-completar?con_diferencia={bool}
+PATCH /facturas/{id}/forzar-ingreso (con observaciones opt)
+PATCH /facturas/{id}/forzar-llegada (con observaciones + fecha)
+POST /historial/ (logging)
+GET  /facturas/{id}/pdf
+GET  /facturas/{id}/remito-venta-pdf
+POST /facturas/{id}/export-items-excel
+```
+
+**Datos manejados:**
+- Docs con estado: FACTURA_FECHA, FACTURA_NUMERO, REMITO_VENTA_NUMERO, TIPO_DOCUMENTO
+- Estado RV: confirmado (bool), total_remitos, total_local, diferencia
+- Notas: PRECOMPRA, REPOSICION, PEDIDO_NUMERO, PROVEEDOR_NOMBRE, LOCAL
+- Estado doc: _estado (EN_TRANSITO / CONFIRMADO_LOCAL / COMPLETADO), _diasSinConf
+
+---
+
+## **NOTAS DE PORTAJE AL ERP:**
+
+✅ **FacturasTab** → No show stats cards; chips PRE/REP; alerts REPO & RV; FAC↔REM bidireccional; "Items extraídos del PDF" modal  
+✅ **Pedidos** → Stats cards; filtro Todos/Pendientes/Ingresados; tabla remitos expandible  
+✅ **RemitosTab** → Filtros No llegó/Sí llegó/Todos + PRE/REP; columnas Días|Local|Proveedor|etc; badge "Llegó" con SQL confirmación; "Forzar" button; cálculo días automatizado

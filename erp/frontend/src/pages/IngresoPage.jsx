@@ -84,7 +84,7 @@ function IngresoListView({ onView, onCreate }) {
   const [search, setSearch] = useState("");
   const [filtroTipo, setFiltroTipo] = useState(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
-  const [collapsedSections, setCollapsedSections] = useState(new Set(["SOLO_FALTA_FAC", "SIN_NADA", "OK"]));
+  const [collapsedSections, setCollapsedSections] = useState(new Set(["SIN_RV", "INCOMPLETO", "SOLO_FALTA_REM", "SOLO_FALTA_FAC", "OK", "OTROS", "SIN_NADA"]));
   const [cruzarModal, setCruzarModal] = useState(null);
   const [showCargaAvanzada, setShowCargaAvanzada] = useState(false);
   const [sectionFilter, setSectionFilter] = useState("all");
@@ -236,22 +236,6 @@ function IngresoListView({ onView, onCreate }) {
         </button>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-5 gap-2">
-        {[
-          { label: "Total", value: stats.total, color: "text-gray-700" },
-          { label: "Sin RV", value: stats.sinRV, color: "text-yellow-600" },
-          { label: "Incompleto", value: stats.incompleto, color: "text-amber-600" },
-          { label: "OK", value: stats.ok, color: "text-emerald-600" },
-          { label: "Sin docs", value: stats.sinNada, color: "text-gray-400" },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-3 text-center">
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500">{s.label}</div>
-          </div>
-        ))}
-      </div>
-
       {/* Status filter pills */}
       <div className="flex gap-1.5 flex-wrap">
         {[
@@ -339,8 +323,8 @@ function IngresoListView({ onView, onCreate }) {
             </div>
           )}
 
-          {/* ── Alert: Remitos sin factura (+2d) ── */}
-          {alertasRem.length > 0 && (
+          {/* ── Alert: Remitos sin factura (+2d) — MOVIDO A PedidosComprasPage ── */}
+          {false && alertasRem.length > 0 && (
             <CollapsibleAlert label="Remitos sin factura (+2 días)" count={alertasRem.length} accentColor="orange"
               collapsed={collapsedSections.has("ALERTA_REM")} onToggle={() => toggleSection("ALERTA_REM")}>
               <div className="flex items-center gap-2 px-2 py-1 bg-orange-100/60 border-b border-orange-200 text-[9px] font-bold text-orange-800 uppercase tracking-wider">
@@ -380,8 +364,8 @@ function IngresoListView({ onView, onCreate }) {
             </CollapsibleAlert>
           )}
 
-          {/* ── Alert: Reposiciones vencidas ── */}
-          {alertasRepo.length > 0 && (
+          {/* ── Alert: Reposiciones vencidas — MOVIDO A PedidosComprasPage ── */}
+          {false && alertasRepo.length > 0 && (
             <CollapsibleAlert label="Alertas de reposición" count={alertasRepo.length} accentColor="red"
               collapsed={collapsedSections.has("ALERTA_REPO")} onToggle={() => toggleSection("ALERTA_REPO")}>
               <div className="flex items-center gap-2 px-2 py-1 bg-red-100/60 border-b border-red-200 text-[9px] font-bold text-red-800 uppercase tracking-wider">

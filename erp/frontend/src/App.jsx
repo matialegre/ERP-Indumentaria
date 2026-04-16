@@ -20,6 +20,7 @@ const KanbanPage = lazy(() => import("./pages/KanbanPage"));
 const StockPage = lazy(() => import("./pages/StockPage"));
 const FacturacionPage = lazy(() => import("./pages/FacturacionPage"));
 const ConsultasPage = lazy(() => import("./pages/ConsultasPage"));
+const ConsultasSQLPage = lazy(() => import("./pages/ConsultasSQLPage"));
 const ProveedoresPage = lazy(() => import("./pages/ProveedoresPage"));
 const LocalesPage = lazy(() => import("./pages/LocalesPage"));
 const UsuariosPage = lazy(() => import("./pages/UsuariosPage"));
@@ -56,6 +57,7 @@ const InformesPage = lazy(() => import("./pages/InformesPage"));
 const RRHHPage = lazy(() => import("./pages/RRHHPage"));
 const NaalooPage = lazy(() => import("./pages/NaalooPage"));
 const MercadoLibrePage = lazy(() => import("./pages/MercadoLibrePage"));
+const CashFlowPage = lazy(() => import("./pages/CashFlowPage"));
 
 // CRM Avanzado — prefetch al detectar hover en sidebar (preload inmediato para el Dashboard)
 const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
@@ -225,6 +227,7 @@ export default function App() {
             <Route path="stock" element={<LazyPage><StockPage /></LazyPage>} />
             <Route path="facturacion" element={<LazyPage><FacturacionPage /></LazyPage>} />
             <Route path="consultas" element={<LazyPage><ConsultasPage /></LazyPage>} />
+            <Route path="consultas-sql" element={<LazyPage><ConsultasSQLPage /></LazyPage>} />
             <Route path="productos" element={<LazyPage><ProductosPage /></LazyPage>} />
             <Route path="proveedores" element={<LazyPage><ProveedoresPage /></LazyPage>} />
             <Route path="locales" element={<LazyPage><LocalesPage /></LazyPage>} />
@@ -264,6 +267,7 @@ export default function App() {
             <Route path="rrhh"                 element={<LazyPage><RRHHPage /></LazyPage>} />
             <Route path="naaloo"               element={<LazyPage><NaalooPage /></LazyPage>} />
             <Route path="mercadolibre"         element={<LazyPage><MercadoLibrePage /></LazyPage>} />
+            <Route path="cash-flow"            element={<LazyPage><CashFlowPage /></LazyPage>} />
             {/* CRM Avanzado */}
             <Route path="crm" element={<LazyPage><CRMDashboard /></LazyPage>} />
             <Route path="crm/clientes" element={<LazyPage><CRMClientes /></LazyPage>} />

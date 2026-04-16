@@ -1,14 +1,21 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, SERVER_BASE } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import {
   MessageSquare, Send, Users, Radio, Trash2,
   CheckCheck, Clock, Search, RefreshCw, Plus, X,
-  ChevronLeft, Megaphone,
+  ChevronLeft, Megaphone, Image, Paperclip, FileText, Download,
 } from "lucide-react";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+function isImageUrl(url) {
+  if (!url) return false;
+  const ext = url.slice(url.lastIndexOf(".")).toLowerCase();
+  return IMAGE_EXTS.has(ext);
+}
 
 function fmtTime(dt) {
   if (!dt) return "";
@@ -78,6 +85,10 @@ export default function MensajesPage() {
   const [composing, setComposing] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [newContent, setNewContent] = useState("");
+  const [newImage, setNewImage] = useState(null);
+  const [newImagePreview, setNewImagePreview] = useState(null);
+  const [newFileName, setNewFileName] = useState(null);
+  const newImageRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [mobileView, setMobileView] = useState("list"); // "list" | "chat"
@@ -117,6 +128,9 @@ export default function MensajesPage() {
       qc.invalidateQueries({ queryKey: ["msg-unread"] });
       setNewSubject("");
       setNewContent("");
+      setNewImage(null);
+      setNewImagePreview(null);
+      setNewFileName(null);
       setComposing(false);
     },
   });
@@ -231,17 +245,29 @@ export default function MensajesPage() {
   // ── Send handler ──
   async function handleSend(e) {
     e.preventDefault();
-    if (!newContent.trim()) return;
+    if (!newContent.trim() && !newImage) return;
     const isBroadcast = selected === "broadcast";
     const subject = newSubject.trim() || "Sin asunto";
     setSending(true);
     try {
+      let image_url = null;
+      if (newImage) {
+        const fd = new FormData();
+        fd.append("file", newImage);
+        const res = await api.uploadFile("/messages/upload-image", fd);
+        image_url = res.url;
+      }
       await sendMutation.mutateAsync({
         to_user_id: isBroadcast ? null : selected?.id,
         is_broadcast: isBroadcast,
         subject,
-        content: newContent.trim(),
+        content: newContent.trim() || (newImage ? (newFileName || "📎 Archivo") : "📷"),
+        image_url,
       });
+      setNewImage(null);
+      setNewImagePreview(null);
+      setNewFileName(null);
+      if (newImageRef.current) newImageRef.current.value = "";
     } finally {
       setSending(false);
     }
@@ -249,21 +275,37 @@ export default function MensajesPage() {
 
   // ── Quick-reply input (bottom of chat) ──
   const [quickMsg, setQuickMsg] = useState("");
+  const [quickImage, setQuickImage] = useState(null);
+  const [quickImagePreview, setQuickImagePreview] = useState(null);
+  const [quickFileName, setQuickFileName] = useState(null);
   const quickRef = useRef(null);
+  const quickImageRef = useRef(null);
 
   async function handleQuickSend(e) {
     e.preventDefault();
-    if (!quickMsg.trim() || !selected) return;
+    if (!quickMsg.trim() && !quickImage || !selected) return;
     const isBroadcast = selected === "broadcast";
     setSending(true);
     try {
+      let image_url = null;
+      if (quickImage) {
+        const fd = new FormData();
+        fd.append("file", quickImage);
+        const res = await api.uploadFile("/messages/upload-image", fd);
+        image_url = res.url;
+      }
       await sendMutation.mutateAsync({
         to_user_id: isBroadcast ? null : selected.id,
         is_broadcast: isBroadcast,
         subject: "Mensaje",
-        content: quickMsg.trim(),
+        content: quickMsg.trim() || (quickImage ? (quickFileName || "📎 Archivo") : "📷"),
+        image_url,
       });
       setQuickMsg("");
+      setQuickImage(null);
+      setQuickImagePreview(null);
+      setQuickFileName(null);
+      if (quickImageRef.current) quickImageRef.current.value = "";
       quickRef.current?.focus();
     } finally {
       setSending(false);
@@ -272,63 +314,87 @@ export default function MensajesPage() {
 
   // ── UI ──────────────────────────────────────────────────────────────────────
 
+  // Only show conversations with messages unless searching (search shows all)
+  const visibleConvos = useMemo(() => {
+    if (searchTerm.trim()) return filteredConvos;
+    return filteredConvos.filter((c) => c.lastMsg !== null);
+  }, [filteredConvos, searchTerm]);
+
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-100 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden" style={{ background: "#f0f2f5" }}>
 
       {/* ── Left Panel: Conversation list ── */}
       <div
         className={`
-          flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-          w-full sm:w-80 flex-shrink-0
+          flex flex-col bg-white dark:bg-gray-900
+          w-full sm:w-[340px] flex-shrink-0
+          border-r border-gray-200 dark:border-gray-700
           ${mobileView === "chat" ? "hidden sm:flex" : "flex"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <MessageSquare className="text-blue-600 w-5 h-5" />
-          <span className="font-semibold text-gray-900 dark:text-white flex-1">Mensajería</span>
-          {totalUnread > 0 && (
-            <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
-              {totalUnread}
-            </span>
-          )}
-          <button
-            onClick={() => setComposing(true)}
-            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-            title="Nuevo mensaje"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          {totalUnread > 0 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-800 dark:text-white text-base">Mensajes</span>
+            {totalUnread > 0 && (
+              <span className="bg-green-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                {totalUnread}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {totalUnread > 0 && (
+              <button
+                onClick={() => markAllReadMutation.mutate()}
+                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition"
+                title="Marcar todo como leído"
+              >
+                <CheckCheck className="w-4 h-4" />
+              </button>
+            )}
             <button
-              onClick={() => markAllReadMutation.mutate()}
-              className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
-              title="Marcar todo como leído"
+              onClick={() => setComposing(true)}
+              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition"
+              title="Nuevo mensaje"
             >
-              <CheckCheck className="w-4 h-4" />
+              <Plus className="w-4 h-4" />
             </button>
-          )}
+          </div>
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+        <div className="px-3 py-2 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar usuario..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Buscar o iniciar nueva conversación..."
+              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 dark:text-white rounded-lg outline-none focus:bg-white dark:focus:bg-gray-700 focus:ring-2 focus:ring-blue-400 transition"
             />
           </div>
         </div>
 
         {/* Conversation items */}
         <div className="flex-1 overflow-y-auto">
-          {filteredConvos.map((conv) => {
+          {visibleConvos.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-400 px-6 text-center">
+              <MessageSquare className="w-8 h-8 opacity-30" />
+              <p className="text-sm">
+                {searchTerm ? "No se encontraron usuarios" : "No hay conversaciones aún"}
+              </p>
+              {!searchTerm && (
+                <p className="text-xs">Usá el buscador para encontrar usuarios y escribirles</p>
+              )}
+            </div>
+          )}
+          {visibleConvos.map((conv) => {
             const isActive = selected === "broadcast"
               ? conv.id === "broadcast"
               : selected?.id === conv.id;
+            const lastText = conv.lastMsg
+              ? (conv.lastMsg.from_user_id === user?.id ? "Vos: " : "") + conv.lastMsg.content
+              : "";
             return (
               <button
                 key={conv.id}
@@ -337,29 +403,33 @@ export default function MensajesPage() {
                   setMobileView("chat");
                 }}
                 className={`
-                  w-full flex items-center gap-3 px-4 py-3 text-left transition
-                  hover:bg-gray-50 dark:hover:bg-gray-700
-                  ${isActive ? "bg-blue-50 dark:bg-blue-900/30 border-r-2 border-blue-500" : ""}
+                  w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+                  border-b border-gray-50 dark:border-gray-800
+                  ${isActive
+                    ? "bg-blue-50 dark:bg-blue-900/20"
+                    : "hover:bg-gray-50 dark:hover:bg-gray-800"}
                 `}
               >
-                <Avatar name={conv.name} broadcast={conv.isBroadcast} />
+                <div className="relative flex-shrink-0">
+                  <Avatar name={conv.name} broadcast={conv.isBroadcast} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`text-sm font-medium truncate ${isActive ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-white"}`}>
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className={`text-sm font-semibold truncate ${isActive ? "text-blue-700 dark:text-blue-300" : "text-gray-900 dark:text-white"}`}>
                       {conv.name}
                     </span>
                     {conv.lastMsg && (
-                      <span className="text-xs text-gray-400 flex-shrink-0">{fmtTime(conv.lastMsg.created_at)}</span>
+                      <span className={`text-xs flex-shrink-0 ${conv.unread > 0 ? "text-green-600 font-semibold" : "text-gray-400"}`}>
+                        {fmtTime(conv.lastMsg.created_at)}
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {conv.lastMsg
-                        ? (conv.lastMsg.from_user_id === user?.id ? "Vos: " : "") + conv.lastMsg.content
-                        : conv.role ? ROLE_LABEL[conv.role] || conv.role : "Sin mensajes"}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-xs truncate flex-1 ${conv.unread > 0 ? "text-gray-700 dark:text-gray-200 font-medium" : "text-gray-500 dark:text-gray-400"}`}>
+                      {lastText || (conv.role ? ROLE_LABEL[conv.role] || conv.role : "")}
                     </p>
                     {conv.unread > 0 && (
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center flex-shrink-0">
+                      <span className="bg-green-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center flex-shrink-0">
                         {conv.unread}
                       </span>
                     )}
@@ -392,26 +462,34 @@ export default function MensajesPage() {
                 name={selected === "broadcast" ? "Difusión" : selected.name}
                 broadcast={selected === "broadcast"}
               />
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-white">
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 dark:text-white truncate">
                   {selected === "broadcast" ? "📢 Difusión (todos)" : selected.name}
                 </div>
-                {selected !== "broadcast" && selected.role && (
-                  <div className="text-xs text-gray-500">{ROLE_LABEL[selected.role] || selected.role}</div>
-                )}
-                {selected === "broadcast" && (
-                  <div className="text-xs text-gray-500">Mensaje a todos los usuarios</div>
-                )}
+                <div className="text-xs text-gray-400">
+                  {selected !== "broadcast" && selected.role
+                    ? ROLE_LABEL[selected.role] || selected.role
+                    : selected === "broadcast" ? "Mensaje a todos los usuarios" : ""}
+                </div>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+              style={{
+                backgroundImage: "radial-gradient(circle, #d4dde7 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+                backgroundColor: "#e5ddd5",
+              }}
+            >
               {currentMessages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-                  <MessageSquare className="w-12 h-12 opacity-30" />
-                  <p className="text-sm">Sin mensajes todavía</p>
-                  <p className="text-xs">Escribí abajo para enviar el primero</p>
+                <div className="flex flex-col items-center justify-center h-full gap-2">
+                  <div className="bg-white/80 dark:bg-gray-800/80 rounded-2xl px-6 py-4 flex flex-col items-center gap-2 shadow-sm">
+                    <MessageSquare className="w-10 h-10 text-gray-300" />
+                    <p className="text-sm text-gray-500">Sin mensajes todavía</p>
+                    <p className="text-xs text-gray-400">Escribí abajo para enviar el primero</p>
+                  </div>
                 </div>
               )}
               {currentMessages.map((msg) => {
@@ -438,7 +516,29 @@ export default function MensajesPage() {
                             {msg.from_user_name}
                           </div>
                         )}
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        {msg.image_url && isImageUrl(msg.image_url) && (
+                          <img
+                            src={`${SERVER_BASE}${msg.image_url}`}
+                            alt="imagen"
+                            className="rounded-xl max-w-[240px] max-h-[300px] object-cover mb-1 cursor-pointer"
+                            onClick={() => window.open(`${SERVER_BASE}${msg.image_url}`, "_blank")}
+                          />
+                        )}
+                        {msg.image_url && !isImageUrl(msg.image_url) && (
+                          <a
+                            href={`${SERVER_BASE}${msg.image_url}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`flex items-center gap-2 mb-1 px-3 py-2 rounded-lg text-sm font-medium underline ${isMine ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-600 text-blue-600 dark:text-blue-300"}`}
+                          >
+                            <FileText className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate max-w-[200px]">{msg.image_url.split("/").pop()}</span>
+                            <Download className="w-3.5 h-3.5 flex-shrink-0" />
+                          </a>
+                        )}
+                        {msg.content !== "📷" && (
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        )}
                         <div className={`flex items-center gap-1 mt-1 justify-end ${isMine ? "text-blue-200" : "text-gray-400"}`}>
                           <span className="text-xs">{fmtFull(msg.created_at)}</span>
                           {isMine && (
@@ -463,36 +563,84 @@ export default function MensajesPage() {
             </div>
 
             {/* Quick reply input */}
-            <form
-              onSubmit={handleQuickSend}
-              className="flex items-end gap-2 px-4 py-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
-            >
-              <textarea
-                ref={quickRef}
-                value={quickMsg}
-                onChange={(e) => setQuickMsg(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleQuickSend(e);
-                  }
-                }}
-                placeholder={
-                  selected === "broadcast"
-                    ? "Mensaje para todos..."
-                    : `Mensaje para ${selected.name}...`
-                }
-                rows={1}
-                className="flex-1 resize-none px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-400 max-h-32 overflow-y-auto"
-              />
-              <button
-                type="submit"
-                disabled={!quickMsg.trim() || sending}
-                className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+              {quickImagePreview && (
+                <div className="px-4 pt-2">
+                  <div className="relative inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm max-w-full">
+                    {isImageUrl(quickImage?.name || "") ? (
+                      <img src={quickImagePreview} alt="preview" className="h-12 w-12 object-cover rounded" />
+                    ) : (
+                      <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                    )}
+                    <span className="truncate max-w-[200px] text-gray-700 dark:text-gray-200">{quickFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setQuickImage(null); setQuickImagePreview(null); setQuickFileName(null); if (quickImageRef.current) quickImageRef.current.value = ""; }}
+                      className="ml-1 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              <form
+                onSubmit={handleQuickSend}
+                className="flex items-end gap-2 px-4 py-3"
               >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                <input
+                  ref={quickImageRef}
+                  type="file"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv,.mp4,.mov,.avi"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setQuickImage(f);
+                    setQuickFileName(f.name);
+                    if (f.type.startsWith("image/")) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setQuickImagePreview(ev.target.result);
+                      reader.readAsDataURL(f);
+                    } else {
+                      setQuickImagePreview("file");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => quickImageRef.current?.click()}
+                  className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition flex-shrink-0"
+                  title="Adjuntar archivo"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+                <textarea
+                  ref={quickRef}
+                  value={quickMsg}
+                  onChange={(e) => setQuickMsg(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleQuickSend(e);
+                    }
+                  }}
+                  placeholder={
+                    selected === "broadcast"
+                      ? "Mensaje para todos..."
+                      : `Mensaje para ${selected.name}...`
+                  }
+                  rows={1}
+                  className="flex-1 resize-none px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-blue-400 max-h-32 overflow-y-auto"
+                />
+                <button
+                  type="submit"
+                  disabled={(!quickMsg.trim() && !quickImage) || sending}
+                  className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           </>
         ) : (
           /* Empty state */
@@ -571,13 +719,61 @@ export default function MensajesPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Mensaje</label>
                 <textarea
-                  required
+                  required={!newImage}
                   rows={5}
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
                   placeholder="Escribí tu mensaje acá..."
                   className="w-full px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                 />
+              </div>
+              {/* Attachment */}
+              <div>
+                <input
+                  ref={newImageRef}
+                  type="file"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.txt,.csv,.mp4,.mov,.avi"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setNewImage(f);
+                    setNewFileName(f.name);
+                    if (f.type.startsWith("image/")) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setNewImagePreview(ev.target.result);
+                      reader.readAsDataURL(f);
+                    } else {
+                      setNewImagePreview("file");
+                    }
+                  }}
+                />
+                {newImagePreview ? (
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-sm">
+                    {newImagePreview !== "file" ? (
+                      <img src={newImagePreview} alt="preview" className="h-10 w-10 object-cover rounded" />
+                    ) : (
+                      <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                    )}
+                    <span className="truncate flex-1 text-gray-700 dark:text-gray-200">{newFileName}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setNewImage(null); setNewImagePreview(null); setNewFileName(null); if (newImageRef.current) newImageRef.current.value = ""; }}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => newImageRef.current?.click()}
+                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 transition"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    Adjuntar foto o archivo
+                  </button>
+                )}
               </div>
               <div className="flex justify-end gap-3 pt-1">
                 <button

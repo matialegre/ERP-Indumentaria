@@ -32,9 +32,8 @@ const DATA_TABS = [
     id: "basicos",
     label: "Datos Básicos",
     columns: [
-      { key: "name", label: "Nombre", editable: true },
+      { key: "name", label: "Razón Social", editable: true },
       { key: "cuit", label: "CUIT", editable: true },
-      { key: "legal_name", label: "Razón Social", editable: true },
       { key: "phone", label: "Teléfono", editable: true },
       { key: "email", label: "Email", editable: true },
       { key: "contact_name", label: "Contacto", editable: true },
@@ -45,7 +44,7 @@ const DATA_TABS = [
     id: "contacto",
     label: "Contacto",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "contact_name", label: "Contacto", editable: true },
       { key: "vendor_name", label: "Vendedor", editable: true },
       { key: "phone", label: "Teléfono", editable: true },
@@ -62,7 +61,7 @@ const DATA_TABS = [
     id: "fiscal",
     label: "Fiscal",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "cuit", label: "CUIT", editable: true },
       { key: "tax_condition", label: "Condición IVA", editable: true },
       { key: "gross_income", label: "Ingresos Brutos", editable: true },
@@ -73,7 +72,7 @@ const DATA_TABS = [
     id: "ret_iva",
     label: "Ret. IVA",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "ret_iva_pct", label: "Ret. IVA %", editable: true, type: "number" },
     ],
   },
@@ -81,7 +80,7 @@ const DATA_TABS = [
     id: "ret_iibb",
     label: "Ret. IIBB",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "ret_iibb_pct", label: "Ret. IIBB %", editable: true, type: "number" },
     ],
   },
@@ -89,7 +88,7 @@ const DATA_TABS = [
     id: "ret_ganancias",
     label: "Ret. Ganancias",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "ret_ganancias_pct", label: "Ret. Ganancias %", editable: true, type: "number" },
     ],
   },
@@ -97,7 +96,7 @@ const DATA_TABS = [
     id: "suss",
     label: "SUSS",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "ret_suss_pct", label: "SUSS %", editable: true, type: "number" },
     ],
   },
@@ -105,7 +104,7 @@ const DATA_TABS = [
     id: "direccion",
     label: "Dirección",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "domicilio", label: "Domicilio", editable: true },
       { key: "cp", label: "C.P.", editable: true },
       { key: "localidad", label: "Localidad", editable: true },
@@ -117,7 +116,7 @@ const DATA_TABS = [
     id: "operaciones",
     label: "Operaciones",
     columns: [
-      { key: "name", label: "Nombre" },
+      { key: "name", label: "Razón Social" },
       { key: "order_prefix", label: "Prefijo Pedido", editable: true },
       { key: "is_active", label: "Activo", editable: true, type: "boolean" },
     ],
@@ -340,8 +339,12 @@ export default function ProveedoresPage() {
   const [activeTab, setActiveTab] = useState("basicos");
   const [modal, setModal] = useState(null);
   const [historiaProvider, setHistoriaProvider] = useState(null);
-  const [editingCell, setEditingCell] = useState(null); // { providerId, field }
+  const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
+  const [colWidths, setColWidths] = useState({});
+  const resizingRef = useRef(null);
 
   // ─── Contactos multi state ────────────────────────────────────────────────────
   const [selectedProvider, setSelectedProvider] = useState(null);
@@ -411,6 +414,41 @@ export default function ProveedoresPage() {
       (p.email || "").toLowerCase().includes(q)
     );
   }, [allProviders, search]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortKey] ?? "";
+      const bv = b[sortKey] ?? "";
+      const cmp = (typeof av === "number" && typeof bv === "number")
+        ? av - bv
+        : String(av).localeCompare(String(bv), "es", { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const handleSort = useCallback((key) => {
+    setSortKey((prev) => {
+      if (prev === key) { setSortDir((d) => d === "asc" ? "desc" : "asc"); return key; }
+      setSortDir("asc"); return key;
+    });
+  }, []);
+
+  const startResize = useCallback((e, colKey) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = colWidths[`${activeTab}-${colKey}`] || e.currentTarget.parentElement.offsetWidth;
+    const onMouseMove = (me) => {
+      const newWidth = Math.max(60, startWidth + me.clientX - startX);
+      setColWidths((prev) => ({ ...prev, [`${activeTab}-${colKey}`]: newWidth }));
+    };
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [activeTab, colWidths]);
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post("/providers/", data),
@@ -531,7 +569,7 @@ export default function ProveedoresPage() {
         {DATA_TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setEditingCell(null); }}
+            onClick={() => { setActiveTab(tab.id); setEditingCell(null); setSortKey(null); setSortDir("asc"); }}
             className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition ${
               activeTab === tab.id
                 ? "bg-blue-600 text-white"
@@ -557,11 +595,24 @@ export default function ProveedoresPage() {
                 {currentTab.columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`py-2.5 px-3 font-medium text-gray-500 text-xs uppercase tracking-wider text-left whitespace-nowrap ${
+                    style={{ width: colWidths[`${activeTab}-${col.key}`] || undefined, minWidth: 60, position: "relative" }}
+                    className={`py-2.5 px-3 font-medium text-gray-500 text-xs uppercase tracking-wider text-left ${
                       col.key === "name" ? "sticky left-0 bg-gray-50 z-10" : ""
                     }`}
                   >
-                    {col.label}
+                    <div
+                      className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap"
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}
+                      <span className="opacity-50">
+                        {sortKey === col.key ? (sortDir === "asc" ? "↑" : "↓") : "↕"}
+                      </span>
+                    </div>
+                    <div
+                      className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400 hover:opacity-80 opacity-0 transition-opacity"
+                      onMouseDown={(e) => startResize(e, col.key)}
+                    />
                   </th>
                 ))}
               </tr>
@@ -569,10 +620,10 @@ export default function ProveedoresPage() {
             <tbody>
               {isLoading ? (
                 <tr><td colSpan={currentTab.columns.length + 2} className="py-16 text-center text-gray-400">Cargando proveedores...</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : sorted.length === 0 ? (
                 <tr><td colSpan={currentTab.columns.length + 2} className="py-16 text-center text-gray-400">No hay proveedores</td></tr>
               ) : (
-                filtered.map((p, idx) => (
+                sorted.map((p, idx) => (
                   <tr key={p.id} className="hover:bg-blue-50/30 transition-colors">
                     {currentTab.showHistoria && (
                       <td className="text-center px-3 py-1.5 border-b border-gray-100">

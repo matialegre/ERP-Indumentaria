@@ -851,6 +851,19 @@ export default function InformesPage() {
               >
                 Hoy
               </button>
+              <span className="text-slate-300">·</span>
+              <button
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 1);
+                  const y = localDate(d);
+                  setFilterValues(prev => ({ ...prev, desde: y, hasta: y }));
+                  setQueryEnabled(false);
+                }}
+                className="text-xs text-slate-500 hover:text-slate-700 underline"
+              >
+                Ayer
+              </button>
             </div>
           </div>
 

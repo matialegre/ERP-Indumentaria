@@ -19,6 +19,7 @@ if (_isCapacitor) {
   API_BASE = `${window.location.protocol}//${window.location.hostname}:${_apiPort}/api/v1`;
 }
 const TIMEOUT_MS = 30000; // 30 segundos — consultas pesadas (comisiones, reportes) necesitan más tiempo
+export const SERVER_BASE = API_BASE.replace('/api/v1', '');
 
 // User-friendly error messages by HTTP status
 const STATUS_MESSAGES = {
@@ -115,6 +116,29 @@ export const api = {
   put: (url, data) => request(url, { method: "PUT", body: JSON.stringify(data) }),
   patch: (url, data) => request(url, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
   delete: (url) => request(url, { method: "DELETE" }),
+  download: async (url, filename) => {
+    const token = sessionStorage.getItem("token");
+    const res = await fetch(`${API_BASE}${url}`, {
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+    });
+    if (res.status === 401) { sessionStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
+    if (!res.ok) { const err = await res.json().catch(() => ({ detail: "Error del servidor" })); throw new Error(err.detail || `Error ${res.status}`); }
+    const blob = await res.blob();
+    let fname = filename;
+    if (!fname) {
+      const cd = res.headers.get("Content-Disposition") || "";
+      const m = cd.match(/filename="?([^";]+)"?/i);
+      fname = m ? m[1] : "download";
+    }
+    const urlObj = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = urlObj;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(urlObj);
+  },
   uploadFile: (url, formData) => {
     const token = sessionStorage.getItem("token");
     return fetch(`${API_BASE}${url}`, {
