@@ -984,11 +984,64 @@ class ConflictoDelta(BaseModel):
     resolution: str
     created_at: datetime
 
+class SaleItemDelta(BaseModel):
+    id: int
+    variant_id: int
+    quantity: int
+    unit_price: float
+    discount_pct: float | None
+
+class SaleDelta(BaseModel):
+    id: int
+    type: str
+    number: str | None
+    date: str
+    status: str
+    customer_name: str | None
+    customer_cuit: str | None
+    subtotal: float | None
+    tax: float | None
+    total: float | None
+    local_id: int | None
+    created_by_id: int | None
+    updated_at: datetime
+    items: list[SaleItemDelta]
+
+class ProviderDelta(BaseModel):
+    id: int
+    name: str
+    cuit: str | None
+    contact_name: str | None
+    phone: str | None
+    email: str | None
+    is_active: bool
+    updated_at: datetime
+
+class LocalDelta(BaseModel):
+    id: int
+    name: str
+    code: str | None
+    address: str | None
+    phone: str | None
+    is_active: bool
+    updated_at: datetime
+
+class StockDelta(BaseModel):
+    variant_id: int
+    product_id: int
+    sku: str | None
+    barcode: str | None
+    stock: int
+
 class DeltaOut(BaseModel):
     productos_modificados: list[ProductDelta]
     clientes_modificados: list[ClienteDelta]
     precios_modificados: list[PrecioDelta]
     conflictos_pendientes: list[ConflictoDelta]
+    ventas_modificadas: list[SaleDelta]
+    proveedores_modificados: list[ProviderDelta]
+    locales: list[LocalDelta]
+    stock: list[StockDelta]
     timestamp_servidor: datetime
     # Indica si hay más cambios (límite de seguridad alcanzado)
     truncated: bool = False
@@ -1013,6 +1066,9 @@ def delta_sync(
     from app.models.product import Product, ProductVariant
     from app.models.customer import Customer, CustomerCompany
     from app.models.price_list import PriceListItem, PriceListFile
+    from app.models.sale import Sale, SaleItem
+    from app.models.provider import Provider
+    from app.models.local import Local
 
     company_id = current_user.company_id
     ahora = datetime.utcnow()
@@ -1141,6 +1197,98 @@ def delta_sync(
         for c in conf_q
     ]
 
+    # ── Ventas modificadas (últimas 24h o desde último sync) ───────────────
+    ventas_q = (
+        db.query(Sale)
+        .filter(
+            Sale.company_id == company_id,
+            Sale.updated_at >= desde_naive,
+        )
+        .order_by(Sale.updated_at.asc())
+        .limit(LIMIT + 1)
+        .all()
+    )
+    if len(ventas_q) > LIMIT:
+        truncated = True
+    ventas_q = ventas_q[:LIMIT]
+
+    ventas_modificadas = []
+    for s in ventas_q:
+        items_data = [
+            SaleItemDelta(
+                id=si.id, variant_id=si.variant_id,
+                quantity=si.quantity,
+                unit_price=float(si.unit_price),
+                discount_pct=float(si.discount_pct) if si.discount_pct else None,
+            )
+            for si in (s.items or [])
+        ]
+        ventas_modificadas.append(SaleDelta(
+            id=s.id, type=s.type.value if s.type else "TICKET",
+            number=s.number,
+            date=str(s.date) if s.date else "",
+            status=s.status.value if s.status else "BORRADOR",
+            customer_name=s.customer_name,
+            customer_cuit=s.customer_cuit,
+            subtotal=float(s.subtotal) if s.subtotal else None,
+            tax=float(s.tax) if s.tax else None,
+            total=float(s.total) if s.total else None,
+            local_id=s.local_id,
+            created_by_id=s.created_by_id,
+            updated_at=s.updated_at,
+            items=items_data,
+        ))
+
+    # ── Proveedores modificados ────────────────────────────────────────────
+    provs = (
+        db.query(Provider)
+        .filter(
+            Provider.company_id == company_id,
+            Provider.updated_at >= desde_naive,
+        )
+        .order_by(Provider.updated_at.asc())
+        .limit(LIMIT)
+        .all()
+    )
+    proveedores_modificados = [
+        ProviderDelta(
+            id=p.id, name=p.name, cuit=p.cuit,
+            contact_name=p.contact_name, phone=p.phone, email=p.email,
+            is_active=p.is_active, updated_at=p.updated_at,
+        )
+        for p in provs
+    ]
+
+    # ── Locales (siempre se envían todos, son pocos) ───────────────────────
+    locales_q = (
+        db.query(Local)
+        .filter(Local.company_id == company_id)
+        .all()
+    )
+    locales_data = [
+        LocalDelta(
+            id=l.id, name=l.name, code=l.code,
+            address=l.address, phone=l.phone,
+            is_active=l.is_active, updated_at=l.updated_at,
+        )
+        for l in locales_q
+    ]
+
+    # ── Stock actual (variantes con stock > 0 o modificadas recientemente)─
+    stock_q = (
+        db.query(ProductVariant)
+        .join(Product)
+        .filter(Product.company_id == company_id)
+        .all()
+    )
+    stock_data = [
+        StockDelta(
+            variant_id=v.id, product_id=v.product_id,
+            sku=v.sku, barcode=v.barcode, stock=v.stock,
+        )
+        for v in stock_q
+    ]
+
     # ── Actualizar last_sync_at del dispositivo ────────────────────────────
     device = db.query(DeviceRegistry).filter(
         DeviceRegistry.id == dispositivo_id,
@@ -1155,6 +1303,10 @@ def delta_sync(
         clientes_modificados=clientes_modificados,
         precios_modificados=precios_modificados,
         conflictos_pendientes=conflictos_pendientes,
+        ventas_modificadas=ventas_modificadas,
+        proveedores_modificados=proveedores_modificados,
+        locales=locales_data,
+        stock=stock_data,
         timestamp_servidor=ahora,
         truncated=truncated,
     )

@@ -11,6 +11,7 @@ import SyncProgressWidget from "../components/SyncProgressWidget";
 import LocalSelector from "../components/LocalSelector";
 import ImpersonationBanner from "../components/ImpersonationBanner";
 import { startPeriodicSync, stopPeriodicSync, flushPendingOps } from "../lib/offlineSync";
+import { enableAutoSync } from "../lib/syncEngine";
 import GlobalSearch from "../components/GlobalSearch";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { useOnlineStatus, usePendingOps } from "../hooks/useOffline";
@@ -69,6 +70,7 @@ import {
   Building2,
   Banknote,
   Database,
+  Smartphone,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -82,6 +84,7 @@ const NAV_ITEMS = [
       { to: "/importacion",   icon: Ship,        label: "Importación",      roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                             module: "IMPORTACION" },
       { to: "/gestion-pagos", icon: CreditCard,  label: "Gestión de Pagos", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: "PAGOS", badgeKey: "pagos_pendientes" },
       { to: "/cash-flow",     icon: Banknote,    label: "Cash Flow",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: null },
+      { to: "/vencimientos",  icon: CalendarDays, label: "Vencimientos",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: null },
       {
         icon: ClipboardList, label: "Gestión de Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"], module: null,
         children: [
@@ -130,14 +133,20 @@ const NAV_ITEMS = [
   { to: "/mejoras",              icon: Lightbulb,     label: "Mejoras",              roles: ["SUPERADMIN","ADMIN"],              module: "MEJORAS" },
   // MercadoLibre
   { to: "/mercadolibre",     icon: ShoppingCart, label: "MercadoLibre",       roles: ["SUPERADMIN","ADMIN","DEPOSITO"], module: "MERCADOLIBRE" },
+  // Asistente IA
+  { to: "/asistente", icon: Bot, label: "Nexus IA", roles: null, module: "ASISTENTE_IA" },
+  // App Móvil
+  { to: "/mobile-app", icon: Smartphone, label: "App Celular", roles: null, module: null },
   // Mensajería interna
   { to: "/mensajes",             icon: MessageSquare, label: "Mensajes",             roles: null,                               module: "MENSAJES",   badgeKey: "mensajes_unread" },
   // RRHH
   {
-    icon: UserCheck, label: "RRHH", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","SUPERVISOR"], module: "RRHH",
+    icon: UserCheck, label: "RRHH", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","SUPERVISOR","VENDEDOR","DEPOSITO","LOCAL"], module: "RRHH",
     children: [
       { to: "/naaloo",               icon: CalendarDays,    label: "Portal Empleado",      roles: null,                                                      module: "NAALOO",              moduleAlt: "RRHH" },
       { to: "/rrhh",                 icon: UserCheck,       label: "Gestión de Horarios",  roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                    module: "RRHH" },
+      { to: "/fichaje/checkin",      icon: MapPin,          label: "Fichar Entrada/Salida",roles: null,                                                      module: "FICHAJE" },
+      { to: "/fichaje",              icon: UserCheck,       label: "Gestión Fichajes",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","SUPERVISOR"],       module: "FICHAJE" },
       { to: "/comisiones",           icon: BadgeDollarSign, label: "Comisiones",           roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],    module: "COMISIONES",          moduleAlt: "RRHH" },
       { to: "/puntuacion-empleados", icon: Star,            label: "Puntuación Empleados", roles: ["SUPERADMIN","ADMIN","SUPERVISOR"],                        module: "PUNTUACION_EMPLEADOS" },
     ]
@@ -350,11 +359,11 @@ export default function AppLayout() {
             return { ...child, children: visibleSubChildren };
           }
           return child;
-        });
+        }).filter((child) => !child.children || child.children.length > 0);
         return { ...item, children: visibleChildren };
       }
       return item;
-    });
+    }).filter((item) => !item.children || item.children.length > 0);
     filtered.sort((a, b) => a.label.localeCompare(b.label, 'es'));
     return filtered;
   }, [isClientMode, user?.role, modulesLoaded, activeModuleSlugs]);
@@ -395,11 +404,12 @@ export default function AppLayout() {
   // Start periodic catalog sync + pending ops flush for offline support
   useEffect(() => {
     startPeriodicSync();
+    enableAutoSync(); // auto-sync al reconectar
     flushPendingOps().catch(() => {});
 
     const flushInterval = setInterval(() => {
       if (navigator.onLine) flushPendingOps().catch(() => {});
-    }, 5 * 60 * 1000);
+    }, 60 * 1000); // cada 1 minuto
 
     return () => {
       stopPeriodicSync();
@@ -489,10 +499,10 @@ export default function AppLayout() {
           }).map((item) => {
             // Grupo colapsable (tiene children)
             if (item.children) {
-              const isExpanded = expandedGroups[item.label] || !!navSearch;
               const isActiveGroup = item.children.some(c => c.children
                 ? c.children.some(s => location.pathname === s.to || location.pathname.startsWith(s.to + "/"))
                 : location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
+              const isExpanded = expandedGroups[item.label] || !!navSearch || isActiveGroup;
               const filteredChildren = navSearch
                 ? item.children.filter(c => {
                     const q = navSearch.toLowerCase();

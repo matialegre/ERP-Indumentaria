@@ -56,7 +56,7 @@ export function onSyncProgress(fn) {
 /* ═══════════════════════════════════════════════════════ */
 /*  CATALOG SYNC (download server → IndexedDB)             */
 /* ═══════════════════════════════════════════════════════ */
-const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
+const SYNC_INTERVAL = 60 * 1000; // 1 minuto
 let _syncTimer = null;
 
 /**
@@ -281,7 +281,7 @@ export async function fetchWithFallback(endpoint, storeName, options = {}) {
   const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const API_BASE = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
     const res = await fetch(`${API_BASE}${endpoint}`, {
       headers: {

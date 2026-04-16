@@ -67,6 +67,29 @@ function _setLastSyncTime(ts = Date.now()) {
   localStorage.setItem(LAST_SYNC_KEY, String(ts));
 }
 
+// ─── Registro de dispositivo ─────────────────────────────────
+
+let _deviceRegistered = false;
+
+async function _registerDevice() {
+  if (_deviceRegistered) return;
+  try {
+    const deviceId = getDeviceId();
+    const hostname = typeof navigator !== "undefined"
+      ? (navigator.userAgentData?.platform || navigator.platform || "unknown")
+      : "unknown";
+    await api.post("/sync/register-device", {
+      device_id: deviceId,
+      name: `${hostname} - ${navigator.userAgent?.slice(0, 40) || "browser"}`,
+      device_type: "PC",
+      local_id: null,
+    });
+    _deviceRegistered = true;
+  } catch (err) {
+    console.warn("[syncEngine] No se pudo registrar dispositivo:", err.message);
+  }
+}
+
 // ─── FASE 1: Datos críticos ──────────────────────────────────
 
 async function _fetchCriticos(deviceId) {
@@ -136,6 +159,10 @@ async function _applyDelta(delta) {
     productos_modificados = [],
     clientes_modificados = [],
     precios_modificados = [],
+    ventas_modificadas = [],
+    proveedores_modificados = [],
+    locales = [],
+    stock = [],
     timestamp_servidor,
   } = delta.data;
 
@@ -154,6 +181,26 @@ async function _applyDelta(delta) {
   if (precios_modificados.length) {
     await putMany("catalogArticulos", precios_modificados);
     applied += precios_modificados.length;
+  }
+
+  if (ventas_modificadas.length) {
+    await putMany("recentOrders", ventas_modificadas);
+    applied += ventas_modificadas.length;
+  }
+
+  if (proveedores_modificados.length) {
+    await putMany("catalogProviders", proveedores_modificados);
+    applied += proveedores_modificados.length;
+  }
+
+  if (locales.length) {
+    await putMany("catalogLocals", locales);
+    applied += locales.length;
+  }
+
+  if (stock.length) {
+    await putMany("catalogStock", stock);
+    applied += stock.length;
   }
 
   if (timestamp_servidor) {
@@ -334,9 +381,12 @@ let _autoSyncUnsubscribe = null;
 export function enableAutoSync() {
   if (_autoSyncEnabled) return;
   _autoSyncEnabled = true;
+
+  // Registrar dispositivo en el servidor al activar sync
+  _registerDevice().catch(() => {});
+
   _autoSyncUnsubscribe = onConnectionChange((online) => {
     if (online) {
-      // Pequeño delay para que la conexión se estabilice
       setTimeout(() => startSync().catch(() => {}), 3000);
     }
   });
