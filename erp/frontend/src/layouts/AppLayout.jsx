@@ -71,22 +71,71 @@ import {
   Banknote,
   Database,
   Smartphone,
+  Globe,
+  Briefcase,
+  Cog,
 } from "lucide-react";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NAV_ITEMS — Menú principal reorganizado en 11 grupos temáticos
+// (ERP para minorista + mayorista + administración + importación + e-commerce)
+// El orden de los grupos es el del flujo de negocio, NO alfabético.
+// ─────────────────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { to: "/mega-admin",     icon: Shield,          label: "Mega Admin",          roles: ["MEGAADMIN"],                                                            module: null },
-  { to: "/",               icon: LayoutDashboard, label: "Dashboard",       roles: null,                                                                    module: null },
-  { to: "/resumen",        icon: Activity,        label: "Resumen",             roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","ADMINISTRACION"],            module: "RESUMEN",        moduleAlt: "COMPRAS" },
-  // Administración (grupo colapsable con sub-grupos)
+  // 1) Dashboard
+  { to: "/",          icon: LayoutDashboard, label: "Dashboard", roles: null, module: null },
+
+  // 2) Ventas — POS minorista, B2B mayorista, consultas y precios
   {
-    icon: Building2, label: "Administración", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS","DEPOSITO","LOCAL"], module: null,
+    icon: ShoppingCart, label: "Ventas",
+    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","VENDEDOR","LOCAL","COMPRAS"],
+    module: null,
     children: [
-      { to: "/importacion",   icon: Ship,        label: "Importación",      roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                             module: "IMPORTACION" },
-      { to: "/gestion-pagos", icon: CreditCard,  label: "Gestión de Pagos", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: "PAGOS", badgeKey: "pagos_pendientes" },
-      { to: "/cash-flow",     icon: Banknote,    label: "Cash Flow",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: null },
-      { to: "/vencimientos",  icon: CalendarDays, label: "Vencimientos",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                      module: null },
+      { to: "/facturacion",    icon: Receipt,    label: "Facturación / POS",   roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","VENDEDOR","LOCAL"], module: "VENTAS" },
+      { to: "/consultas",      icon: Search,     label: "Consultas ERP",       roles: null,                                                       module: "CONSULTAS" },
+      { to: "/consultas-sql",  icon: Database,   label: "SQL PC Tomy",         roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],          module: "CONSULTAS" },
+      { to: "/comparador",     icon: GitCompare, label: "Comparador Precios",  roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],          module: "COMPARADOR", moduleAlt: "CATALOGO" },
+    ],
+  },
+
+  // 3) E-commerce — canales unificados
+  {
+    icon: Globe, label: "E-commerce",
+    roles: ["SUPERADMIN","ADMIN","DEPOSITO","VENDEDOR","ADMINISTRACION","COMPRAS"],
+    module: null,
+    children: [
+      { to: "/mercadolibre",          icon: ShoppingCart, label: "MercadoLibre",      roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                  module: "MERCADOLIBRE" },
+      { to: "/crm/meli-indumentaria", icon: Store,       label: "ML Indumentaria",    roles: null,                                                module: "ML_INDUMENTARIA", moduleAlt: "CRM" },
+      { to: "/crm/meli-neuquen",      icon: Store,       label: "ML Neuquén",         roles: null,                                                module: "ML_NEUQUEN",      moduleAlt: "CRM" },
+      { to: "/crm/vtex",              icon: Store,       label: "VTEX Canal",         roles: null,                                                module: "VTEX_CANAL",      moduleAlt: "CRM" },
+      { to: "/crm/vtex-inactivos",    icon: Users,       label: "VTEX Inactivos",     roles: null,                                                module: "VTEX_INACTIVOS",  moduleAlt: "CRM" },
+      { to: "/crm/dragonfish",        icon: Package,     label: "Dragonfish",         roles: null,                                                module: "DRAGONFISH",      moduleAlt: "CRM" },
+    ],
+  },
+
+  // 4) Catálogo & Stock
+  {
+    icon: Boxes, label: "Catálogo & Stock",
+    roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL","VENDEDOR"],
+    module: null,
+    children: [
+      { to: "/productos",  icon: ShoppingBag, label: "Productos",  roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                   module: "PRODUCTOS", moduleAlt: "CATALOGO" },
+      { to: "/stock",      icon: Warehouse,   label: "Stock",      roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],               module: "STOCK" },
+      { to: "/deposito",   icon: Boxes,       label: "Depósito",   roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                  module: "DEPOSITO",  moduleAlt: "STOCK" },
+      { to: "/transporte", icon: Truck,       label: "Transporte", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                module: "TRANSPORTE" },
+    ],
+  },
+
+  // 5) Compras & Proveedores (incluye flujo de remitos)
+  {
+    icon: Briefcase, label: "Compras",
+    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"],
+    module: null,
+    children: [
       {
-        icon: ClipboardList, label: "Gestión de Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"], module: null,
+        icon: ClipboardList, label: "Gestión de Remitos",
+        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"],
+        module: null,
         children: [
           { to: "/pedidos-compras",    icon: ShoppingCart, label: "Notas de Pedido",    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "NOTAS_PEDIDO",       moduleAlt: "COMPRAS", badgeKey: "pedidos_pendientes" },
           { to: "/recepcion",          icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "RECEPCION",          moduleAlt: "COMPRAS", badgeKey: "recepcion_pendiente" },
@@ -98,86 +147,105 @@ const NAV_ITEMS = [
       { to: "/proveedores", icon: Truck, label: "Proveedores", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "PROVEEDORES", moduleAlt: "CATALOGO" },
     ],
   },
-  // Depósito
-  { to: "/transporte",     icon: Truck,        label: "Transporte",         roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                      module: "TRANSPORTE" },
-  // Depósito
-  { to: "/deposito",     icon: Boxes,        label: "Depósito",           roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                        module: "DEPOSITO",             moduleAlt: "STOCK" },
-  // Gestión
-  { to: "/stock",          icon: Warehouse,    label: "Stock",              roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],                     module: "STOCK" },
-  { to: "/facturacion",    icon: FileText,     label: "Facturación",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                  module: "VENTAS" },
-  { to: "/consultas",      icon: Search,       label: "Consultas ERP",      roles: null,                                                                    module: "CONSULTAS" },
-  { to: "/consultas-sql",  icon: Database,     label: "SQL PC Tomy",        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "CONSULTAS" },
-  { to: "/comparador",     icon: GitCompare,   label: "Comparador Precios", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                       module: "COMPARADOR",           moduleAlt: "CATALOGO" },
-  { to: "/kanban",         icon: Kanban,       label: "TrellOutdoor",       roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS"],        module: "KANBAN" },
-  // Catálogos
-  { to: "/productos",      icon: ShoppingBag,  label: "Productos",          roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                        module: "PRODUCTOS",            moduleAlt: "CATALOGO" },
-  { to: "/locales",        icon: Store,        label: "Locales",            roles: ["SUPERADMIN","ADMIN"],                                                  module: "LOCALES" },
-  { to: "/usuarios",       icon: Users,        label: "Usuarios",           roles: ["SUPERADMIN","ADMIN"],                                                  module: "USUARIOS" },
-  // Admin
-  { to: "/reportes",       icon: BarChart3,         label: "Estadísticas",       roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                 module: "ESTADISTICAS",         moduleAlt: "REPORTES" },
-  { to: "/socios-montagne",icon: UserCheck,          label: "Socios Montagne",    roles: ["SUPERADMIN","ADMIN"],                                                  module: "SOCIOS" },
-  { to: "/config",              icon: Settings,       label: "Configuración",      roles: ["SUPERADMIN"],           module: null },
-  { to: "/config-modulos",      icon: LayoutTemplate, label: "Módulos",            roles: ["SUPERADMIN","ADMIN"],   module: null },
-  { to: "/sync-status",         icon: RefreshCw,      label: "Estado Sync",          roles: null,                     module: "SYNC" },
-  { to: "/configurador-menu",   icon: LayoutTemplate, label: "Configurador Menú",  roles: ["SUPERADMIN","ADMIN"],   module: null },
-  { to: "/monitoreo",           icon: Activity,       label: "Monitoreo",          roles: ["SUPERADMIN","ADMIN"],   module: "MONITOREO" },
-  // Taller
-  { to: "/taller",             icon: Wrench,         label: "Taller — Dashboard", roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "OT" },
-  { to: "/taller/ot",          icon: Wrench,         label: "Órdenes de Trabajo", roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "OT" },
-  { to: "/taller/clientes",    icon: Users,          label: "Clientes Taller",    roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "OT" },
-  { to: "/taller/stock",       icon: Package,        label: "Repuestos",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"], module: "OT" },
-  // SuperTrend — Análisis de competencia
-  { to: "/supertrend",         icon: TrendingUp,     label: "SuperTrend",         roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "SUPERTREND" },
 
-  // Mejoras
-  { to: "/mejoras",              icon: Lightbulb,     label: "Mejoras",              roles: ["SUPERADMIN","ADMIN"],              module: "MEJORAS" },
-  { to: "/propuestas",           icon: Lightbulb,     label: "Propuestas de Menú",   roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "PROPUESTAS" },
-  // MercadoLibre
-  { to: "/mercadolibre",     icon: ShoppingCart, label: "MercadoLibre",       roles: ["SUPERADMIN","ADMIN","DEPOSITO"], module: "MERCADOLIBRE" },
-  // Asistente IA
-  { to: "/asistente", icon: Bot, label: "Nexus IA", roles: null, module: "ASISTENTE_IA" },
-  // App Móvil
-  { to: "/mobile-app", icon: Smartphone, label: "App Celular", roles: null, module: null },
-  // Mensajería interna
-  { to: "/mensajes",             icon: MessageSquare, label: "Mensajes",             roles: null,                               module: "MENSAJES",   badgeKey: "mensajes_unread" },
-  // RRHH
+  // 6) Importación (módulo dedicado)
+  { to: "/importacion", icon: Ship, label: "Importación", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "IMPORTACION" },
+
+  // 7) Administración — tesorería, AP/AR, impuestos, informes
   {
-    icon: UserCheck, label: "RRHH", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","SUPERVISOR","VENDEDOR","DEPOSITO","LOCAL"], module: "RRHH",
+    icon: Banknote, label: "Administración",
+    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],
+    module: null,
     children: [
-      { to: "/naaloo",               icon: CalendarDays,    label: "Portal Empleado",      roles: null,                                                      module: "NAALOO",              moduleAlt: "RRHH" },
-      { to: "/rrhh",                 icon: UserCheck,       label: "Gestión de Horarios",  roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                    module: "RRHH" },
-      { to: "/fichaje/checkin",      icon: MapPin,          label: "Fichar Entrada/Salida",roles: null,                                                      module: "FICHAJE" },
-      { to: "/fichaje",              icon: UserCheck,       label: "Gestión Fichajes",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","SUPERVISOR"],       module: "FICHAJE" },
-      { to: "/comisiones",           icon: BadgeDollarSign, label: "Comisiones",           roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],    module: "COMISIONES",          moduleAlt: "RRHH" },
-      { to: "/puntuacion-empleados", icon: Star,            label: "Puntuación Empleados", roles: ["SUPERADMIN","ADMIN","SUPERVISOR"],                        module: "PUNTUACION_EMPLEADOS" },
-    ]
-  },
-  // Informes
-  { to: "/informes",             icon: FileBarChart,  label: "Informes",             roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"], module: "INFORMES" },
-  // CRM Avanzado (grupo colapsable)
-  {
-    icon: Users, label: "CRM", roles: ["SUPERADMIN","ADMIN","VENDEDOR","ADMINISTRACION","GESTION_PAGOS","LOCAL","DEPOSITO","COMPRAS"], module: "CRM",
-    children: [
-      { to: "/crm",                    icon: LayoutDashboard, label: "Dashboard",        module: "CRM_DASHBOARD",      moduleAlt: "CRM" },
-      { to: "/crm/clientes",           icon: Users,           label: "Clientes 360°",    module: "CLIENTES_360",       moduleAlt: "CRM" },
-      { to: "/crm/mensajes",           icon: MessageCircle,   label: "Inbox",            module: "INBOX",              moduleAlt: "CRM" },
-      { to: "/crm/club",               icon: Crown,           label: "Mundo Club",       module: "MUNDO_CLUB",         moduleAlt: "CRM" },
-      { to: "/crm/campanas",           icon: Rocket,          label: "Campañas",         module: "CAMPANAS",           moduleAlt: "CRM" },
-      { to: "/crm/publicidad",         icon: Megaphone,       label: "Publicidad",       module: "PUBLICIDAD",         moduleAlt: "CRM" },
-      { to: "/crm/contenido",          icon: CalendarDays,    label: "Contenido",        module: "CONTENIDO",          moduleAlt: "CRM" },
-      { to: "/crm/analytics",          icon: BarChart3,       label: "Analytics",        module: "ANALYTICS_CRM",      moduleAlt: "CRM" },
-      { to: "/crm/integraciones",      icon: Link2,           label: "Integraciones",    module: "INTEGRACIONES_CRM",  moduleAlt: "CRM" },
-      { to: "/crm/dragonfish",         icon: Package,         label: "Dragonfish",       module: "DRAGONFISH",         moduleAlt: "CRM" },
-      { to: "/crm/meli-indumentaria",  icon: Store,           label: "ML Indumentaria",  module: "ML_INDUMENTARIA",    moduleAlt: "CRM" },
-      { to: "/crm/meli-neuquen",       icon: Store,           label: "ML Neuquén",       module: "ML_NEUQUEN",         moduleAlt: "CRM" },
-      { to: "/crm/vtex",               icon: Store,           label: "VTEX Canal",       module: "VTEX_CANAL",         moduleAlt: "CRM" },
-      { to: "/crm/vtex-inactivos",     icon: Users,           label: "VTEX Inactivos",   module: "VTEX_INACTIVOS",     moduleAlt: "CRM" },
-      { to: "/crm/reportes",           icon: FileText,        label: "Reportes CRM",     module: "REPORTES_CRM",       moduleAlt: "CRM" },
-      { to: "/crm/ai",                 icon: Bot,             label: "Asistente IA",     module: "ASISTENTE_IA",       moduleAlt: "CRM" },
+      { to: "/gestion-pagos", icon: CreditCard,   label: "Gestión de Pagos", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: "PAGOS", badgeKey: "pagos_pendientes" },
+      { to: "/cash-flow",     icon: Banknote,     label: "Cash Flow",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: null },
+      { to: "/vencimientos",  icon: CalendarDays, label: "Vencimientos",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: null },
+      { to: "/informes",      icon: FileBarChart, label: "Informes",         roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                 module: "INFORMES" },
     ],
   },
-  // Licencias (solo MEGAADMIN)
-  { to: "/licencias",            icon: Key,           label: "Licencias",            roles: ["MEGAADMIN"],                      module: null },
+
+  // 8) CRM & Marketing
+  {
+    icon: Users, label: "CRM & Marketing",
+    roles: ["SUPERADMIN","ADMIN","VENDEDOR","ADMINISTRACION","GESTION_PAGOS","LOCAL","DEPOSITO","COMPRAS"],
+    module: "CRM",
+    children: [
+      { to: "/crm",               icon: LayoutDashboard, label: "Dashboard CRM",    roles: null, module: "CRM_DASHBOARD",     moduleAlt: "CRM" },
+      { to: "/crm/clientes",      icon: Users,           label: "Clientes 360°",    roles: null, module: "CLIENTES_360",      moduleAlt: "CRM" },
+      { to: "/crm/mensajes",      icon: MessageCircle,   label: "Inbox",            roles: null, module: "INBOX",             moduleAlt: "CRM" },
+      { to: "/mensajes",          icon: MessageSquare,   label: "Mensajes internos", roles: null, module: "MENSAJES",          badgeKey: "mensajes_unread" },
+      { to: "/crm/club",          icon: Crown,           label: "Mundo Club",       roles: null, module: "MUNDO_CLUB",        moduleAlt: "CRM" },
+      { to: "/crm/campanas",      icon: Rocket,          label: "Campañas",         roles: null, module: "CAMPANAS",          moduleAlt: "CRM" },
+      { to: "/crm/publicidad",    icon: Megaphone,       label: "Publicidad",       roles: null, module: "PUBLICIDAD",        moduleAlt: "CRM" },
+      { to: "/crm/contenido",     icon: CalendarDays,    label: "Contenido",        roles: null, module: "CONTENIDO",         moduleAlt: "CRM" },
+      { to: "/crm/analytics",     icon: BarChart3,       label: "Analytics CRM",    roles: null, module: "ANALYTICS_CRM",     moduleAlt: "CRM" },
+      { to: "/crm/integraciones", icon: Link2,           label: "Integraciones",    roles: null, module: "INTEGRACIONES_CRM", moduleAlt: "CRM" },
+      { to: "/crm/reportes",      icon: FileText,        label: "Reportes CRM",     roles: null, module: "REPORTES_CRM",      moduleAlt: "CRM" },
+      { to: "/crm/ai",            icon: Bot,             label: "Asistente IA CRM", roles: null, module: "ASISTENTE_IA",      moduleAlt: "CRM" },
+      { to: "/asistente",         icon: Bot,             label: "Nexus IA",         roles: null, module: "ASISTENTE_IA" },
+    ],
+  },
+
+  // 9) Reportes & BI
+  {
+    icon: BarChart3, label: "Reportes & BI",
+    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","GESTION_PAGOS"],
+    module: null,
+    children: [
+      { to: "/resumen",    icon: Activity,   label: "Resumen",      roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","ADMINISTRACION"],  module: "RESUMEN",      moduleAlt: "COMPRAS" },
+      { to: "/reportes",   icon: BarChart3,  label: "Estadísticas", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                      module: "ESTADISTICAS", moduleAlt: "REPORTES" },
+      { to: "/kanban",     icon: Kanban,     label: "TrellOutdoor", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS"], module: "KANBAN" },
+      { to: "/supertrend", icon: TrendingUp, label: "SuperTrend",   roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],            module: "SUPERTREND" },
+    ],
+  },
+
+  // 10) RRHH & Operaciones
+  {
+    icon: UserCheck, label: "RRHH & Operaciones",
+    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","SUPERVISOR","VENDEDOR","DEPOSITO","LOCAL","MEGAADMIN"],
+    module: null,
+    children: [
+      { to: "/naaloo",               icon: CalendarDays,    label: "Portal Empleado",       roles: null,                                                   module: "NAALOO",              moduleAlt: "RRHH" },
+      { to: "/rrhh",                 icon: UserCheck,       label: "Gestión de Horarios",   roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                module: "RRHH" },
+      { to: "/fichaje/checkin",      icon: MapPin,          label: "Fichar Entrada/Salida", roles: null,                                                   module: "FICHAJE" },
+      { to: "/fichaje",              icon: UserCheck,       label: "Gestión Fichajes",      roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","SUPERVISOR"],   module: "FICHAJE" },
+      { to: "/comisiones",           icon: BadgeDollarSign, label: "Comisiones",            roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],module: "COMISIONES",          moduleAlt: "RRHH" },
+      { to: "/puntuacion-empleados", icon: Star,            label: "Puntuación Empleados",  roles: ["SUPERADMIN","ADMIN","SUPERVISOR"],                    module: "PUNTUACION_EMPLEADOS" },
+      { to: "/socios-montagne",      icon: UserCheck,       label: "Socios Montagne",       roles: ["SUPERADMIN","ADMIN"],                                 module: "SOCIOS" },
+      {
+        icon: Wrench, label: "Taller",
+        roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"],
+        module: "OT",
+        children: [
+          { to: "/taller",          icon: Wrench, label: "Dashboard Taller",    roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "OT" },
+          { to: "/taller/ot",       icon: Wrench, label: "Órdenes de Trabajo",  roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "OT" },
+          { to: "/taller/clientes", icon: Users,  label: "Clientes Taller",     roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "OT" },
+          { to: "/taller/stock",    icon: Package,label: "Repuestos",           roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"], module: "OT" },
+        ],
+      },
+    ],
+  },
+
+  // 11) Sistema & Configuración
+  {
+    icon: Cog, label: "Sistema",
+    roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],
+    module: null,
+    children: [
+      { to: "/mega-admin",         icon: Shield,         label: "Mega Admin",          roles: ["MEGAADMIN"],          module: null },
+      { to: "/licencias",          icon: Key,            label: "Licencias",           roles: ["MEGAADMIN"],          module: null },
+      { to: "/locales",            icon: Store,          label: "Locales / Bases",     roles: ["SUPERADMIN","ADMIN"], module: "LOCALES" },
+      { to: "/usuarios",           icon: Users,          label: "Usuarios",            roles: ["SUPERADMIN","ADMIN"], module: "USUARIOS" },
+      { to: "/config-modulos",     icon: LayoutTemplate, label: "Módulos",             roles: ["SUPERADMIN","ADMIN"], module: null },
+      { to: "/configurador-menu",  icon: LayoutTemplate, label: "Configurador Menú",   roles: ["SUPERADMIN","ADMIN"], module: null },
+      { to: "/config",             icon: Settings,       label: "Configuración",       roles: ["SUPERADMIN"],         module: null },
+      { to: "/monitoreo",          icon: Activity,       label: "Monitoreo",           roles: ["SUPERADMIN","ADMIN"], module: "MONITOREO" },
+      { to: "/sync-status",        icon: RefreshCw,      label: "Estado Sync",         roles: null,                   module: "SYNC" },
+      { to: "/mejoras",            icon: Lightbulb,      label: "Mejoras",             roles: ["SUPERADMIN","ADMIN"], module: "MEJORAS" },
+      { to: "/propuestas",         icon: Lightbulb,      label: "Propuestas de Menú",  roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "PROPUESTAS" },
+      { to: "/mobile-app",         icon: Smartphone,     label: "App Celular",         roles: null,                   module: null },
+    ],
+  },
 ];
 
 export default function AppLayout() {
@@ -365,7 +433,6 @@ export default function AppLayout() {
       }
       return item;
     }).filter((item) => !item.children || item.children.length > 0);
-    filtered.sort((a, b) => a.label.localeCompare(b.label, 'es'));
     return filtered;
   }, [isClientMode, user?.role, modulesLoaded, activeModuleSlugs]);
 
