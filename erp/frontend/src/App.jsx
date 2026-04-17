@@ -54,10 +54,16 @@ const MejorasPage = lazy(() => import("./pages/MejorasPage"));
 const MensajesPage = lazy(() => import("./pages/MensajesPage"));
 const LicenciasPage = lazy(() => import("./pages/LicenciasPage"));
 const InformesPage = lazy(() => import("./pages/InformesPage"));
+const PropuestasPage = lazy(() => import("./pages/PropuestasPage"));
 const RRHHPage = lazy(() => import("./pages/RRHHPage"));
 const NaalooPage = lazy(() => import("./pages/NaalooPage"));
 const MercadoLibrePage = lazy(() => import("./pages/MercadoLibrePage"));
 const CashFlowPage = lazy(() => import("./pages/CashFlowPage"));
+const VencimientosPage = lazy(() => import("./pages/VencimientosPage"));
+const AsistentePage = lazy(() => import("./pages/AsistentePage"));
+const MobileAppPage = lazy(() => import("./pages/MobileAppPage"));
+const FichajePage = lazy(() => import("./pages/FichajePage"));
+const FichajeCheckInPage = lazy(() => import("./pages/FichajeCheckInPage"));
 
 // CRM Avanzado — prefetch al detectar hover en sidebar (preload inmediato para el Dashboard)
 const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
@@ -264,10 +270,16 @@ export default function App() {
             <Route path="mensajes"             element={<LazyPage><MensajesPage /></LazyPage>} />
             <Route path="licencias"            element={<LazyPage><LicenciasPage /></LazyPage>} />
             <Route path="informes"             element={<LazyPage><InformesPage /></LazyPage>} />
+            <Route path="propuestas"           element={<LazyPage><PropuestasPage /></LazyPage>} />
             <Route path="rrhh"                 element={<LazyPage><RRHHPage /></LazyPage>} />
             <Route path="naaloo"               element={<LazyPage><NaalooPage /></LazyPage>} />
             <Route path="mercadolibre"         element={<LazyPage><MercadoLibrePage /></LazyPage>} />
             <Route path="cash-flow"            element={<LazyPage><CashFlowPage /></LazyPage>} />
+            <Route path="vencimientos"         element={<LazyPage><VencimientosPage /></LazyPage>} />
+            <Route path="asistente"            element={<LazyPage><AsistentePage /></LazyPage>} />
+            <Route path="mobile-app"           element={<LazyPage><MobileAppPage /></LazyPage>} />
+            <Route path="fichaje"              element={<LazyPage><FichajePage /></LazyPage>} />
+            <Route path="fichaje/checkin"      element={<LazyPage><FichajeCheckInPage /></LazyPage>} />
             {/* CRM Avanzado */}
             <Route path="crm" element={<LazyPage><CRMDashboard /></LazyPage>} />
             <Route path="crm/clientes" element={<LazyPage><CRMClientes /></LazyPage>} />

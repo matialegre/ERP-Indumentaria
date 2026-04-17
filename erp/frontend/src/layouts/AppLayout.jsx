@@ -131,6 +131,7 @@ const NAV_ITEMS = [
 
   // Mejoras
   { to: "/mejoras",              icon: Lightbulb,     label: "Mejoras",              roles: ["SUPERADMIN","ADMIN"],              module: "MEJORAS" },
+  { to: "/propuestas",           icon: Lightbulb,     label: "Propuestas de Menú",   roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "PROPUESTAS" },
   // MercadoLibre
   { to: "/mercadolibre",     icon: ShoppingCart, label: "MercadoLibre",       roles: ["SUPERADMIN","ADMIN","DEPOSITO"], module: "MERCADOLIBRE" },
   // Asistente IA

@@ -202,6 +202,14 @@ MODULES_CATALOG = [
         "color":       "#059669",
     },
     {
+        "slug":        "PROPUESTAS",
+        "nombre":      "Propuestas de Menú",
+        "descripcion": "Laboratorio interno de diseño: distintas propuestas de organización del menú principal (minorista, mayorista, administración, importación, e-commerce y unificado).",
+        "rutas":       ["/propuestas"],
+        "icono":       "Lightbulb",
+        "color":       "#f59e0b",
+    },
+    {
         "slug":        "RRHH",
         "nombre":      "Recursos Humanos",
         "descripcion": "Gestión de empleados, asistencia, liquidación de sueldos y comisiones.",
@@ -285,6 +293,14 @@ MODULES_CATALOG = [
         "color":       "#4338ca",
     },
     # ── RRHH — sub-módulos granulares ────────────────────────────────────
+    {
+        "slug":        "FICHAJE",
+        "nombre":      "Fichaje",
+        "descripcion": "Control de entrada/salida con reconocimiento facial y geolocalización.",
+        "rutas":       ["/fichaje", "/fichaje/checkin"],
+        "icono":       "UserCheck",
+        "color":       "#0891b2",
+    },
     {
         "slug":        "NAALOO",
         "nombre":      "Naaloo — Portal Empleado",
