@@ -513,10 +513,10 @@ export default function AppLayout() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — mobile only; desktop navigation is in TopNav bar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-slate-900 text-white transition-all duration-200 ${sidebarWidth} ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 text-white transition-all duration-200 ${sidebarWidth} ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand */}
@@ -856,6 +856,9 @@ export default function AppLayout() {
           </div>
         </header>
 
+        {/* Horizontal mega-nav — desktop only (mobile uses hamburger sidebar) */}
+        <TopNav items={visibleItems} counts={counts} />
+
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Breadcrumbs />
@@ -909,6 +912,186 @@ function SyncIndicator() {
         <span className={`absolute inline-flex h-3 w-3 rounded-full ${color} opacity-75 animate-ping`} />
       )}
       <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${color}`} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TopNav — barra horizontal de navegación para desktop (mega-dropdown)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TopNavDropdown({ group, counts, onClose }) {
+  const hasSubGroups = group.children.some((c) => c.children);
+  return (
+    <div className="absolute top-full left-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-b-xl shadow-2xl z-50 py-2 min-w-[220px]">
+      {hasSubGroups ? (
+        <div className="flex gap-0 p-2">
+          {group.children.map((child) => {
+            if (child.children) {
+              return (
+                <div key={child.label} className="min-w-[180px] px-2 border-r border-slate-100 dark:border-slate-700 last:border-0">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 mb-1">
+                    <child.icon size={10} />
+                    {child.label}
+                  </div>
+                  {child.children.map((sub) => (
+                    <NavLink
+                      key={sub.to}
+                      to={sub.to}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors ${
+                          isActive
+                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                            : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        }`
+                      }
+                    >
+                      <sub.icon size={14} className="shrink-0" />
+                      <span className="flex-1 truncate">{sub.label}</span>
+                      {sub.badgeKey && counts?.[sub.badgeKey] > 0 && (
+                        <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
+                          {counts[sub.badgeKey] > 99 ? "99+" : counts[sub.badgeKey]}
+                        </span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              );
+            }
+            return (
+              <NavLink
+                key={child.to}
+                to={child.to}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors mx-1 ${
+                    isActive
+                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  }`
+                }
+              >
+                <child.icon size={14} className="shrink-0" />
+                <span className="flex-1 truncate">{child.label}</span>
+                {child.badgeKey && counts?.[child.badgeKey] > 0 && (
+                  <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
+                    {counts[child.badgeKey] > 99 ? "99+" : counts[child.badgeKey]}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="px-2 space-y-0.5 py-1">
+          {group.children.map((child) => (
+            <NavLink
+              key={child.to}
+              to={child.to}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors ${
+                  isActive
+                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                }`
+              }
+            >
+              <child.icon size={15} className="shrink-0" />
+              <span className="flex-1 truncate">{child.label}</span>
+              {child.badgeKey && counts?.[child.badgeKey] > 0 && (
+                <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
+                  {counts[child.badgeKey] > 99 ? "99+" : counts[child.badgeKey]}
+                </span>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TopNav({ items, counts }) {
+  const [openGroup, setOpenGroup] = useState(null);
+  const location = useLocation();
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setOpenGroup(null);
+  }, [location.pathname]);
+
+  return (
+    <div className="hidden lg:block bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/60 shrink-0 relative z-30">
+      <div className="flex items-stretch overflow-x-auto">
+        {items.map((item) => {
+          // Compute active state for groups
+          const isActive = item.to
+            ? item.to === "/"
+              ? location.pathname === "/"
+              : location.pathname === item.to || location.pathname.startsWith(item.to + "/")
+            : item.children?.some((c) => {
+                const leaves = c.children ? c.children : [c];
+                return leaves.some(
+                  (l) => l.to && (location.pathname === l.to || location.pathname.startsWith(l.to + "/"))
+                );
+              });
+          const isOpen = openGroup === item.label;
+
+          if (!item.children) {
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive: navActive }) =>
+                  `flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors shrink-0 ${
+                    navActive
+                      ? "bg-slate-700 text-white border-blue-400"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white border-transparent"
+                  }`
+                }
+              >
+                <item.icon size={15} />
+                {item.label}
+              </NavLink>
+            );
+          }
+
+          return (
+            <div
+              key={item.label}
+              className="relative shrink-0"
+              onMouseLeave={() => setOpenGroup(null)}
+            >
+              <button
+                onMouseEnter={() => setOpenGroup(item.label)}
+                onClick={() => setOpenGroup(isOpen ? null : item.label)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors h-full ${
+                  isOpen || isActive
+                    ? "bg-slate-700 text-white border-blue-400"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white border-transparent"
+                }`}
+              >
+                <item.icon size={15} />
+                {item.label}
+                <ChevronDown
+                  size={11}
+                  className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {isOpen && (
+                <TopNavDropdown
+                  group={item}
+                  counts={counts}
+                  onClose={() => setOpenGroup(null)}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
