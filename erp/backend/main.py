@@ -214,6 +214,11 @@ MSG_UPLOADS_DIR = r"D:\ERP MUNDO OUTDOOR\erp\msg_uploads"
 os.makedirs(MSG_UPLOADS_DIR, exist_ok=True)
 app.mount("/msg-uploads", StaticFiles(directory=MSG_UPLOADS_DIR), name="msg-uploads")
 
+# ── Servir imágenes de vencimientos ──────────────────────────────────────────
+VENCIMIENTOS_IMAGES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\vencimientos_images"
+os.makedirs(VENCIMIENTOS_IMAGES_DIR, exist_ok=True)
+app.mount("/vencimientos-img", StaticFiles(directory=VENCIMIENTOS_IMAGES_DIR), name="vencimientos-img")
+
 # ── Servir frontend buildeado (producción: un solo puerto 8000) ──────────────
 # Si existe el dist/ del frontend, lo servimos como archivos estáticos.
 # Cualquier ruta no-API retorna index.html (SPA routing).

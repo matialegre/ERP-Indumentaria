@@ -37,11 +37,13 @@ function getSeccion(nota) {
   if (totalDocs === 0) return "SIN_NADA";
   const hasFac = facturas.length > 0;
   const hasRem = remitos.length > 0;
-  const comprasOK = diferencia === 0 && pedido_qty > 0;
+  // comprasOK solo cuando ambos docs existen y las cantidades cuadran
+  const comprasOK = hasFac && hasRem && diferencia === 0 && pedido_qty > 0;
+  if (comprasOK) return "OK";
+  // INCOMPLETO antes que SOLO_FALTA — si hay diferencia, es incompleto sin importar si faltan remitos
+  if (totalDocs > 0 && diferencia !== 0) return "INCOMPLETO";
   if (hasFac && !hasRem) return "SOLO_FALTA_REM";
   if (hasRem && !hasFac) return "SOLO_FALTA_FAC";
-  if (comprasOK) return "OK";
-  if (totalDocs > 0 && diferencia !== 0) return "INCOMPLETO";
   return "OTROS";
 }
 
@@ -86,6 +88,7 @@ function IngresoListView({ onView, onCreate }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [collapsedSections, setCollapsedSections] = useState(new Set(["SIN_RV", "INCOMPLETO", "SOLO_FALTA_REM", "SOLO_FALTA_FAC", "OK", "OTROS", "SIN_NADA"]));
   const [cruzarModal, setCruzarModal] = useState(null);
+  const [itemsModal, setItemsModal] = useState(null); // { doc, type }
   const [showCargaAvanzada, setShowCargaAvanzada] = useState(false);
   const [sectionFilter, setSectionFilter] = useState("all");
   const [groupByLocal, setGroupByLocal] = useState(false);
@@ -425,7 +428,9 @@ function IngresoListView({ onView, onCreate }) {
                         return (
                           <NotaRow key={nota.id} nota={nota} isExpanded={expandedIds.has(nota.id)}
                             onToggle={() => toggleExpand(nota.id)} onCruzar={() => setCruzarModal({ nota })}
-                            onViewIngreso={(ingresoId) => onView(ingresoId)} cfg={cfg} />
+                            onViewIngreso={(ingresoId) => onView(ingresoId)}
+                            onViewItems={(doc) => setItemsModal({ doc })}
+                            cfg={cfg} />
                         );
                       })}
                     </div>
@@ -451,7 +456,9 @@ function IngresoListView({ onView, onCreate }) {
                       {seccion.notas.map(nota => (
                         <NotaRow key={nota.id} nota={nota} isExpanded={expandedIds.has(nota.id)}
                           onToggle={() => toggleExpand(nota.id)} onCruzar={() => setCruzarModal({ nota })}
-                          onViewIngreso={(ingresoId) => onView(ingresoId)} cfg={cfg} />
+                          onViewIngreso={(ingresoId) => onView(ingresoId)}
+                          onViewItems={(doc) => setItemsModal({ doc })}
+                          cfg={cfg} />
                       ))}
                     </div>
                   )}
@@ -463,6 +470,7 @@ function IngresoListView({ onView, onCreate }) {
       )}
 
       {cruzarModal && <CruzarDocumentosModal nota={cruzarModal.nota} onClose={() => setCruzarModal(null)} />}
+      {itemsModal && <ItemsPDFModal doc={itemsModal.doc} onClose={() => setItemsModal(null)} />}
     </div>
   );
 }
@@ -491,9 +499,167 @@ function CollapsibleAlert({ label, count, accentColor, collapsed, onToggle, chil
 }
 
 /* ═══════════════════════════════════════════════════════ */
+/*  DOC SINGLE ROW — used inside DocPairsGrid              */
+/* ═══════════════════════════════════════════════════════ */
+function DocSingleRow({ doc, type, onViewIngreso, onViewItems }) {
+  const isFac = type === "FAC";
+  const bgClass = isFac ? "bg-white" : "bg-orange-50/40";
+  const badgeClass = isFac ? "bg-blue-600 text-white" : "bg-orange-500 text-white";
+  const eyeClass = isFac ? "text-blue-500 hover:bg-blue-100" : "text-orange-500 hover:bg-orange-100";
+  const npRef = doc.np_ref || doc.notes_np || null;
+  const rv = !isFac && (doc.remito_venta_number || null);
+
+  return (
+    <div className={`flex items-center gap-1 py-1 px-1.5 flex-wrap ${bgClass}`}>
+      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${badgeClass}`}>{type}</span>
+      <span className="font-mono text-[11px] font-bold text-gray-800 shrink-0 truncate max-w-[100px]" title={doc.number}>{doc.number}</span>
+      <span className="text-gray-500 text-[10px] shrink-0">{doc.quantity}u</span>
+      <span className="text-gray-400 text-[10px] shrink-0">{fmtDate(doc.date)}</span>
+      {npRef && <span className="text-gray-500 text-[10px] shrink-0 italic truncate max-w-[90px]" title={npRef}>NP {npRef}</span>}
+      {/* Eye: view ingreso */}
+      <button onClick={() => onViewIngreso(doc.id)} className={`p-0.5 rounded shrink-0 ${eyeClass}`} title="Ver detalle">
+        <Eye className="h-3 w-3" />
+      </button>
+      {/* Green eye: items PDF */}
+      <button onClick={() => onViewItems(doc)} className="p-0.5 text-green-500 hover:bg-green-100 rounded shrink-0" title="Items del PDF">
+        <Eye className="h-3 w-3 text-green-500" />
+      </button>
+      {/* Status badge */}
+      {doc.status === "CONFIRMADO" ? (
+        <span className="bg-green-600 text-white w-3.5 h-3.5 rounded-full text-[7px] flex items-center justify-center shrink-0" title="Confirmado">✓</span>
+      ) : doc.status === "ANULADO" ? (
+        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[7px] font-bold shrink-0">ANUL</span>
+      ) : (
+        <span className="bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded text-[7px] font-bold shrink-0">BORR</span>
+      )}
+      {/* RV badge on remitos */}
+      {rv && <span className="bg-green-100 text-green-700 border border-green-300 px-1 py-0.5 rounded text-[9px] font-bold shrink-0">RV:{rv}</span>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  DOC PAIRS GRID — FAC left / REM right side by side     */
+/* ═══════════════════════════════════════════════════════ */
+function DocPairsGrid({ facturas, remitos, onViewIngreso, onViewItems }) {
+  const maxPairs = Math.max(facturas.length, remitos.length);
+  if (maxPairs === 0) return null;
+  return (
+    <div className="divide-y divide-gray-100 border border-gray-100 rounded overflow-hidden">
+      {/* Header */}
+      <div className="grid grid-cols-2 gap-0 bg-gray-50 border-b border-gray-200">
+        <div className="py-0.5 px-2 text-[10px] font-semibold text-blue-600 border-r border-gray-200">FACTURAS</div>
+        <div className="py-0.5 px-2 text-[10px] font-semibold text-orange-600">REMITOS</div>
+      </div>
+      {Array.from({ length: maxPairs }, (_, i) => {
+        const f = facturas[i];
+        const r = remitos[i];
+        return (
+          <div key={i} className="border-b border-gray-100 last:border-b-0">
+            <div className="grid grid-cols-2 gap-0">
+              <div className="border-r border-gray-100">
+                {f
+                  ? <DocSingleRow doc={f} type="FAC" onViewIngreso={onViewIngreso} onViewItems={onViewItems} />
+                  : <div className="py-1 px-2 text-[10px] text-gray-300 italic">—</div>}
+              </div>
+              <div>
+                {r
+                  ? <DocSingleRow doc={r} type="REM" onViewIngreso={onViewIngreso} onViewItems={onViewItems} />
+                  : <div className="py-1 px-2 text-[10px] text-gray-300 italic">—</div>}
+              </div>
+            </div>
+            {f && r && (
+              <div className="px-2 pb-0.5">
+                <button
+                  onClick={() => {}}
+                  className="text-purple-600 text-[10px] hover:underline flex items-center gap-0.5"
+                  title="Comparar cantidades FAC vs REM"
+                >
+                  <Eye className="h-2.5 w-2.5" /> Comparar FAC vs REM
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════ */
+/*  ITEMS PDF MODAL                                         */
+/* ═══════════════════════════════════════════════════════ */
+function ItemsPDFModal({ doc, onClose }) {
+  const items = doc?.items_pdf || [];
+  const hasItems = items.length > 0 && items.some(it => it.code || it.description || it.qty > 0);
+  const totalQty = hasItems ? items.reduce((s, it) => s + (it.qty || 0), 0) : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[80vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div>
+            <h3 className="font-bold text-gray-800 text-sm">Items extraídos del PDF</h3>
+            <p className="text-xs text-gray-500 font-mono">{doc?.number || "—"}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="overflow-auto flex-1 p-4">
+          {hasItems ? (
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold w-8">#</th>
+                  <th className="text-left px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold">Código</th>
+                  <th className="text-left px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold">Descripción</th>
+                  <th className="text-right px-2 py-1.5 border border-gray-200 text-gray-600 font-semibold">Cant.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((it, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="px-2 py-1 border border-gray-200 text-gray-400">{idx + 1}</td>
+                    <td className="px-2 py-1 border border-gray-200 font-mono text-gray-700">{it.code || "—"}</td>
+                    <td className="px-2 py-1 border border-gray-200 text-gray-700">{it.description || "—"}</td>
+                    <td className="px-2 py-1 border border-gray-200 text-right font-bold text-gray-800">{it.qty ?? 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-blue-50 font-bold">
+                  <td colSpan={3} className="px-2 py-1.5 border border-gray-200 text-right text-blue-700">TOTAL</td>
+                  <td className="px-2 py-1.5 border border-gray-200 text-right text-blue-700">{totalQty}</td>
+                </tr>
+              </tfoot>
+            </table>
+          ) : doc?.items_count > 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+              <Package className="h-10 w-10 text-gray-300" />
+              <p className="text-sm font-semibold text-gray-600">Resumen disponible</p>
+              <p className="text-xs text-gray-500">Items: {doc.items_count} — los detalles individuales no fueron importados.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+              <Package className="h-10 w-10 text-gray-300" />
+              <p className="text-sm font-semibold text-gray-500">Sin datos extraídos del PDF</p>
+              <p className="text-xs text-gray-400">Los ítems de este documento no están disponibles en la base de datos.</p>
+            </div>
+          )}
+        </div>
+        <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════ */
 /*  NOTA ROW (collapsed + expanded)                        */
 /* ═══════════════════════════════════════════════════════ */
-function NotaRow({ nota, isExpanded, onToggle, onCruzar, onViewIngreso, cfg }) {
+function NotaRow({ nota, isExpanded, onToggle, onCruzar, onViewIngreso, onViewItems, cfg }) {
   const totalFac = (nota.facturas || []).reduce((s, f) => s + (f.quantity || 0), 0);
   const totalRem = (nota.remitos || []).reduce((s, r) => s + (r.quantity || 0), 0);
   const np = nota.pedido_qty || 0;
@@ -613,40 +779,12 @@ function NotaRow({ nota, isExpanded, onToggle, onCruzar, onViewIngreso, cfg }) {
                   <p className="text-xs">Sin facturas ni remitos cargados</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {nota.facturas.map(f => (
-                    <div key={f.id} className="flex items-center gap-1.5 py-1 px-1 flex-wrap">
-                      <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">FAC</span>
-                      <span className="font-mono text-[11px] font-bold text-gray-800 shrink-0">{f.number}</span>
-                      <span className="text-gray-500 text-[10px] shrink-0">{f.quantity}u</span>
-                      <span className="text-gray-400 text-[10px] shrink-0">{fmtDate(f.date)}</span>
-                      <button onClick={() => onViewIngreso(f.id)} className="p-0.5 text-blue-500 hover:bg-blue-100 rounded shrink-0" title="Ver"><Eye className="h-3 w-3" /></button>
-                      {f.status === "CONFIRMADO" ? (
-                        <span className="bg-green-600 text-white w-3.5 h-3.5 rounded-full text-[7px] flex items-center justify-center shrink-0" title="Confirmado">✓</span>
-                      ) : f.status === "ANULADO" ? (
-                        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[7px] font-bold shrink-0">ANUL</span>
-                      ) : (
-                        <span className="bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded text-[7px] font-bold shrink-0">BORR</span>
-                      )}
-                    </div>
-                  ))}
-                  {nota.remitos.map(r => (
-                    <div key={r.id} className="flex items-center gap-1.5 py-1 px-1 bg-orange-50/40 flex-wrap">
-                      <span className="bg-orange-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">REM</span>
-                      <span className="font-mono text-[11px] font-bold text-gray-700 shrink-0">{r.number}</span>
-                      <span className="text-gray-500 text-[10px] shrink-0">{r.quantity}u</span>
-                      <span className="text-gray-400 text-[10px] shrink-0">{fmtDate(r.date)}</span>
-                      <button onClick={() => onViewIngreso(r.id)} className="p-0.5 text-orange-500 hover:bg-orange-100 rounded shrink-0" title="Ver"><Eye className="h-3 w-3" /></button>
-                      {r.status === "CONFIRMADO" ? (
-                        <span className="bg-green-600 text-white w-3.5 h-3.5 rounded-full text-[7px] flex items-center justify-center shrink-0" title="Confirmado">✓</span>
-                      ) : r.status === "ANULADO" ? (
-                        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[7px] font-bold shrink-0">ANUL</span>
-                      ) : (
-                        <span className="bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded text-[7px] font-bold shrink-0">BORR</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <DocPairsGrid
+                  facturas={nota.facturas}
+                  remitos={nota.remitos}
+                  onViewIngreso={onViewIngreso}
+                  onViewItems={onViewItems}
+                />
               )}
 
               {nota.total_docs > 0 && difNPFac !== 0 && totalFac > 0 && (

@@ -150,10 +150,10 @@ export default function MegaAdminPage() {
   const impersonateMutation = useMutation({
     mutationFn: (userId) => api.post(`/mega/impersonate/${userId}`),
     onSuccess: (data, userId) => {
-      const originalToken = sessionStorage.getItem("token");
+      const originalToken = localStorage.getItem("token");
       const targetUser = companyDetail?.users?.find((u) => u.id === userId);
-      sessionStorage.setItem("mega_original_token", originalToken);
-      sessionStorage.setItem("token", data.access_token);
+      localStorage.setItem("mega_original_token", originalToken);
+      localStorage.setItem("token", data.access_token);
       setImpersonating(targetUser?.full_name || targetUser?.username || `User #${userId}`);
     },
   });
@@ -245,10 +245,10 @@ export default function MegaAdminPage() {
   const handleSaveModules = () => updateModules.mutate(selectedModules);
 
   const handleStopImpersonating = () => {
-    const original = sessionStorage.getItem("mega_original_token");
+    const original = localStorage.getItem("mega_original_token");
     if (original) {
-      sessionStorage.setItem("token", original);
-      sessionStorage.removeItem("mega_original_token");
+      localStorage.setItem("token", original);
+      localStorage.removeItem("mega_original_token");
     }
     setImpersonating(null);
     window.location.reload();

@@ -77,6 +77,7 @@ from app.models.deposito import (
     StockLocal, Transferencia, TransferenciaItem,
     ConteoInventario, ConteoItem,
     TransferenciaEstado, ConteoEstado,
+    DepositoTarea, TareaEstado, TareaPrioridad,
 )
 
 # MERCADOLIBRE — módulo de depósito y picking
@@ -155,6 +156,7 @@ __all__ = [
     "StockLocal", "Transferencia", "TransferenciaItem",
     "ConteoInventario", "ConteoItem",
     "TransferenciaEstado", "ConteoEstado",
+    "DepositoTarea", "TareaEstado", "TareaPrioridad",
     # Sincronización / Infra
     "SyncEvent", "DeviceRegistry", "SyncConflict",
     "AfipConfig", "AfipQueue",

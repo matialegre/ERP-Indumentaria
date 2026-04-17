@@ -90,8 +90,9 @@ export default function ImprovementNotes() {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
   const [includeDone, setIncludeDone] = useState(false);
-  const [streamingNoteId, setStreamingNoteId] = useState(null);
-  const [streamingText, setStreamingText] = useState("");
+  // waitingReplyNoteId: nota que espera que el backend genere la respuesta IA
+  const [waitingReplyNoteId, setWaitingReplyNoteId] = useState(null);
+  const pollRef = useRef(null);
   const bottomRef = useRef(null);
 
   const qc = useQueryClient();
@@ -106,91 +107,47 @@ export default function ImprovementNotes() {
   // Scroll al fondo cuando llegan mensajes nuevos
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [notes, streamingText, open]);
+  }, [notes, open]);
 
-  // Llamar al endpoint SSE de IA y hacer streaming en la UI
-  const startAiStream = async (noteId) => {
-    console.log("[AI] startAiStream llamado con noteId=", noteId);
-    setStreamingNoteId(noteId);
-    setStreamingText("");
-
-    const token = sessionStorage.getItem("token");
-    const url = `${SSE_BASE}/api/v1/improvement-notes/${noteId}/ai-stream`;
-    console.log("[AI] Conectando a:", url, "| token:", token ? token.substring(0, 20) + "..." : "NO HAY TOKEN");
-
-    try {
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("[AI] Response status:", res.status, res.statusText);
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("[AI] Error HTTP:", res.status, errText);
-        setStreamingText(`Error ${res.status}: ${errText.substring(0, 100)}`);
-        setStreamingNoteId(null);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let chunkCount = 0;
-
-      console.log("[AI] Stream abierto, leyendo...");
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { console.log("[AI] Stream terminado (done=true), chunks recibidos:", chunkCount); break; }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            if (payload.chunk) {
-              chunkCount++;
-              if (chunkCount <= 3) console.log("[AI] chunk #" + chunkCount + ":", JSON.stringify(payload.chunk));
-              setStreamingText(prev => prev + payload.chunk);
-            } else if (payload.done) {
-              console.log("[AI] done=true recibido, invalidando queries");
-              await qc.invalidateQueries({ queryKey: ["improvement-notes"] });
-              setStreamingNoteId(null);
-              setStreamingText("");
-            } else if (payload.error) {
-              console.error("[AI] error del servidor:", payload.error);
-              setStreamingText(`Error IA: ${payload.error}`);
-              setStreamingNoteId(null);
-            }
-          } catch (parseErr) {
-            console.warn("[AI] parse error en línea:", line, parseErr);
-          }
+  // Polling: espera hasta que la nota tenga ai_reply (el backend la genera en background)
+  const startWaitingForReply = (noteId) => {
+    setWaitingReplyNoteId(noteId);
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20; // 20 × 3s = 60s máximo
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const updated = await api.get(`/improvement-notes/${noteId}/reply`);
+        if (updated?.ai_reply) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setWaitingReplyNoteId(null);
+          qc.invalidateQueries({ queryKey: ["improvement-notes"] });
+          return;
         }
+      } catch (_) {}
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        setWaitingReplyNoteId(null);
+        qc.invalidateQueries({ queryKey: ["improvement-notes"] });
       }
-    } catch (err) {
-      console.error("[AI] fetch error:", err.name, err.message, err);
-      setStreamingText(`Sin conexión: ${err.message}`);
-      setStreamingNoteId(null);
-    }
+    }, 3000);
   };
+
+  // Limpiar polling al desmontar
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post("/improvement-notes/", data),
     onSuccess: (newNote) => {
-      console.log("[AI] Nota creada:", newNote);
       qc.invalidateQueries({ queryKey: ["improvement-notes"] });
       setText(""); setImages([]); setPriority("NORMAL"); setShowForm(false);
-      if (newNote?.id) {
-        console.log("[AI] Lanzando stream para nota id=", newNote.id);
-        startAiStream(newNote.id);
-      } else {
-        console.error("[AI] newNote no tiene id!", newNote);
-      }
+      if (newNote?.id) startWaitingForReply(newNote.id);
     },
     onError: (err) => {
-      console.error("[AI] Error creando nota:", err);
+      console.error("[mejoras] Error creando nota:", err);
     },
   });
 
@@ -300,7 +257,7 @@ export default function ImprovementNotes() {
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             {isLoading ? (
               <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-amber-500" /></div>
-            ) : notes.length === 0 && !streamingNoteId ? (
+            ) : notes.length === 0 && !waitingReplyNoteId ? (
               <div className="text-center py-8 text-gray-400 text-sm">
                 <Lightbulb size={32} className="mx-auto mb-2 opacity-30" />
                 <p>No hay notas para esta sección.</p>
@@ -321,8 +278,7 @@ export default function ImprovementNotes() {
                     onDelete={(id) => { if (window.confirm("¿Eliminar nota?")) deleteMutation.mutate(id); }}
                     onMarkDone={(id) => markDoneMutation.mutate(id)}
                     saving={updateMutation.isPending}
-                    isStreaming={streamingNoteId === note.id}
-                    streamingText={streamingNoteId === note.id ? streamingText : null}
+                    isWaiting={waitingReplyNoteId === note.id}
                   />
                 ))}
               </>
@@ -406,7 +362,7 @@ export default function ImprovementNotes() {
 
 // ─── Componente: par de mensajes (usuario + IA) ─────────────────────────────
 
-function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, onCancelEdit, onDelete, onMarkDone, saving, isStreaming, streamingText }) {
+function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, onCancelEdit, onDelete, onMarkDone, saving, isWaiting }) {
   const [showImages, setShowImages] = useState(false);
   const pConfig = PRIORITY_CONFIG[note.priority] || PRIORITY_CONFIG.NORMAL;
   const isEditing = editingId === note.id;
@@ -495,27 +451,18 @@ function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, 
       </div>
 
       {/* Burbuja de la IA (izquierda, gris/blanca) */}
-      {(note.ai_reply || isStreaming) && (
+      {(note.ai_reply || isWaiting) && (
         <div className="flex justify-start">
           <div className="flex gap-2 max-w-[85%]">
             <div className="w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 mt-1">
               <Bot size={13} className="text-gray-500" />
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2 shadow-sm">
-              {isStreaming ? (
-                <>
-                  {streamingText ? (
-                    <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {streamingText}
-                      <span className="inline-block w-1.5 h-3.5 bg-amber-400 animate-pulse ml-0.5 align-middle rounded-sm" />
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                      <Loader2 size={11} className="animate-spin" />
-                      Analizando tu sugerencia...
-                    </div>
-                  )}
-                </>
+              {isWaiting ? (
+                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <Loader2 size={11} className="animate-spin" />
+                  La IA está analizando tu sugerencia...
+                </div>
               ) : (
                 <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{note.ai_reply}</p>
               )}

@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.models.product import Product, ProductVariant
+from app.models.deposito import StockLocal
+from app.models.local import Local
 from app.models.stock_movement import StockMovement, MovementType
 from app.models.user import User, UserRole
 from app.api.deps import get_current_user, require_roles
@@ -31,6 +33,7 @@ class StockItemOut(BaseModel):
     product_name: str
     brand: str | None = None
     category: str | None = None
+    price: float | None = None
     model_config = {"from_attributes": True}
 
 
@@ -78,6 +81,11 @@ def list_stock(
     brand: Optional[str] = Query(None),
     low_stock: Optional[bool] = Query(None),
     out_of_stock: Optional[bool] = Query(None),
+    size: Optional[str] = Query(None),
+    color: Optional[str] = Query(None),
+    sku: Optional[str] = Query(None),
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -97,6 +105,16 @@ def list_stock(
         q = q.filter(Product.category.ilike(f"%{category}%"))
     if brand:
         q = q.filter(Product.brand.ilike(f"%{brand}%"))
+    if size:
+        q = q.filter(ProductVariant.size.ilike(f"%{size}%"))
+    if color:
+        q = q.filter(ProductVariant.color.ilike(f"%{color}%"))
+    if sku:
+        q = q.filter(ProductVariant.sku.ilike(f"%{sku}%"))
+    if min_price is not None:
+        q = q.filter(Product.base_cost >= min_price)
+    if max_price is not None:
+        q = q.filter(Product.base_cost <= max_price)
     if low_stock:
         q = q.filter(ProductVariant.stock < 5, ProductVariant.stock > 0)
     if out_of_stock:
@@ -118,6 +136,7 @@ def list_stock(
             product_name=v.product.name,
             brand=v.product.brand,
             category=v.product.category,
+            price=float(v.product.base_cost) if v.product.base_cost is not None else None,
         )
         for v in variants
     ]
@@ -216,6 +235,76 @@ def stock_brands_summary(
         BrandSummaryItem(brand=row.brand or "Sin marca", total_variants=row.total_variants)
         for row in rows
     ]
+
+
+@router.get("/reposicion-sugerida")
+def reposicion_sugerida(
+    brand: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = db.query(ProductVariant).join(Product).filter(ProductVariant.stock <= 0)
+    if user.company_id:
+        q = q.filter(Product.company_id == user.company_id)
+    if brand:
+        q = q.filter(Product.brand.ilike(f"%{brand}%"))
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            Product.name.ilike(term) | Product.code.ilike(term) | ProductVariant.sku.ilike(term)
+        )
+    total = q.count()
+    variants = q.order_by(Product.brand, Product.name, ProductVariant.size).offset(skip).limit(limit).all()
+
+    cid = user.company_id
+    variant_ids = [v.id for v in variants]
+    sugerencias = {}
+    if variant_ids and cid:
+        rows = (
+            db.query(StockLocal.variant_id, StockLocal.local_id, StockLocal.cantidad)
+            .filter(
+                StockLocal.variant_id.in_(variant_ids),
+                StockLocal.company_id == cid,
+                StockLocal.cantidad > 0,
+            )
+            .all()
+        )
+        local_ids = set(r.local_id for r in rows if r.local_id)
+        local_names = {}
+        if local_ids:
+            for loc in db.query(Local).filter(Local.id.in_(local_ids)).all():
+                local_names[loc.id] = loc.name
+        for r in rows:
+            vid = r.variant_id
+            if vid not in sugerencias or r.cantidad > sugerencias[vid]["cantidad"]:
+                sugerencias[vid] = {
+                    "local_id": r.local_id,
+                    "local_name": local_names.get(r.local_id, "Depósito Central") if r.local_id else "Depósito Central",
+                    "cantidad": r.cantidad,
+                }
+
+    items = []
+    for v in variants:
+        sug = sugerencias.get(v.id)
+        items.append({
+            "variant_id": v.id,
+            "sku": v.sku,
+            "barcode": v.barcode,
+            "size": v.size,
+            "color": v.color,
+            "stock": v.stock,
+            "product_id": v.product.id,
+            "product_code": v.product.code,
+            "product_name": v.product.name,
+            "brand": v.product.brand,
+            "sugerencia_local": sug["local_name"] if sug else None,
+            "sugerencia_local_id": sug["local_id"] if sug else None,
+            "sugerencia_cantidad": sug["cantidad"] if sug else 0,
+        })
+    return {"items": items, "total": total}
 
 
 @router.post("/adjust")

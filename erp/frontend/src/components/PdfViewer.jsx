@@ -18,7 +18,7 @@ export default function PdfViewer({ url, filename = "documento.pdf", downloadUrl
 
   useEffect(() => {
     if (!url) { setError("No se proporcionó una URL."); setLoading(false); return; }
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then((res) => {
@@ -41,7 +41,7 @@ export default function PdfViewer({ url, filename = "documento.pdf", downloadUrl
   const handleDownload = () => {
     const href = downloadUrl || url;
     if (!href) return;
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     fetch(href, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then((r) => r.blob())
       .then((blob) => {

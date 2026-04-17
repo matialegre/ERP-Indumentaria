@@ -49,6 +49,12 @@ from app.api.v1.ml_competitor import router as ml_competitor_router
 from app.api.v1.pc_licenses import router as pc_licenses_router
 from app.api.v1.rrhh import router as rrhh_router
 from app.api.v1.crm import crm_router
+from app.api.v1.crm.vtex import webhook_router as vtex_webhook_router
+from app.api.v1.service_expirations import router as service_expirations_router
+from app.api.v1.asistente import router as asistente_router
+from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.fichaje import router as fichaje_router
+from app.api.v1.mobile_app import router as mobile_app_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -126,3 +132,15 @@ api_router.include_router(pc_licenses_router)
 api_router.include_router(rrhh_router)
 # Módulo CRM Completo
 api_router.include_router(crm_router)
+# VTex Webhooks (público — sin módulo guard, VTex llama sin auth)
+api_router.include_router(vtex_webhook_router)
+# Módulo Calendario de Vencimientos
+api_router.include_router(service_expirations_router)
+# Asistente IA (Nexus)
+api_router.include_router(asistente_router)
+# Dashboard personalizable
+api_router.include_router(dashboard_router)
+# Fichaje con reconocimiento facial + geolocalización
+api_router.include_router(fichaje_router)
+# Módulo App Móvil (mejoras Android/iOS)
+api_router.include_router(mobile_app_router)

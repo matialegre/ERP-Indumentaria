@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import * as XLSX from "xlsx";
@@ -927,6 +928,31 @@ export default function InformesPage() {
                 )}
               </div>
               <DataTable rows={rows} moneyKeys={report?.moneyKeys} />
+              {report?.id === "medio-pago" && rows.length > 0 && (() => {
+                const PIE_COLORS = ["#a855f7","#06b6d4","#10b981","#f59e0b","#ef4444","#3b82f6","#f97316","#84cc16","#ec4899","#6366f1"];
+                const pieData = Object.values(
+                  rows.reduce((acc, r) => {
+                    const key = r.MEDIO_PAGO || "Sin especificar";
+                    if (!acc[key]) acc[key] = { name: key, value: 0 };
+                    acc[key].value += r.MONTO_VENDIDO || 0;
+                    return acc;
+                  }, {})
+                ).sort((a, b) => b.value - a.value);
+                return (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <h4 className="text-sm font-bold text-slate-700 mb-4">Distribución por Medio de Pago</h4>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <PieChart>
+                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`} labelLine={true}>
+                          {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v) => v.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 })} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

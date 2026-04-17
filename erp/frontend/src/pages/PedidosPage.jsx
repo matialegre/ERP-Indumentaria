@@ -66,7 +66,7 @@ const EXPANDED_HEADER_BG = {
 /*  TABS                                                   */
 /* ═══════════════════════════════════════════════════════ */
 const TABS = [
-  { id: "activos",    label: "Activos",          filter: (n) => !["ANULADO","FINALIZADO","FINALIZADO_DIF"].includes(n._estado) },
+  { id: "activos",    label: "Pendientes",        filter: (n) => n.status === "ENVIADO" },
   { id: "recibidos",  label: "Completados OK",   filter: (n) => n._estado === "FINALIZADO" },
   { id: "con_dif",    label: "Con Diferencia",    filter: (n) => ["LISTO_FINALIZAR_DIF","FINALIZADO_DIF"].includes(n._estado) },
   { id: "anulados",   label: "Anulados",          filter: (n) => n._estado === "ANULADO" },
@@ -1223,7 +1223,7 @@ function PedidoDetail({ id, sendMut, receiveMut, cancelMut, deleteMut, onBack })
             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold text-white ${
               detail.status === 'BORRADOR' ? 'bg-gray-600' : detail.status === 'ENVIADO' ? 'bg-blue-600' :
               detail.status === 'RECIBIDO_PARCIAL' ? 'bg-amber-500' : detail.status === 'RECIBIDO' ? 'bg-green-600' : 'bg-red-600'
-            }`}>{detail.status}</span>
+            }`}>{detail.status === 'ENVIADO' ? 'PENDIENTE' : detail.status}</span>
             {tipo === 'PRECOMPRA' && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">PRE</span>}
             {tipo === 'REPOSICIÓN' && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">REP</span>}
           </div>

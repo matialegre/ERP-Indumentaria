@@ -10,6 +10,7 @@ Tablas:
 """
 
 import enum
+from datetime import date
 from sqlalchemy import String, ForeignKey, Text, Enum, Integer, Boolean, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
@@ -171,3 +172,46 @@ class ConteoItem(Base):
     # Relaciones
     conteo  = relationship("ConteoInventario", back_populates="items")
     variant = relationship("ProductVariant", lazy="selectin")
+
+
+# ══════════════════════════════════════════════════════
+#  TAREAS DE DEPÓSITO
+# ══════════════════════════════════════════════════════
+
+class TareaEstado(str, enum.Enum):
+    PENDIENTE   = "PENDIENTE"
+    EN_CURSO    = "EN_CURSO"
+    COMPLETADA  = "COMPLETADA"
+    CANCELADA   = "CANCELADA"
+
+
+class TareaPrioridad(str, enum.Enum):
+    BAJA   = "BAJA"
+    MEDIA  = "MEDIA"
+    ALTA   = "ALTA"
+    URGENTE = "URGENTE"
+
+
+class DepositoTarea(Base, TimestampMixin):
+    __tablename__ = "deposito_tareas"
+
+    id:              Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    titulo:          Mapped[str] = mapped_column(String(200), nullable=False)
+    descripcion:     Mapped[str | None] = mapped_column(Text, nullable=True)
+    fecha:           Mapped["date"] = mapped_column(Date, nullable=False)
+    estado:          Mapped[TareaEstado] = mapped_column(
+                         Enum(TareaEstado, name="tarea_deposito_estado"),
+                         default=TareaEstado.PENDIENTE,
+                         nullable=False,
+                     )
+    prioridad:       Mapped[TareaPrioridad] = mapped_column(
+                         Enum(TareaPrioridad, name="tarea_deposito_prioridad"),
+                         default=TareaPrioridad.MEDIA,
+                         nullable=False,
+                     )
+    asignado_a_id:   Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    creado_por_id:   Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    company_id:      Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
+
+    asignado_a = relationship("User", foreign_keys=[asignado_a_id], lazy="selectin")
+    creado_por = relationship("User", foreign_keys=[creado_por_id], lazy="selectin")

@@ -58,6 +58,10 @@ echo.
 echo Reabriendo ERP...
 start "" "%DST%\ERP Mundo Outdoor - Cliente.exe"
 
+REM === Marcar mejoras como desplegadas (notifica a los autores) ===
+echo Notificando mejoras desplegadas...
+powershell -NoProfile -Command "try { $body = @{secret='automator_interno_2026'; message='Tu mejora fue implementada y desplegada.'} | ConvertTo-Json; Invoke-RestMethod -Method Post -Uri 'http://localhost:8000/api/v1/improvement-notes/internal/mark-all-deployed' -ContentType 'application/json' -Body $body | Out-Null; Write-Host '    OK - Autores notificados' } catch { Write-Host '    (Backend no disponible, se notificara luego)' }"
+
 echo.
 echo ╔══════════════════════════════════════════════════════╗
 echo ║  LISTO. ERP actualizado y disponible para distribuir ║

@@ -18,7 +18,6 @@ import {
   WifiOff,
   AlertTriangle,
   Truck,
-  Building2,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -34,6 +33,11 @@ export default function StockPage() {
   const online = useOnlineStatus();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [filterTalle, setFilterTalle] = useState("");
+  const [filterColor, setFilterColor] = useState("");
+  const [filterSku, setFilterSku] = useState("");
+  const [filterMinPrice, setFilterMinPrice] = useState("");
+  const [filterMaxPrice, setFilterMaxPrice] = useState("");
   const [view, setView] = useState("inventory");
   const [adjustModal, setAdjustModal] = useState(null);
   const [adjustQty, setAdjustQty] = useState("");
@@ -47,15 +51,13 @@ export default function StockPage() {
     try { return JSON.parse(localStorage.getItem("stock_ctrl_brands") || "{}"); } catch { return {}; }
   });
 
-  const [repLocalId, setRepLocalId] = useState("");
-  const [repLocalName, setRepLocalName] = useState("");
   const [repBrands, setRepBrands] = useState(new Set());
   const [repBrandQtys, setRepBrandQtys] = useState({});
   const [repItemQtys, setRepItemQtys] = useState({});
   const [repCollapsed, setRepCollapsed] = useState(new Set());
 
   const { data: stockData, isLoading } = useQuery({
-    queryKey: ["stock", search, filter, stockPage, online],
+    queryKey: ["stock", search, filter, filterTalle, filterColor, filterSku, filterMinPrice, filterMaxPrice, stockPage, online],
     queryFn: async () => {
       if (!online) {
         let cached = await getAll("catalogStock");
@@ -68,6 +70,11 @@ export default function StockPage() {
             (i.size || "").toLowerCase().includes(s)
           );
         }
+        if (filterTalle) cached = cached.filter(i => (i.size || "").toLowerCase().includes(filterTalle.toLowerCase()));
+        if (filterColor) cached = cached.filter(i => (i.color || "").toLowerCase().includes(filterColor.toLowerCase()));
+        if (filterSku) cached = cached.filter(i => (i.sku || "").toLowerCase().includes(filterSku.toLowerCase()));
+        if (filterMinPrice) cached = cached.filter(i => (i.price || 0) >= parseFloat(filterMinPrice));
+        if (filterMaxPrice) cached = cached.filter(i => (i.price || 0) <= parseFloat(filterMaxPrice));
         if (filter === "low") cached = cached.filter(i => (i.stock || 0) > 0 && (i.stock || 0) <= 5);
         if (filter === "out") cached = cached.filter(i => (i.stock || 0) === 0);
         const start = (stockPage - 1) * PAGE_SIZE;
@@ -75,6 +82,11 @@ export default function StockPage() {
       }
       const params = new URLSearchParams();
       if (search) params.set("search", search);
+      if (filterTalle) params.set("size", filterTalle);
+      if (filterColor) params.set("color", filterColor);
+      if (filterSku) params.set("sku", filterSku);
+      if (filterMinPrice) params.set("min_price", filterMinPrice);
+      if (filterMaxPrice) params.set("max_price", filterMaxPrice);
       if (filter === "low") params.set("low_stock", "true");
       if (filter === "out") params.set("out_of_stock", "true");
       params.set("skip", (stockPage - 1) * PAGE_SIZE);
@@ -85,7 +97,7 @@ export default function StockPage() {
   const stock = stockData?.items ?? [];
   const stockTotal = stockData?.total ?? 0;
 
-  useEffect(() => { setStockPage(1); }, [search, filter]);
+  useEffect(() => { setStockPage(1); }, [search, filter, filterTalle, filterColor, filterSku, filterMinPrice, filterMaxPrice]);
 
   useEffect(() => {
     if (!stock.length) return;
@@ -152,22 +164,10 @@ export default function StockPage() {
     queryFn: () => api.get("/stock/brands-summary"),
   });
 
-  const { data: localsData } = useQuery({
-    queryKey: ["locals-rep"],
-    queryFn: () => api.get("/locals/"),
-    staleTime: 5 * 60 * 1000,
-  });
-  const localsList = localsData?.items ?? [];
-
+  const [repSearch, setRepSearch] = useState("");
   const { data: repStockData, isLoading: repLoading } = useQuery({
-    queryKey: ["stock-rep", [...repBrands].sort().join("|")],
-    queryFn: async () => {
-      if (repBrands.size === 0) return { items: [] };
-      const results = await Promise.all(
-        [...repBrands].map(brand => api.get(`/stock/?brand=${encodeURIComponent(brand)}&limit=500`))
-      );
-      return { items: results.flatMap(r => r.items || []) };
-    },
+    queryKey: ["stock-reposicion-sugerida", repSearch],
+    queryFn: () => api.get(`/stock/reposicion-sugerida?limit=500${repSearch ? `&search=${encodeURIComponent(repSearch)}` : ""}`),
     enabled: view === "reposicion",
   });
   const repItems = repStockData?.items ?? [];
@@ -239,7 +239,8 @@ export default function StockPage() {
   function generateReposicionExcel() {
     const data = repItems
       .map(i => ({
-        local: repLocalName || "—",
+        sugerencia_local: i.sugerencia_local || "—",
+        sugerencia_stock: i.sugerencia_cantidad || 0,
         brand: i.brand || "Sin marca",
         product: i.product_name,
         code: i.product_code,
@@ -253,9 +254,10 @@ export default function StockPage() {
     if (!data.length) return;
     exportExcel(
       data,
-      `reposicion-${(repLocalName || "local").replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}`,
+      `reposicion-${new Date().toISOString().slice(0, 10)}`,
       [
-        { key: "local", label: "Local Destino" },
+        { key: "sugerencia_local", label: "Pedir a Local" },
+        { key: "sugerencia_stock", label: "Stock Disponible" },
         { key: "brand", label: "Marca" },
         { key: "product", label: "Producto" },
         { key: "code", label: "Código" },
@@ -421,6 +423,24 @@ export default function StockPage() {
               <option value="out">Sin stock</option>
             </select>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <input type="text" placeholder="Talle..." value={filterTalle} onChange={(e) => setFilterTalle(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 w-28" />
+            <input type="text" placeholder="Color..." value={filterColor} onChange={(e) => setFilterColor(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 w-32" />
+            <input type="text" placeholder="SKU..." value={filterSku} onChange={(e) => setFilterSku(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 w-36" />
+            <input type="number" placeholder="Precio mín..." value={filterMinPrice} onChange={(e) => setFilterMinPrice(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 w-32" min="0" />
+            <input type="number" placeholder="Precio máx..." value={filterMaxPrice} onChange={(e) => setFilterMaxPrice(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 w-32" min="0" />
+            {(filterTalle || filterColor || filterSku || filterMinPrice || filterMaxPrice) && (
+              <button onClick={() => { setFilterTalle(""); setFilterColor(""); setFilterSku(""); setFilterMinPrice(""); setFilterMaxPrice(""); }}
+                className="px-3 py-2 text-sm text-red-500 hover:text-red-700 flex items-center gap-1">
+                <X size={14} /> Limpiar
+              </button>
+            )}
+          </div>
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {isLoading ? (
@@ -543,22 +563,15 @@ export default function StockPage() {
       {view === "reposicion" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Building2 size={16} /> Local destino</h3>
-              <select
-                value={repLocalId}
-                onChange={e => {
-                  setRepLocalId(e.target.value);
-                  const loc = localsList.find(l => String(l.id) === e.target.value);
-                  setRepLocalName(loc?.name || "");
-                }}
+            <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Search size={16} /> Buscar artículo</h3>
+              <input
+                type="text"
+                value={repSearch}
+                onChange={e => setRepSearch(e.target.value)}
+                placeholder="Nombre, código o SKU..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">— Seleccionar local —</option>
-                {localsList.map(l => (
-                  <option key={l.id} value={l.id}>{l.name} ({l.code})</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-3 lg:col-span-2">
@@ -608,7 +621,7 @@ export default function StockPage() {
                 </div>
                 <button
                   onClick={generateReposicionExcel}
-                  disabled={repLoading || !repLocalId || repItems.filter(i => getEffectiveQty(i) > 0).length === 0}
+                  disabled={repLoading || repItems.filter(i => getEffectiveQty(i) > 0).length === 0}
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   <Download size={16} /> Generar Excel
@@ -648,6 +661,7 @@ export default function StockPage() {
                                   <th className="px-4 py-2 text-left">Talle</th>
                                   <th className="px-4 py-2 text-left">Color</th>
                                   <th className="px-4 py-2 text-center">Stock actual</th>
+                                  <th className="px-4 py-2 text-left">Pedir a</th>
                                   <th className="px-4 py-2 text-center">Cant. a enviar</th>
                                 </tr>
                               </thead>
@@ -666,6 +680,16 @@ export default function StockPage() {
                                       <td className="px-4 py-2">{item.color}</td>
                                       <td className="px-4 py-2 text-center">
                                         <span className={`font-bold ${item.stock <= 0 ? "text-red-600" : item.stock < 5 ? "text-amber-600" : "text-emerald-600"}`}>{item.stock}</span>
+                                      </td>
+                                      <td className="px-4 py-2">
+                                        {item.sugerencia_local ? (
+                                          <div>
+                                            <span className="font-medium text-blue-700">{item.sugerencia_local}</span>
+                                            <span className="text-xs text-gray-500 ml-1">({item.sugerencia_cantidad} uds)</span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-xs text-gray-400">Sin stock en otros locales</span>
+                                        )}
                                       </td>
                                       <td className="px-4 py-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
@@ -700,11 +724,6 @@ export default function StockPage() {
             </div>
           )}
 
-          {repBrands.size > 0 && !repLocalId && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-              Seleccioná un local destino para poder generar el Excel de reposición.
-            </div>
-          )}
         </div>
       )}
 

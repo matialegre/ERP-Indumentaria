@@ -24,12 +24,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 from pydantic import BaseModel, Field
+from datetime import date
 
 from app.db.session import get_db
 from app.models.deposito import (
     StockLocal, Transferencia, TransferenciaItem,
     ConteoInventario, ConteoItem,
     TransferenciaEstado, ConteoEstado,
+    DepositoTarea, TareaEstado, TareaPrioridad,
 )
 from app.models.product import Product, ProductVariant
 from app.models.stock_movement import StockMovement, MovementType
@@ -888,3 +890,149 @@ def aplicar_conteo(
         "ajustes_err":   ajustes_err,
         "conteo_id":     conteo_id,
     }
+
+
+# ══════════════════════════════════════════════════════
+#  TAREAS DIARIAS DE DEPÓSITO
+# ══════════════════════════════════════════════════════
+
+class TareaIn(BaseModel):
+    titulo:        str = Field(..., min_length=1, max_length=200)
+    descripcion:   str | None = None
+    fecha:         date
+    prioridad:     str = "MEDIA"
+    asignado_a_id: int
+
+
+class TareaUpdate(BaseModel):
+    titulo:        str | None = None
+    descripcion:   str | None = None
+    fecha:         date | None = None
+    prioridad:     str | None = None
+    estado:        str | None = None
+    asignado_a_id: int | None = None
+
+
+def _tarea_out(t: DepositoTarea) -> dict:
+    return {
+        "id":              t.id,
+        "titulo":          t.titulo,
+        "descripcion":     t.descripcion,
+        "fecha":           t.fecha.isoformat(),
+        "estado":          t.estado.value if t.estado else None,
+        "prioridad":       t.prioridad.value if t.prioridad else None,
+        "asignado_a_id":   t.asignado_a_id,
+        "asignado_a_name": t.asignado_a.full_name if t.asignado_a else None,
+        "creado_por_id":   t.creado_por_id,
+        "creado_por_name": t.creado_por.full_name if t.creado_por else None,
+        "created_at":      t.created_at.isoformat() if t.created_at else None,
+        "updated_at":      t.updated_at.isoformat() if t.updated_at else None,
+    }
+
+
+@router.post("/tareas")
+def crear_tarea(
+    data: TareaIn,
+    db:   Session = Depends(get_db),
+    user: User    = Depends(require_roles(*_DEPOSITO_ROLES)),
+):
+    cid = _company(user)
+    asignado = db.query(User).filter(User.id == data.asignado_a_id).first()
+    if not asignado:
+        raise HTTPException(404, "Usuario asignado no encontrado")
+
+    tarea = DepositoTarea(
+        titulo        = data.titulo,
+        descripcion   = data.descripcion,
+        fecha         = data.fecha,
+        prioridad     = TareaPrioridad(data.prioridad),
+        estado        = TareaEstado.PENDIENTE,
+        asignado_a_id = data.asignado_a_id,
+        creado_por_id = user.id,
+        company_id    = cid,
+    )
+    db.add(tarea)
+    db.commit()
+    db.refresh(tarea)
+    return _tarea_out(tarea)
+
+
+@router.get("/tareas")
+def listar_tareas(
+    fecha:  date | None = None,
+    estado: str | None = None,
+    asignado_a_id: int | None = None,
+    skip:   int = Query(0, ge=0),
+    limit:  int = Query(50, ge=1, le=200),
+    db:     Session = Depends(get_db),
+    user:   User    = Depends(require_roles(*_DEPOSITO_VER)),
+):
+    cid = _company(user)
+    q = db.query(DepositoTarea).filter(DepositoTarea.company_id == cid)
+    if fecha:
+        q = q.filter(DepositoTarea.fecha == fecha)
+    if estado:
+        q = q.filter(DepositoTarea.estado == TareaEstado(estado))
+    if asignado_a_id:
+        q = q.filter(DepositoTarea.asignado_a_id == asignado_a_id)
+    total = q.count()
+    items = q.order_by(DepositoTarea.fecha.desc(), DepositoTarea.created_at.desc()).offset(skip).limit(limit).all()
+    return {"items": [_tarea_out(t) for t in items], "total": total}
+
+
+@router.get("/tareas/{tarea_id}")
+def detalle_tarea(
+    tarea_id: int,
+    db:       Session = Depends(get_db),
+    user:     User    = Depends(require_roles(*_DEPOSITO_VER)),
+):
+    cid = _company(user)
+    t = db.query(DepositoTarea).filter(DepositoTarea.id == tarea_id, DepositoTarea.company_id == cid).first()
+    if not t:
+        raise HTTPException(404, "Tarea no encontrada")
+    return _tarea_out(t)
+
+
+@router.patch("/tareas/{tarea_id}")
+def actualizar_tarea(
+    tarea_id: int,
+    data:     TareaUpdate,
+    db:       Session = Depends(get_db),
+    user:     User    = Depends(require_roles(*_DEPOSITO_ROLES)),
+):
+    cid = _company(user)
+    t = db.query(DepositoTarea).filter(DepositoTarea.id == tarea_id, DepositoTarea.company_id == cid).first()
+    if not t:
+        raise HTTPException(404, "Tarea no encontrada")
+
+    if data.titulo is not None:
+        t.titulo = data.titulo
+    if data.descripcion is not None:
+        t.descripcion = data.descripcion
+    if data.fecha is not None:
+        t.fecha = data.fecha
+    if data.prioridad is not None:
+        t.prioridad = TareaPrioridad(data.prioridad)
+    if data.estado is not None:
+        t.estado = TareaEstado(data.estado)
+    if data.asignado_a_id is not None:
+        t.asignado_a_id = data.asignado_a_id
+
+    db.commit()
+    db.refresh(t)
+    return _tarea_out(t)
+
+
+@router.delete("/tareas/{tarea_id}")
+def eliminar_tarea(
+    tarea_id: int,
+    db:       Session = Depends(get_db),
+    user:     User    = Depends(require_roles(*_DEPOSITO_ROLES)),
+):
+    cid = _company(user)
+    t = db.query(DepositoTarea).filter(DepositoTarea.id == tarea_id, DepositoTarea.company_id == cid).first()
+    if not t:
+        raise HTTPException(404, "Tarea no encontrada")
+    db.delete(t)
+    db.commit()
+    return {"ok": True}

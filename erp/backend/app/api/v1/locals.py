@@ -3,14 +3,27 @@ Router CRUD de Locales
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.orm import Session, joinedload
+from typing import Optional, List
 from pydantic import BaseModel
+from datetime import datetime
 
 from app.db.session import get_db
 from app.models.local import Local
+from app.models.plan import PCLicense
 from app.models.user import User, UserRole
 from app.api.deps import get_current_user, require_roles
+
+
+class PCLicenseSimple(BaseModel):
+    id: int
+    key: str
+    description: str
+    is_active: bool
+    machine_id: Optional[str] = None
+    activated_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+    model_config = {"from_attributes": True}
 
 
 class LocalOut(BaseModel):
@@ -21,6 +34,7 @@ class LocalOut(BaseModel):
     phone: str | None = None
     is_active: bool
     company_id: int
+    pc_licenses: List[PCLicenseSimple] = []
     model_config = {"from_attributes": True}
 
 
@@ -42,7 +56,7 @@ def list_locals(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Local)
+    q = db.query(Local).options(joinedload(Local.pc_licenses))
     if current_user.role != UserRole.SUPERADMIN and current_user.company_id:
         q = q.filter(Local.company_id == current_user.company_id)
     if search:

@@ -112,7 +112,7 @@ function EstadoCell({ order }) {
       if (falta > 0) return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700">FALTA {falta.toLocaleString("es-AR")}</span>;
       return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FACTURADO</span>;
     }
-    return <StatusBadge status="ENVIADO" />;
+    return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">PENDIENTE</span>;
   }
   return <StatusBadge status={order.status} />;
 }
@@ -224,7 +224,7 @@ export default function PedidosComprasPage() {
 function ListView({ onView, onCreate }) {
   const qc = useQueryClient();
   const [search, setSearch]     = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ENVIADO");
   const [alertFilter, setAlertFilter] = useState("ALL");
   const [comparadorCruzadoPoId, setComparadorCruzadoPoId] = useState(null);
   const [excelPreciosPoId, setExcelPreciosPoId] = useState(null);

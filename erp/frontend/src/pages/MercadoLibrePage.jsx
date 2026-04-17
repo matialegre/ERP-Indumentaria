@@ -803,6 +803,304 @@ function TiposTab() {
 
 // ═══════════════════════════ MAIN PAGE ═══════════════════════════════════════
 
+// ─────────────────────── Preguntas Tab ──────────────────────────────────────
+
+function PreguntasTab() {
+  const [account, setAccount] = useState("valen");
+  const [replyModal, setReplyModal] = useState(null); // { id, text, item_title }
+  const [replyText, setReplyText] = useState("");
+  const qc = useQueryClient();
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["ml-questions", account],
+    queryFn: () => api.get(`/ml/questions?status=UNANSWERED&limit=50&account=${account}`),
+    refetchInterval: 30_000,
+  });
+
+  const replyMut = useMutation({
+    mutationFn: ({ id, text }) =>
+      api.post(`/ml/questions/${id}/answer`, { text, account }),
+    onSuccess: () => {
+      qc.invalidateQueries(["ml-questions"]);
+      setReplyModal(null);
+      setReplyText("");
+    },
+  });
+
+  const questions = data?.questions || [];
+  const total = data?.total ?? 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+            <MessageSquare size={18} className="text-orange-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-800">Preguntas sin responder</p>
+            <p className="text-xs text-gray-500">{total} pregunta{total !== 1 ? "s" : ""} pendiente{total !== 1 ? "s" : ""}</p>
+          </div>
+          {total > 0 && (
+            <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-sm font-bold rounded-full">{total}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={account} onChange={e => setAccount(e.target.value)}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300">
+            <option value="valen">Valen</option>
+            <option value="neuquen">Neuquén</option>
+          </select>
+          <button onClick={() => refetch()} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition">
+            <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Questions list */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16 text-gray-400">
+          <RefreshCw size={20} className="animate-spin mr-2" /> Cargando preguntas…
+        </div>
+      ) : questions.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-16 text-gray-400">
+          <CheckCircle size={40} className="text-green-400 mb-3" />
+          <p className="font-medium text-gray-600">¡Todo al día!</p>
+          <p className="text-sm">No hay preguntas sin responder en esta cuenta.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {questions.map(q => (
+            <div key={q.id} className="bg-white rounded-xl border border-orange-100 hover:border-orange-300 transition p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  {q.item_title && (
+                    <p className="text-xs font-semibold text-blue-600 mb-1 truncate">
+                      📦 {q.item_title}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-800 font-medium">{q.text}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-xs text-gray-400">
+                      {q.date_created ? new Date(q.date_created).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </span>
+                    <span className="text-xs text-gray-400">ID: {q.buyer_id}</span>
+                    <span className="text-xs text-gray-400 font-mono">{q.item_id}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setReplyModal(q); setReplyText(""); }}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition"
+                >
+                  <Send size={12} /> Responder
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {replyModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <MessageSquare size={18} className="text-orange-500" /> Responder pregunta
+              </h3>
+              <button onClick={() => setReplyModal(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {replyModal.item_title && (
+                <p className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-2 rounded-lg truncate">
+                  📦 {replyModal.item_title}
+                </p>
+              )}
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-orange-600 mb-1">Pregunta del comprador:</p>
+                <p className="text-sm text-gray-800">{replyModal.text}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Tu respuesta</label>
+                <textarea
+                  value={replyText}
+                  onChange={e => setReplyText(e.target.value)}
+                  rows={4}
+                  placeholder="Escribí tu respuesta aquí…"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">{replyText.length} caracteres (mínimo 5)</p>
+              </div>
+              {replyMut.error && (
+                <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+                  {replyMut.error?.message || "Error al responder"}
+                </p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setReplyModal(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                Cancelar
+              </button>
+              <button
+                onClick={() => replyMut.mutate({ id: replyModal.id, text: replyText })}
+                disabled={replyMut.isPending || replyText.trim().length < 5}
+                className="flex items-center gap-1.5 px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition"
+              >
+                {replyMut.isPending ? <><RefreshCw size={12} className="animate-spin" /> Enviando…</> : <><Send size={12} /> Enviar respuesta</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────── Webhooks Tab ───────────────────────────────────────
+
+const TOPIC_COLORS = {
+  questions: { bg: "bg-orange-100", text: "text-orange-700", label: "Pregunta" },
+  orders_v2: { bg: "bg-green-100", text: "text-green-700", label: "Orden" },
+  items: { bg: "bg-blue-100", text: "text-blue-700", label: "Publicación" },
+  stock: { bg: "bg-purple-100", text: "text-purple-700", label: "Stock" },
+  payments: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Pago" },
+  order: { bg: "bg-green-100", text: "text-green-700", label: "Orden VTex" },
+  fulfillment: { bg: "bg-indigo-100", text: "text-indigo-700", label: "Fulfillment" },
+  catalog: { bg: "bg-blue-100", text: "text-blue-700", label: "Catálogo" },
+};
+
+function TopicBadge({ topic }) {
+  const t = TOPIC_COLORS[topic] || { bg: "bg-gray-100", text: "text-gray-600", label: topic || "—" };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${t.bg} ${t.text}`}>{t.label}</span>
+  );
+}
+
+function StatusDot({ status }) {
+  const c = status === "processed" ? "bg-green-500" : status === "failed" ? "bg-red-500" : "bg-amber-400";
+  return <span className={`inline-block w-2 h-2 rounded-full ${c}`} title={status} />;
+}
+
+function WebhooksTab() {
+  const [source, setSource] = useState("ml"); // "ml" | "vtex"
+
+  const mlQuery = useQuery({
+    queryKey: ["ml-webhooks"],
+    queryFn: () => api.get("/ml/webhook/events?limit=100"),
+    refetchInterval: source === "ml" ? 15_000 : false,
+    enabled: source === "ml",
+  });
+
+  const vtexQuery = useQuery({
+    queryKey: ["vtex-webhooks"],
+    queryFn: () => api.get("/vtex/webhook/events?limit=100"),
+    refetchInterval: source === "vtex" ? 15_000 : false,
+    enabled: source === "vtex",
+  });
+
+  const activeQuery = source === "ml" ? mlQuery : vtexQuery;
+  const events = Array.isArray(activeQuery.data) ? activeQuery.data : [];
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+            <Zap size={18} className="text-purple-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-800">Webhooks entrantes</p>
+            <p className="text-xs text-gray-500">Eventos recibidos en tiempo real de ML y VTex</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {[{ id: "ml", label: "🛒 MercadoLibre" }, { id: "vtex", label: "🏬 VTex" }].map(s => (
+              <button key={s.id} onClick={() => setSource(s.id)}
+                className={`px-4 py-1.5 text-xs font-medium transition ${source === s.id ? "bg-purple-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => activeQuery.refetch()}
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition">
+            <RefreshCw size={12} className={activeQuery.isLoading ? "animate-spin" : ""} /> Actualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Config hint */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
+        <strong>📌 URL para configurar en {source === "ml" ? "MercadoLibre → Apps → Notificaciones" : "VTex → Configuración → Hooks"}:</strong>
+        <code className="ml-2 bg-blue-100 px-2 py-0.5 rounded font-mono">
+          {source === "ml" ? "https://TU_SERVIDOR/api/v1/ml/webhook" : "https://TU_SERVIDOR/api/v1/vtex/webhook"}
+        </code>
+      </div>
+
+      {/* Events table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {activeQuery.isLoading ? (
+          <div className="flex items-center justify-center py-16 text-gray-400">
+            <RefreshCw size={20} className="animate-spin mr-2" /> Cargando eventos…
+          </div>
+        ) : events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <Zap size={32} className="text-gray-300 mb-3" />
+            <p className="font-medium text-gray-500">Sin eventos recibidos</p>
+            <p className="text-sm mt-1">Cuando {source === "ml" ? "ML" : "VTex"} envíe una notificación, aparecerá aquí.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {["", "Tipo", source === "ml" ? "Resource ID" : "Order ID", "Estado/Detalle", "Procesado", "Recibido"].map((h, i) => (
+                    <th key={i} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {events.map(e => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2.5 w-6"><StatusDot status={e.status} /></td>
+                    <td className="px-3 py-2.5"><TopicBadge topic={e.topic || e.event_type} /></td>
+                    <td className="px-3 py-2.5 font-mono text-xs text-gray-600">
+                      {e.resource_id || e.order_id || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-700 max-w-[260px]">
+                      {e.question_text
+                        ? <span className="text-orange-700">💬 {e.question_text.slice(0, 80)}{e.question_text.length > 80 ? "…" : ""}</span>
+                        : e.state
+                        ? <span>{e.last_state && <span className="text-gray-400">{e.last_state} → </span>}<strong>{e.state}</strong></span>
+                        : e.item_title
+                        ? <span className="text-blue-600">📦 {e.item_title.slice(0, 60)}</span>
+                        : <span className="text-gray-400">—</span>
+                      }
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-400">
+                      {e.status === "processed" ? <span className="text-green-600">✓ Procesado</span>
+                        : e.status === "failed" ? <span className="text-red-600">✗ Error</span>
+                        : <span className="text-amber-600">⏳ Pendiente</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-gray-400">
+                      {e.received_at ? new Date(e.received_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MercadoLibrePage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("ordenes");
@@ -983,6 +1281,8 @@ export default function MercadoLibrePage() {
   const TABS = [
     { id: "ordenes",       label: "Órdenes",       icon: Package },
     { id: "tipos",         label: "Tipos",          icon: Layers },
+    { id: "preguntas",     label: "Preguntas",      icon: MessageSquare },
+    { id: "webhooks",      label: "Webhooks",       icon: Zap },
     { id: "estadisticas",  label: "Estadísticas",   icon: BarChart3 },
     { id: "configuracion", label: "Configuración",  icon: Settings },
   ];
@@ -1370,6 +1670,12 @@ export default function MercadoLibrePage() {
 
         {/* ══════════════ TIPOS TAB ══════════════ */}
         {activeTab === "tipos" && <TiposTab />}
+
+        {/* ══════════════ PREGUNTAS TAB ══════════════ */}
+        {activeTab === "preguntas" && <PreguntasTab />}
+
+        {/* ══════════════ WEBHOOKS TAB ══════════════ */}
+        {activeTab === "webhooks" && <WebhooksTab />}
 
         {/* ══════════════ ESTADÍSTICAS TAB ══════════════ */}
         {activeTab === "estadisticas" && <EstadisticasTab />}

@@ -32,7 +32,7 @@ export default function ExcelViewer({ file, url, data: propData, filename = "arc
   useEffect(() => {
     if (propData) { setParsed(propData); setLoading(false); return; }
 
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     async function loadData() {
       try {

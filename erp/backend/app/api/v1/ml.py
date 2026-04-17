@@ -175,7 +175,7 @@ def ml_cash_flow(current_user: User = Depends(get_current_user)):
             token = mgr.get_token()
             user_id = mgr.get_user_id()
             resp = _requests.get(
-                f"{MP_BASE}/users/{user_id}/mercadopago_account/balance",
+                f"{ML_BASE}/users/{user_id}/mercadopago_account/balance",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=15,
             )
@@ -1250,13 +1250,90 @@ def ml_deposito_publish_note(
 # FASE 5 — Webhook
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _process_ml_webhook_event(event: "MeliWebhookEvent", db: Session):
+    """
+    Procesa un evento de webhook ML en segundo plano.
+    Para preguntas: auto-fetch la pregunta y crea una notificación interna.
+    Para órdenes: crea notificación de nueva venta.
+    """
+    from datetime import datetime as _dt
+    try:
+        topic = (event.topic or "").lower()
+        resource_id = event.resource_id
+
+        if topic == "questions" and resource_id:
+            # Fetch question detail from ML API
+            try:
+                mgr = _managers.get("valen")
+                if mgr:
+                    q_data = mgr.call("GET", f"/questions/{resource_id}")
+                    question_text = q_data.get("text", "")
+                    item_id = q_data.get("item_id", "")
+                    # Try to get item title
+                    item_title = ""
+                    try:
+                        item_data = mgr.call("GET", f"/items/{item_id}", params={"attributes": "title"})
+                        item_title = item_data.get("title", item_id)
+                    except Exception:
+                        item_title = item_id
+
+                    # Store enriched data in payload_raw
+                    enriched = dict(event.payload_raw or {})
+                    enriched["_question_text"] = question_text
+                    enriched["_item_title"] = item_title
+                    enriched["_item_id"] = item_id
+                    event.payload_raw = enriched
+
+                    # Create internal notification
+                    from app.models.notification import Notification, NotificationType
+                    notif = Notification(
+                        type=NotificationType.INFO,
+                        title=f"🛒 Nueva pregunta ML: {item_title[:60]}",
+                        message=question_text[:300] if question_text else f"Pregunta en publicación {item_id}",
+                        company_id=1,
+                        to_role="ADMIN",
+                    )
+                    db.add(notif)
+            except Exception as ex:
+                _log.warning("No se pudo enriquecer pregunta ML %s: %s", resource_id, ex)
+
+        elif topic == "orders_v2" and resource_id:
+            try:
+                from app.models.notification import Notification, NotificationType
+                notif = Notification(
+                    type=NotificationType.INFO,
+                    title="💰 Nueva venta ML",
+                    message=f"Orden #{resource_id} recibida en MercadoLibre",
+                    company_id=1,
+                    to_role="ADMIN",
+                )
+                db.add(notif)
+            except Exception as ex:
+                _log.warning("No se pudo crear notif para orden ML %s: %s", resource_id, ex)
+
+        event.status = "processed"
+        event.processed_at = _dt.utcnow()
+        event.attempts = (event.attempts or 0) + 1
+        db.commit()
+
+    except Exception as e:
+        _log.error("Error procesando webhook ML event %s: %s", event.id, e)
+        event.status = "failed"
+        event.error = str(e)
+        event.attempts = (event.attempts or 0) + 1
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+
 @router.post("/webhook", include_in_schema=True)
 async def ml_webhook(
     request: Request,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
 ):
-    """Receptor de webhooks ML. Persiste y encola para procesamiento."""
+    """Receptor de webhooks ML. Persiste y procesa automáticamente."""
     event = MeliWebhookEvent(
         topic=payload.get("topic"),
         resource=payload.get("resource"),
@@ -1269,20 +1346,29 @@ async def ml_webhook(
     db.add(event)
     db.commit()
     _log.info("Webhook recibido: topic=%s resource=%s id=%d", event.topic, event.resource, event.id)
+
+    # Auto-process in background thread to not block ML's 200ms timeout
+    import threading
+    t = threading.Thread(target=_process_ml_webhook_event, args=(event, db), daemon=True)
+    t.start()
+
     return {"status": "received", "event_id": event.id}
 
 
 @router.get("/webhook/events")
 def ml_webhook_events(
     status: Optional[str] = Query(None),
+    topic: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Lista eventos de webhook."""
+    """Lista eventos de webhook ML."""
     q = db.query(MeliWebhookEvent)
     if status:
         q = q.filter(MeliWebhookEvent.status == status)
+    if topic:
+        q = q.filter(MeliWebhookEvent.topic == topic)
     events = q.order_by(MeliWebhookEvent.received_at.desc()).limit(limit).all()
     return [{
         "id": e.id,
@@ -1293,6 +1379,8 @@ def ml_webhook_events(
         "status": e.status,
         "attempts": e.attempts,
         "processed_at": e.processed_at.isoformat() if e.processed_at else None,
+        "question_text": (e.payload_raw or {}).get("_question_text"),
+        "item_title": (e.payload_raw or {}).get("_item_title"),
     } for e in events]
 
 

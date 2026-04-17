@@ -37,20 +37,8 @@ export function AuthProvider({ children }) {
   const [backendError, setBackendError] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
 
-  // Migrar token viejo de localStorage → sessionStorage (una sola vez, luego borrarlo)
-  // Esto asegura que sesiones guardadas antes de este cambio también se cierren
-  useEffect(() => {
-    const oldToken = localStorage.getItem("token");
-    if (oldToken && !sessionStorage.getItem("token")) {
-      // No migrar — simplemente limpiar para forzar re-login
-      localStorage.removeItem("token");
-      localStorage.removeItem("erp_original_token");
-      localStorage.removeItem("mega_original_token");
-    }
-  }, []);
-
   const fetchUser = useCallback(async () => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (!token) {
       // Sin token: intentar sesión cacheada si estamos offline
       if (!navigator.onLine) {
@@ -89,7 +77,7 @@ export function AuthProvider({ children }) {
           setBackendError(true);
         }
       } else {
-        sessionStorage.removeItem("token");
+        localStorage.removeItem("token");
         setUser(null);
       }
     } finally {
@@ -118,7 +106,7 @@ export function AuthProvider({ children }) {
     try {
       // Intentar login online
       const data = await api.post("/auth/login", { username, password });
-      sessionStorage.setItem("token", data.access_token);
+      localStorage.setItem("token", data.access_token);
       setBackendError(false);
       setIsOfflineSession(false);
 
@@ -145,7 +133,7 @@ export function AuthProvider({ children }) {
           setUser(cached.profile);
           setIsOfflineSession(true);
           setBackendError(false);
-          if (cached.token) sessionStorage.setItem("token", cached.token);
+          if (cached.token) localStorage.setItem("token", cached.token);
           return;
         }
         throw new Error("Sin conexión y sin sesión guardada. Conectate a internet al menos una vez.");
@@ -155,9 +143,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    sessionStorage.removeItem("token");
+    localStorage.removeItem("token");
     localStorage.removeItem("erp_company_id");
-    sessionStorage.removeItem("erp_original_token");
+    localStorage.removeItem("erp_original_token");
     setUser(null);
     setBackendError(false);
     setIsOfflineSession(false);

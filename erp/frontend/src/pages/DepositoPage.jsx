@@ -22,6 +22,11 @@ import {
   Trash2,
   Check,
   Ban,
+  ListTodo,
+  Calendar,
+  User,
+  Play,
+  CircleDot,
 } from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -36,6 +41,10 @@ function Badge({ estado }) {
     COMPLETADO:  "bg-green-100 text-green-700",
     APLICADO:    "bg-purple-100 text-purple-700",
     CANCELADO:   "bg-red-100 text-red-700",
+    PENDIENTE:   "bg-yellow-100 text-yellow-700",
+    EN_CURSO:    "bg-blue-100 text-blue-700",
+    COMPLETADA:  "bg-green-100 text-green-700",
+    CANCELADA:   "bg-red-100 text-red-700",
   };
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[estado] ?? "bg-gray-100 text-gray-600"}`}>
@@ -1023,10 +1032,256 @@ function TabIngresos() {
   );
 }
 
+// ─── Tab: Tareas Diarias ─────────────────────────────────────────────────────
+
+const PRIORIDAD_COLORS = {
+  BAJA:    "bg-gray-100 text-gray-600",
+  MEDIA:   "bg-blue-100 text-blue-700",
+  ALTA:    "bg-orange-100 text-orange-700",
+  URGENTE: "bg-red-100 text-red-700",
+};
+
+function TabTareas() {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [filtroFecha, setFiltroFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroUsuario, setFiltroUsuario] = useState("");
+
+  const params = new URLSearchParams();
+  if (filtroFecha)   params.set("fecha", filtroFecha);
+  if (filtroEstado)  params.set("estado", filtroEstado);
+  if (filtroUsuario) params.set("asignado_a_id", filtroUsuario);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["deposito-tareas", filtroFecha, filtroEstado, filtroUsuario],
+    queryFn: () => api.get(`/deposito/tareas?${params.toString()}`),
+  });
+
+  const { data: usuarios } = useQuery({
+    queryKey: ["users-list"],
+    queryFn: () => api.get("/users"),
+  });
+
+  const tareas = data?.items ?? [];
+  const userList = usuarios?.items ?? usuarios ?? [];
+
+  const cambiarEstado = useMutation({
+    mutationFn: ({ id, estado }) => api.patch(`/deposito/tareas/${id}`, { estado }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["deposito-tareas"] }),
+  });
+
+  const eliminarTarea = useMutation({
+    mutationFn: (id) => api.delete(`/deposito/tareas/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["deposito-tareas"] }),
+  });
+
+  const resumen = {
+    total: tareas.length,
+    pendientes:  tareas.filter(t => t.estado === "PENDIENTE").length,
+    en_curso:    tareas.filter(t => t.estado === "EN_CURSO").length,
+    completadas: tareas.filter(t => t.estado === "COMPLETADA").length,
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon={ListTodo}     label="Total tareas"  value={resumen.total}       color="blue" />
+        <StatCard icon={CircleDot}    label="Pendientes"    value={resumen.pendientes}  color="yellow" />
+        <StatCard icon={Play}         label="En curso"      value={resumen.en_curso}    color="blue" />
+        <StatCard icon={CheckCircle}  label="Completadas"   value={resumen.completadas} color="green" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-gray-400" />
+          <input type="date" value={filtroFecha} onChange={e => setFiltroFecha(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" />
+        </div>
+        <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+          <option value="">Todos los estados</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="EN_CURSO">En curso</option>
+          <option value="COMPLETADA">Completada</option>
+          <option value="CANCELADA">Cancelada</option>
+        </select>
+        <select value={filtroUsuario} onChange={e => setFiltroUsuario(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+          <option value="">Todos los usuarios</option>
+          {userList.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+        </select>
+        <div className="flex-1" />
+        <button onClick={() => refetch()} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+          <RefreshCw size={16} />
+        </button>
+        <button onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
+          <Plus size={16} /> Nueva Tarea
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20"><RefreshCw className="animate-spin text-gray-400" /></div>
+      ) : tareas.length === 0 ? (
+        <div className="py-16 text-center text-gray-400">
+          <ListTodo size={40} className="mx-auto mb-3 opacity-30" />
+          <p>Sin tareas para esta fecha</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th className="px-5 py-2 text-left">Tarea</th>
+                <th className="px-5 py-2 text-left">Asignado a</th>
+                <th className="px-5 py-2 text-center">Prioridad</th>
+                <th className="px-5 py-2 text-center">Estado</th>
+                <th className="px-5 py-2 text-left">Fecha</th>
+                <th className="px-5 py-2 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tareas.map(t => (
+                <tr key={t.id} className="border-t border-gray-50 hover:bg-gray-50">
+                  <td className="px-5 py-2.5">
+                    <p className={`font-medium ${t.estado === "COMPLETADA" ? "line-through text-gray-400" : "text-gray-800"}`}>{t.titulo}</p>
+                    {t.descripcion && <p className="text-xs text-gray-400 mt-0.5">{t.descripcion}</p>}
+                  </td>
+                  <td className="px-5 py-2.5">
+                    <span className="flex items-center gap-1.5 text-gray-600">
+                      <User size={14} className="text-gray-400" /> {t.asignado_a_name}
+                    </span>
+                  </td>
+                  <td className="px-5 py-2.5 text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${PRIORIDAD_COLORS[t.prioridad] ?? "bg-gray-100 text-gray-600"}`}>
+                      {t.prioridad}
+                    </span>
+                  </td>
+                  <td className="px-5 py-2.5 text-center"><Badge estado={t.estado} /></td>
+                  <td className="px-5 py-2.5 text-gray-500 text-xs">{t.fecha}</td>
+                  <td className="px-5 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {t.estado === "PENDIENTE" && (
+                        <button onClick={() => cambiarEstado.mutate({ id: t.id, estado: "EN_CURSO" })}
+                          title="Iniciar" className="p-1.5 rounded hover:bg-blue-50 text-blue-600"><Play size={15} /></button>
+                      )}
+                      {t.estado === "EN_CURSO" && (
+                        <button onClick={() => cambiarEstado.mutate({ id: t.id, estado: "COMPLETADA" })}
+                          title="Completar" className="p-1.5 rounded hover:bg-green-50 text-green-600"><CheckCircle size={15} /></button>
+                      )}
+                      {(t.estado === "PENDIENTE" || t.estado === "EN_CURSO") && (
+                        <button onClick={() => cambiarEstado.mutate({ id: t.id, estado: "CANCELADA" })}
+                          title="Cancelar" className="p-1.5 rounded hover:bg-red-50 text-red-500"><Ban size={15} /></button>
+                      )}
+                      <button onClick={() => { if (confirm("¿Eliminar esta tarea?")) eliminarTarea.mutate(t.id); }}
+                        title="Eliminar" className="p-1.5 rounded hover:bg-red-50 text-red-400"><Trash2 size={15} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <ModalNuevaTarea
+          onClose={() => setShowModal(false)}
+          onCreated={() => qc.invalidateQueries({ queryKey: ["deposito-tareas"] })}
+        />
+      )}
+    </div>
+  );
+}
+
+
+function ModalNuevaTarea({ onClose, onCreated }) {
+  const [form, setForm] = useState({
+    titulo: "", descripcion: "", fecha: new Date().toISOString().slice(0, 10),
+    prioridad: "MEDIA", asignado_a_id: "",
+  });
+
+  const { data: usuarios } = useQuery({
+    queryKey: ["users-list"],
+    queryFn: () => api.get("/users"),
+  });
+  const userList = usuarios?.items ?? usuarios ?? [];
+
+  const mutation = useMutation({
+    mutationFn: (payload) => api.post("/deposito/tareas", payload),
+    onSuccess: () => { onCreated(); onClose(); },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.titulo.trim() || !form.asignado_a_id) return;
+    mutation.mutate({ ...form, asignado_a_id: Number(form.asignado_a_id) });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">Nueva Tarea</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+            <input value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Ej: Preparar pedido #1234" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" rows={3} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+              <input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Prioridad</label>
+              <select value={form.prioridad} onChange={e => setForm({ ...form, prioridad: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="BAJA">Baja</option>
+                <option value="MEDIA">Media</option>
+                <option value="ALTA">Alta</option>
+                <option value="URGENTE">Urgente</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Asignar a *</label>
+            <select value={form.asignado_a_id} onChange={e => setForm({ ...form, asignado_a_id: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">Seleccionar empleado...</option>
+              {userList.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button type="submit" disabled={mutation.isPending || !form.titulo.trim() || !form.asignado_a_id}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {mutation.isPending ? "Creando..." : "Crear Tarea"}
+            </button>
+          </div>
+          {mutation.isError && <p className="text-xs text-red-500">Error: {mutation.error?.message}</p>}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "dashboard",      label: "Dashboard",           icon: Warehouse },
+  { id: "tareas",         label: "Tareas",              icon: ListTodo },
   { id: "ingresos",       label: "Ingresos de Stock",   icon: PackageOpen },
   { id: "transferencias", label: "Transferencias",       icon: ArrowRightLeft },
   { id: "inventario",     label: "Inventario Físico",    icon: ClipboardCheck },
@@ -1071,6 +1326,7 @@ export default function DepositoPage() {
 
       {/* Content */}
       {tab === "dashboard"      && <TabDashboard />}
+      {tab === "tareas"         && <TabTareas />}
       {tab === "ingresos"       && <TabIngresos />}
       {tab === "transferencias" && <TabTransferencias />}
       {tab === "inventario"     && <TabInventario />}

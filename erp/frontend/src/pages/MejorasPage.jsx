@@ -6,7 +6,7 @@ import {
   Lightbulb, CheckCircle2, Circle, Bot, Loader2,
   ChevronDown, ChevronUp, RefreshCw, Trash2, X,
   MessageSquare, Send, Edit3, History, Clock, User,
-  Image as ImageIcon,
+  Image as ImageIcon, Trophy, Medal, Star, Ban, Pencil, Save,
 } from "lucide-react";
 
 const PRIORITY_CONFIG = {
@@ -120,9 +120,32 @@ function AdminNoteEditor({ note, onSave }) {
   );
 }
 
-function NoteCard({ note, canAdmin, onApprove, onUnapprove, onDelete, onAdminNote }) {
+function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateText, onAdminNote }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingText, setEditingText] = useState(false);
+  const [editText, setEditText] = useState(note.text);
+  const [savingText, setSavingText] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const pc = PRIORITY_CONFIG[note.priority] ?? PRIORITY_CONFIG.NORMAL;
+
+  const handleSaveText = async () => {
+    if (!editText.trim() || editText === note.text) { setEditingText(false); return; }
+    setSavingText(true);
+    await onUpdateText(note.id, editText.trim());
+    setSavingText(false);
+    setEditingText(false);
+  };
+
+  const handleCancel = async () => {
+    if (!cancelReason.trim()) return;
+    setCancelling(true);
+    await onCancel(note.id, cancelReason.trim());
+    setCancelling(false);
+    setShowCancelModal(false);
+    setCancelReason("");
+  };
 
   return (
     <div
@@ -139,7 +162,6 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onDelete, onAdminNot
               <span className={`w-1.5 h-1.5 rounded-full ${pc.dot}`} />
               {pc.label}
             </span>
-            {/* Módulo donde se hizo la nota */}
             {note.page_label && (
               <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
                 📍 {note.page_label}
@@ -156,16 +178,54 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onDelete, onAdminNot
           </span>
         </div>
 
-        <p className={`text-sm text-gray-800 leading-relaxed ${!expanded && "line-clamp-3"}`}>
-          {note.text}
-        </p>
-        {note.text.length > 120 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-purple-500 mt-1 flex items-center gap-0.5 hover:underline"
-          >
-            {expanded ? <><ChevronUp size={12} /> Ver menos</> : <><ChevronDown size={12} /> Ver más</>}
-          </button>
+        {editingText ? (
+          <div className="mb-2">
+            <textarea
+              autoFocus
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              className="w-full border border-purple-300 rounded-lg px-2.5 py-2 text-sm resize-none focus:outline-none focus:border-purple-500 bg-purple-50"
+              rows={4}
+            />
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <button
+                onClick={handleSaveText}
+                disabled={savingText || !editText.trim()}
+                className="flex items-center gap-1 px-2.5 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 disabled:opacity-50 transition"
+              >
+                {savingText ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                Guardar
+              </button>
+              <button onClick={() => { setEditingText(false); setEditText(note.text); }} className="px-2.5 py-1 text-xs text-gray-400 hover:text-gray-600">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start gap-1">
+              <p className={`text-sm text-gray-800 leading-relaxed flex-1 ${!expanded && "line-clamp-3"}`}>
+                {note.text}
+              </p>
+              {canAdmin && (
+                <button
+                  onClick={() => { setEditingText(true); setEditText(note.text); }}
+                  className="p-1 text-gray-300 hover:text-purple-500 rounded transition shrink-0 mt-0.5"
+                  title="Editar texto antes de enviar a IA"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+            </div>
+            {note.text.length > 120 && (
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="text-xs text-purple-500 mt-1 flex items-center gap-0.5 hover:underline"
+              >
+                {expanded ? <><ChevronUp size={12} /> Ver menos</> : <><ChevronDown size={12} /> Ver más</>}
+              </button>
+            )}
+          </>
         )}
 
         {(note.images || []).length > 0 && (
@@ -208,12 +268,57 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onDelete, onAdminNot
               <CheckCircle2 size={13} /> OK — Aplicar
             </button>
             <button
-              onClick={() => { if (confirm("¿Eliminar esta nota?")) onDelete(note.id); }}
+              onClick={() => setShowCancelModal(true)}
               className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
-              title="Eliminar"
+              title="Cancelar mejora"
             >
-              <Trash2 size={13} />
+              <Ban size={13} />
             </button>
+          </div>
+        )}
+
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowCancelModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="bg-red-50 px-5 py-4 border-b border-red-100">
+                <div className="flex items-center gap-2">
+                  <Ban size={18} className="text-red-500" />
+                  <h3 className="text-base font-bold text-red-700">Cancelar mejora</h3>
+                </div>
+                <p className="text-xs text-red-500 mt-1">Se enviará un mensaje al autor explicando la cancelación</p>
+              </div>
+              <div className="p-5">
+                <div className="bg-gray-50 rounded-lg p-3 mb-4 border border-gray-100">
+                  <p className="text-xs text-gray-500 mb-1">Nota de <span className="font-semibold">{note.author_name}</span>:</p>
+                  <p className="text-sm text-gray-700 line-clamp-3">{note.text}</p>
+                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">¿Por qué se cancela?</label>
+                <textarea
+                  autoFocus
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  placeholder="Ej: Ya existe esta funcionalidad, no es viable técnicamente, se va a resolver de otra forma..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                  rows={3}
+                />
+                <div className="flex items-center gap-2 mt-4">
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelling || !cancelReason.trim()}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition"
+                  >
+                    {cancelling ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                    Confirmar cancelación
+                  </button>
+                  <button
+                    onClick={() => { setShowCancelModal(false); setCancelReason(""); }}
+                    className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    Volver
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -221,10 +326,10 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onDelete, onAdminNot
   );
 }
 
-function ModuleColumn({ page, pageLabel, notes, canAdmin, onApprove, onDelete, onAdminNote }) {
+function ModuleColumn({ page, pageLabel, notes, canAdmin, onApprove, onCancel, onUpdateText, onAdminNote }) {
   return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px] w-[300px] shrink-0">
-      <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-3 sticky top-0 z-10">
+    <div className="flex flex-col">
+      <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <Lightbulb size={15} className="text-purple-500 shrink-0" />
@@ -243,7 +348,8 @@ function ModuleColumn({ page, pageLabel, notes, canAdmin, onApprove, onDelete, o
             canAdmin={canAdmin}
             onApprove={onApprove}
             onUnapprove={() => {}}
-            onDelete={onDelete}
+            onCancel={onCancel}
+            onUpdateText={onUpdateText}
             onAdminNote={onAdminNote}
           />
         ))}
@@ -348,7 +454,7 @@ function HistorialView({ notes, canAdmin, onUnapprove, onDelete, search }) {
                   <button
                     onClick={() => { if (confirm("¿Eliminar del historial?")) onDelete(note.id); }}
                     className="ml-auto p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
-                    title="Eliminar"
+                    title="Eliminar del historial"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -362,12 +468,138 @@ function HistorialView({ notes, canAdmin, onUnapprove, onDelete, search }) {
   );
 }
 
+function RankingView({ data, isLoading }) {
+  const MEDAL_COLORS = ["text-yellow-400", "text-gray-400", "text-amber-600"];
+  const MEDAL_BG = ["bg-yellow-50 border-yellow-200", "bg-gray-50 border-gray-200", "bg-amber-50 border-amber-200"];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={32} className="animate-spin text-purple-400" />
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-gray-300">
+        <Trophy size={48} className="mb-3 text-gray-200" />
+        <p className="text-gray-400 font-medium">Sin datos todavía</p>
+      </div>
+    );
+  }
+
+  const maxTotal = Math.max(...data.map(r => r.total), 1);
+  const maxAccepted = Math.max(...data.map(r => r.accepted), 1);
+
+  return (
+    <div className="max-w-3xl mx-auto pb-8 space-y-8">
+      {/* Podio top 3 */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Trophy size={18} className="text-yellow-500" />
+          <h2 className="text-base font-bold text-gray-900">Podio — Más mejoras aceptadas</h2>
+        </div>
+        <div className="flex items-end justify-center gap-4">
+          {[1, 0, 2].map((pos) => {
+            const person = data[pos];
+            if (!person) return <div key={pos} className="w-28" />;
+            const heights = ["h-36", "h-28", "h-20"];
+            const medalIcons = [<Medal size={20} />, <Trophy size={22} />, <Medal size={18} />];
+            return (
+              <div key={pos} className="flex flex-col items-center gap-2 w-28">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
+                  pos === 0 ? "bg-yellow-100 text-yellow-700" :
+                  pos === 1 ? "bg-gray-100 text-gray-600" :
+                  "bg-amber-100 text-amber-700"
+                }`}>
+                  {person.author.charAt(0).toUpperCase()}
+                </div>
+                <p className="text-xs font-semibold text-gray-700 text-center leading-tight">{person.author}</p>
+                <p className="text-xs text-emerald-600 font-bold">{person.accepted} aceptadas</p>
+                <div className={`w-full rounded-t-xl flex flex-col items-center justify-end pb-3 ${heights[pos]} ${
+                  pos === 0 ? "bg-yellow-400" :
+                  pos === 1 ? "bg-gray-300" :
+                  "bg-amber-400"
+                }`}>
+                  <span className={`${pos === 0 ? "text-yellow-800" : pos === 1 ? "text-gray-600" : "text-amber-800"}`}>
+                    {medalIcons[pos]}
+                  </span>
+                  <span className={`text-lg font-black ${pos === 0 ? "text-yellow-800" : pos === 1 ? "text-gray-700" : "text-amber-800"}`}>
+                    #{pos + 1}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tabla ranking completa */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Star size={16} className="text-purple-500" />
+          <h2 className="text-sm font-bold text-gray-900">Ranking completo</h2>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {data.map((person, idx) => (
+            <div key={person.author} className={`px-5 py-4 flex items-center gap-4 ${idx < 3 ? MEDAL_BG[idx] + " border-l-4" : ""}`}>
+              <div className="w-8 text-center">
+                {idx < 3
+                  ? <Medal size={18} className={MEDAL_COLORS[idx]} />
+                  : <span className="text-sm font-bold text-gray-400">#{person.rank}</span>
+                }
+              </div>
+              <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-600 shrink-0">
+                {person.author.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800">{person.author}</p>
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[10px] text-gray-400">Planteadas</span>
+                      <span className="text-[10px] font-semibold text-gray-600">{person.total}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-400 rounded-full transition-all"
+                        style={{ width: `${(person.total / maxTotal) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-[10px] text-gray-400">Aceptadas</span>
+                      <span className="text-[10px] font-semibold text-emerald-600">{person.accepted}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-400 rounded-full transition-all"
+                        style={{ width: `${(person.accepted / maxAccepted) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-lg font-black text-emerald-600">{person.acceptance_rate}%</div>
+                <div className="text-[10px] text-gray-400">aceptación</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MejorasPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const canAdmin = ["SUPERADMIN", "ADMIN"].includes(user?.role);
 
-  const [tab, setTab] = useState("pending"); // "pending" | "historial"
+  const [tab, setTab] = useState("pending"); // "pending" | "historial" | "ranking"
   const [search, setSearch] = useState("");
 
   const { data: pendingNotes = [], isLoading: loadingPending, refetch: refetchPending } = useQuery({
@@ -382,6 +614,13 @@ export default function MejorasPage() {
     queryFn: () => api.get(`/improvement-notes/?include_done=true&limit=500`),
     staleTime: 10_000,
     enabled: tab === "historial",
+  });
+
+  const { data: rankingData = [], isLoading: loadingRanking } = useQuery({
+    queryKey: ["improvement-notes-ranking"],
+    queryFn: () => api.get(`/improvement-notes/stats/ranking`),
+    staleTime: 30_000,
+    enabled: tab === "ranking",
   });
 
   const invalidateAll = () => {
@@ -401,6 +640,16 @@ export default function MejorasPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/improvement-notes/${id}`),
+    onSuccess: invalidateAll,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, reason }) => api.post(`/improvement-notes/${id}/cancel`, { reason }),
+    onSuccess: invalidateAll,
+  });
+
+  const updateTextMutation = useMutation({
+    mutationFn: ({ id, text }) => api.put(`/improvement-notes/${id}`, { text }),
     onSuccess: invalidateAll,
   });
 
@@ -439,8 +688,8 @@ export default function MejorasPage() {
     return Object.values(map).sort((a, b) => b.notes.length - a.notes.length);
   }, [pendingNotes, search]);
 
-  const isLoading = tab === "pending" ? loadingPending : loadingHistorial;
-  const pendingMutation = approveMutation.isPending || unapproveMutation.isPending || deleteMutation.isPending;
+  const isLoading = tab === "pending" ? loadingPending : tab === "historial" ? loadingHistorial : loadingRanking;
+  const pendingMutation = approveMutation.isPending || unapproveMutation.isPending || deleteMutation.isPending || cancelMutation.isPending;
 
   return (
     <div className="flex flex-col h-full min-h-screen">
@@ -498,6 +747,14 @@ export default function MejorasPage() {
             >
               <History size={12} /> Historial
             </button>
+            <button
+              onClick={() => setTab("ranking")}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition ${
+                tab === "ranking" ? "bg-white text-yellow-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <Trophy size={12} /> Ranking
+            </button>
           </div>
 
           <div className="relative">
@@ -528,7 +785,7 @@ export default function MejorasPage() {
       </div>
 
       {/* ── Contenido ── */}
-      <div className="flex-1 overflow-x-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 size={32} className="animate-spin text-purple-400" />
@@ -541,7 +798,7 @@ export default function MejorasPage() {
               <p className="text-sm text-gray-300 mt-1">Las sugerencias aparecen cuando los usuarios usan el botón 💡 en cada página</p>
             </div>
           ) : (
-            <div className="flex gap-4 pb-2" style={{ minWidth: "max-content" }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-2">
               {grouped.map(col => (
                 <ModuleColumn
                   key={col.page}
@@ -550,12 +807,15 @@ export default function MejorasPage() {
                   notes={col.notes}
                   canAdmin={canAdmin}
                   onApprove={(id) => approveMutation.mutate(id)}
-                  onDelete={(id) => deleteMutation.mutate(id)}
+                  onCancel={(id, reason) => cancelMutation.mutateAsync({ id, reason })}
+                  onUpdateText={(id, text) => updateTextMutation.mutateAsync({ id, text })}
                   onAdminNote={(id, admin_note) => adminNoteMutation.mutateAsync({ id, admin_note })}
                 />
               ))}
             </div>
           )
+        ) : tab === "ranking" ? (
+          <RankingView data={rankingData} isLoading={loadingRanking} />
         ) : (
           <HistorialView
             notes={historialOnly}
@@ -570,7 +830,7 @@ export default function MejorasPage() {
       {pendingMutation && (
         <div className="fixed bottom-6 right-6 bg-purple-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 z-50">
           <Loader2 size={15} className="animate-spin" />
-          {approveMutation.isPending ? "Aprobando — moviendo al historial..." : "Guardando..."}
+          {approveMutation.isPending ? "Aprobando — moviendo al historial..." : cancelMutation.isPending ? "Cancelando mejora..." : "Guardando..."}
         </div>
       )}
     </div>

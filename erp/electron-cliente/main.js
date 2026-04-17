@@ -687,6 +687,24 @@ app.on('window-all-closed', () => {
   // Durante startup NO quitar — splash se cierra antes de crear mainWin
 });
 
+// ─── Single Instance Lock ─────────────────────────────────────────────────────
+// Evita que se abran múltiples ventanas si el usuario hace doble/triple click
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  // Ya hay una instancia corriendo → salir silenciosamente
+  app.quit();
+} else {
+  // Si el usuario abre otra instancia, traer la ventana existente al frente
+  app.on('second-instance', () => {
+    const wins = require('electron').BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      const win = wins[0];
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   log(`App ready. Packaged: ${app.isPackaged}`);
 

@@ -5,7 +5,7 @@ import { Users, Plus, Pencil, Trash2, Power, X, Search, Layers } from "lucide-re
 
 const ROLES = [
   "SUPERADMIN", "ADMIN", "COMPRAS", "ADMINISTRACION",
-  "GESTION_PAGOS", "LOCAL", "VENDEDOR", "DEPOSITO",
+  "GESTION_PAGOS", "VENDEDOR", "DEPOSITO",
 ];
 
 const ROLE_COLORS = {
@@ -14,7 +14,6 @@ const ROLE_COLORS = {
   COMPRAS: "bg-violet-100 text-violet-700",
   ADMINISTRACION: "bg-amber-100 text-amber-700",
   GESTION_PAGOS: "bg-emerald-100 text-emerald-700",
-  LOCAL: "bg-indigo-100 text-indigo-700",
   VENDEDOR: "bg-cyan-100 text-cyan-700",
   DEPOSITO: "bg-slate-100 text-slate-700",
 };

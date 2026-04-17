@@ -35,7 +35,7 @@ const STATUS_MESSAGES = {
 };
 
 async function request(endpoint, options = {}) {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token");
   const headers = {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -56,7 +56,7 @@ async function request(endpoint, options = {}) {
     clearTimeout(timeoutId);
 
     if (res.status === 401) {
-      sessionStorage.removeItem("token");
+      localStorage.removeItem("token");
       window.location.href = "/login";
       const err = new Error("Sesión expirada — iniciá sesión de nuevo");
       err.status = 401;
@@ -67,7 +67,7 @@ async function request(endpoint, options = {}) {
       const body = await res.json().catch(() => null);
       const detail = typeof body?.detail === 'string' ? body.detail : '';
       if (detail.startsWith('LICENCIA_SUSPENDIDA') || detail.startsWith('LICENCIA_CANCELADA')) {
-        sessionStorage.removeItem("token");
+        localStorage.removeItem("token");
         const msg = detail.startsWith('LICENCIA_SUSPENDIDA')
           ? 'licencia_suspendida'
           : 'licencia_cancelada';
@@ -117,11 +117,11 @@ export const api = {
   patch: (url, data) => request(url, { method: "PATCH", body: data ? JSON.stringify(data) : undefined }),
   delete: (url) => request(url, { method: "DELETE" }),
   download: async (url, filename) => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const res = await fetch(`${API_BASE}${url}`, {
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
     });
-    if (res.status === 401) { sessionStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
+    if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
     if (!res.ok) { const err = await res.json().catch(() => ({ detail: "Error del servidor" })); throw new Error(err.detail || `Error ${res.status}`); }
     const blob = await res.blob();
     let fname = filename;
@@ -140,26 +140,26 @@ export const api = {
     URL.revokeObjectURL(urlObj);
   },
   uploadFile: (url, formData) => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return fetch(`${API_BASE}${url}`, {
       method: "POST",
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
       body: formData,
     }).then(async (res) => {
-      if (res.status === 401) { sessionStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
+      if (res.status === 401) { localStorage.removeItem("token"); window.location.href = "/login"; throw new Error("No autorizado"); }
       if (!res.ok) { const err = await res.json().catch(() => ({ detail: "Error del servidor" })); throw new Error(err.detail || `Error ${res.status}`); }
       return res.json();
     });
   },
   postForm: (url, formData) => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     return fetch(`${API_BASE}${url}`, {
       method: "POST",
       headers: { ...(token && { Authorization: `Bearer ${token}` }) },
       body: formData,
     }).then(async (res) => {
       if (res.status === 401) {
-        sessionStorage.removeItem("token");
+        localStorage.removeItem("token");
         window.location.href = "/login";
         const err = new Error("Sesión expirada — iniciá sesión de nuevo");
         err.status = 401;

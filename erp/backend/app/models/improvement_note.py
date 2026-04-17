@@ -32,4 +32,8 @@ class ImprovementNote(Base):
     approved_by = Column(String(100), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
+    # ── Señal de build desplegado (solo se setea cuando copilot_automator
+    #    termina el build y distribución) ─────────────────────────────────────
+    build_deployed_at = Column(DateTime(timezone=True), nullable=True)
+
     author = relationship("User", foreign_keys=[author_id])

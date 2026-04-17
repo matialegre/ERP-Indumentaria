@@ -2,7 +2,7 @@
 // Service Worker — ERP Sistema (PWA offline-first, pro-level)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_NAME = "mo-erp-v9";
+const CACHE_NAME = "mo-erp-v14";
 const API_CACHE_NAME = "mo-erp-api-v3";
 const VALID_CACHES = new Set([CACHE_NAME, API_CACHE_NAME]);
 
@@ -297,3 +297,4 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 });
+

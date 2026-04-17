@@ -301,6 +301,9 @@ def vista_integrada(
     user: User = Depends(get_current_user),
 ):
     """Returns all pedidos with their linked ingresos (facturas/remitos) for the integrated view."""
+    import re as _re
+    from app.models.purchase_invoice import PurchaseInvoice, PurchaseInvoiceItem
+
     q = db.query(Pedido)
     if user.company_id:
         q = q.filter(Pedido.company_id == user.company_id)
@@ -319,6 +322,16 @@ def vista_integrada(
     ing_by_pedido = {}
     for ing in ingresos:
         ing_by_pedido.setdefault(ing.pedido_id, []).append(ing)
+
+    # Pre-fetch PurchaseInvoices by ingreso number (for RV + PDF items)
+    all_numbers = [i.number for i in ingresos if i.number]
+    pi_by_number: dict = {}
+    if all_numbers:
+        co = [PurchaseInvoice.company_id == user.company_id] if user.company_id else []
+        pis = db.query(PurchaseInvoice).filter(PurchaseInvoice.number.in_(all_numbers), *co).all()
+        for pi in pis:
+            if pi.number:
+                pi_by_number[pi.number] = pi
 
     result = []
     for p in pedidos:
@@ -350,6 +363,38 @@ def vista_integrada(
 
         def _serialize_ing(i):
             qty = sum(it.quantity for it in i.items) if i.items else _parse_qty(i.notes, 'Cantidad factura')
+            # Parse structured fields from notes
+            rv = None
+            np_ref = None
+            rc = None
+            items_count = 0
+            items_pdf = []
+            if i.notes:
+                rv_m = _re.search(r'Remito venta:\s*(.+?)(?:\n|$)', i.notes)
+                rv = rv_m.group(1).strip() if rv_m else None
+                np_m = _re.search(r'Nota de pedido:\s*(.+?)(?:\n|$)', i.notes)
+                np_ref = np_m.group(1).strip() if np_m else None
+                rc_m = _re.search(r'Remito compra:\s*(.+?)(?:\n|$)', i.notes)
+                rc = rc_m.group(1).strip() if rc_m else None
+                items_m = _re.search(r'Items:\s*(\d+)', i.notes)
+                items_count = int(items_m.group(1)) if items_m else 0
+            # Enrich with PDF items from matching PurchaseInvoice
+            pi = pi_by_number.get(i.number)
+            if pi and pi.items:
+                items_pdf = [
+                    {
+                        "code": it.code,
+                        "description": it.description,
+                        "size": it.size,
+                        "color": it.color,
+                        "qty": it.quantity_invoiced,
+                    }
+                    for it in pi.items
+                    if it.code or it.description or it.quantity_invoiced > 0
+                ]
+                # Use RV from PurchaseInvoice if not in notes
+                if not rv and pi.remito_venta_number:
+                    rv = pi.remito_venta_number
             return {
                 "id": i.id,
                 "type": i.type.value,
@@ -359,6 +404,11 @@ def vista_integrada(
                 "quantity": qty,
                 "total": float(i.total) if i.total else None,
                 "notes": i.notes,
+                "remito_venta_number": rv,
+                "np_ref": np_ref,
+                "remito_compra": rc,
+                "items_count": items_count,
+                "items_pdf": items_pdf,
             }
 
         # Parse extra fields from notes

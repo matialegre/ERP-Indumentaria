@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -95,6 +95,7 @@ class NoteOut(BaseModel):
     admin_note_at: Optional[datetime]
     approved_by: Optional[str]
     approved_at: Optional[datetime]
+    build_deployed_at: Optional[datetime]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     model_config = {"from_attributes": True}
@@ -140,9 +141,180 @@ def internal_set_ai_reply(
     return {"ok": True}
 
 
+@router.post("/internal/mark-deployed")
+def internal_mark_deployed(
+    data: InternalStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint interno sin JWT.
+    Lo llama copilot_automator.py cuando el build y distribución terminaron OK.
+    Setea build_deployed_at → dispara el modal de notificación al usuario.
+    También envía un mensaje por mensajería interna al autor.
+    """
+    settings = get_settings()
+    expected = getattr(settings, "AUTOMATOR_SECRET", "")
+    if not expected or data.secret != expected:
+        raise HTTPException(403, "Secreto inválido")
+    note = db.query(ImprovementNote).filter(ImprovementNote.id == data.note_id).first()
+    if not note:
+        raise HTTPException(404, "Nota no encontrada")
+    note.ai_reply = data.message
+    note.ai_reply_at = datetime.now(timezone.utc)
+    note.build_deployed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    _send_deploy_message(db, note)
+
+    return {"ok": True}
+
+
+class InternalMarkAllDeployed(BaseModel):
+    secret: str
+    message: str = "Tu mejora fue implementada y desplegada."
+
+
+@router.post("/internal/mark-all-deployed")
+def internal_mark_all_deployed(
+    data: InternalMarkAllDeployed,
+    db: Session = Depends(get_db),
+):
+    """
+    Marca como desplegadas TODAS las notas aprobadas que aún no tienen build_deployed_at.
+    Se llama después del DEPLOY_RAPIDO.bat para notificar a todos los autores.
+    """
+    settings = get_settings()
+    expected = getattr(settings, "AUTOMATOR_SECRET", "")
+    if not expected or data.secret != expected:
+        raise HTTPException(403, "Secreto inválido")
+
+    pending_deploy = db.query(ImprovementNote).filter(
+        ImprovementNote.is_done == True,
+        ImprovementNote.build_deployed_at.is_(None),
+    ).all()
+
+    marked = []
+    for note in pending_deploy:
+        note.ai_reply = data.message
+        note.ai_reply_at = datetime.now(timezone.utc)
+        note.build_deployed_at = datetime.now(timezone.utc)
+        marked.append(note.id)
+        _send_deploy_message(db, note)
+
+    db.commit()
+    return {"ok": True, "marked": marked}
+
+
+def _send_deploy_message(db: Session, note: ImprovementNote):
+    if not note.author_id:
+        return
+    try:
+        from app.models.message import Message
+        admin_user = db.query(User).filter(User.role.in_(["SUPERADMIN", "ADMIN"])).first()
+        from_id = admin_user.id if admin_user else note.author_id
+        preview = note.text[:120] + ("..." if len(note.text) > 120 else "")
+        msg = Message(
+            from_user_id=from_id,
+            to_user_id=note.author_id,
+            is_broadcast=False,
+            subject=f"✅ Tu mejora fue implementada — {note.page_label or note.page}",
+            content=(
+                f"¡Tu sugerencia de mejora en \"{note.page_label or note.page}\" ya está lista!\n\n"
+                f"📝 Tu nota: \"{preview}\"\n\n"
+                f"🚀 La mejora ya fue implementada y desplegada.\n"
+                f"Recargá la app para ver los cambios."
+            ),
+            is_read=False,
+            company_id=admin_user.company_id if admin_user else 1,
+        )
+        db.add(msg)
+    except Exception:
+        pass
+
+
+def _generate_ai_reply_bg(
+    note_id: int,
+    note_text: str,
+    note_author: str,
+    note_page_label: str,
+    note_priority: str,
+) -> None:
+    """
+    Genera la respuesta de IA para una nota y la persiste.
+    Se llama desde BackgroundTasks (hilo separado) para no bloquear la respuesta HTTP.
+    """
+    import threading
+    import asyncio
+
+    def _run():
+        async def _async_call():
+            try:
+                settings = get_settings()
+                if not settings.OPENAI_API_KEY:
+                    reply = (
+                        f"Gracias {note_author}, recibimos tu sugerencia sobre "
+                        f"\"{note_text[:60]}{'...' if len(note_text) > 60 else ''}\". "
+                        "La vamos a revisar y si es viable la incorporamos al backlog. "
+                        "(Configurá OPENAI_API_KEY en .env para respuestas reales)"
+                    )
+                else:
+                    from openai import AsyncOpenAI
+                    from app.db.session import SessionLocal as _SL
+                    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+                    # Contexto de la sección
+                    with _SL() as _db:
+                        pending = _db.query(ImprovementNote).filter(
+                            ImprovementNote.is_done == False,
+                            ImprovementNote.page_label == note_page_label,
+                        ).count()
+                        done = _db.query(ImprovementNote).filter(
+                            ImprovementNote.is_done == True,
+                            ImprovementNote.page_label == note_page_label,
+                        ).count()
+
+                    system_prompt = f"""Sos el asistente de mejoras del ERP Mundo Outdoor.
+Tu rol es responder sugerencias de mejora del equipo en español, de forma amigable y directa.
+Contexto de la sección "{note_page_label}": pendientes={pending}, resueltas={done}.
+Usuario: {note_author}. Prioridad: {note_priority}.
+Respondé en máximo 3-4 oraciones. Sin markdown ni asteriscos."""
+
+                    resp = await client.chat.completions.create(
+                        model=settings.OPENAI_MODEL,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": note_text},
+                        ],
+                        max_tokens=300,
+                        temperature=0.7,
+                    )
+                    reply = resp.choices[0].message.content or ""
+
+                # Persistir en DB
+                from app.db.session import SessionLocal as _SL2
+                with _SL2() as _db2:
+                    n = _db2.query(ImprovementNote).filter(ImprovementNote.id == note_id).first()
+                    if n:
+                        n.ai_reply = reply
+                        n.ai_reply_at = datetime.now(timezone.utc)
+                        _db2.commit()
+
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "ai_reply background task failed for note %s: %s", note_id, exc
+                )
+
+        asyncio.run(_async_call())
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+
+
 @router.post("/", response_model=NoteOut)
 def create_note(
     data: NoteCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -165,7 +337,37 @@ def create_note(
     db.commit()
     db.refresh(note)
     _export_markdown(db)
+
+    # Generar respuesta IA en background (no bloquea la respuesta HTTP)
+    note_id = note.id
+    note_text = note.text
+    note_author = note.author_name or "usuario"
+    note_page_label = note.page_label or note.page
+    note_priority = note.priority
+
+    background_tasks.add_task(
+        _generate_ai_reply_bg,
+        note_id=note_id,
+        note_text=note_text,
+        note_author=note_author,
+        note_page_label=note_page_label,
+        note_priority=note_priority,
+    )
+
     return _normalize(note)
+
+
+@router.get("/{note_id}/reply")
+def get_note_reply(
+    note_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Devuelve solo el ai_reply de una nota (para polling del frontend)."""
+    note = db.query(ImprovementNote).filter(ImprovementNote.id == note_id).first()
+    if not note:
+        raise HTTPException(404, "Nota no encontrada")
+    return {"id": note.id, "ai_reply": note.ai_reply}
 
 
 @router.get("/my-updates", response_model=List[NoteOut])
@@ -173,18 +375,41 @@ def my_completed_updates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Returns notes authored by the current user that are marked as done."""
+    """Returns notes authored by the current user that have been built and deployed."""
     notes = (
         db.query(ImprovementNote)
         .filter(
             ImprovementNote.author_id == current_user.id,
-            ImprovementNote.is_done == True,
+            ImprovementNote.build_deployed_at.isnot(None),
         )
-        .order_by(ImprovementNote.updated_at.desc())
+        .order_by(ImprovementNote.build_deployed_at.desc())
         .limit(50)
         .all()
     )
     return [_normalize(n) for n in notes]
+
+
+@router.get("/stats/ranking")
+def stats_ranking(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    notes = db.query(ImprovementNote).all()
+    stats = {}
+    for n in notes:
+        author = n.author_name or "Anónimo"
+        if author not in stats:
+            stats[author] = {"author": author, "total": 0, "accepted": 0, "pending": 0}
+        stats[author]["total"] += 1
+        if n.is_done:
+            stats[author]["accepted"] += 1
+        else:
+            stats[author]["pending"] += 1
+    result = sorted(stats.values(), key=lambda x: (x["accepted"], x["total"]), reverse=True)
+    for i, r in enumerate(result):
+        r["rank"] = i + 1
+        r["acceptance_rate"] = round(r["accepted"] / r["total"] * 100) if r["total"] > 0 else 0
+    return result
 
 
 @router.get("/{note_id}/ai-stream")
@@ -418,6 +643,54 @@ def update_note(
     db.refresh(note)
     _export_markdown(db)
     return _normalize(note)
+
+
+class CancelBody(BaseModel):
+    reason: str
+
+
+@router.post("/{note_id}/cancel")
+def cancel_note(
+    note_id: int,
+    body: CancelBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in ("MEGAADMIN", "SUPERADMIN", "ADMIN"):
+        raise HTTPException(403, "Solo administradores pueden cancelar mejoras")
+
+    note = db.query(ImprovementNote).filter(ImprovementNote.id == note_id).first()
+    if not note:
+        raise HTTPException(404, "Nota no encontrada")
+
+    admin_name = current_user.full_name or current_user.username
+    author_name = note.author_name or "Anónimo"
+    note_text_preview = note.text[:120] + ("..." if len(note.text) > 120 else "")
+
+    if note.author_id:
+        from app.models.message import Message
+        msg = Message(
+            from_user_id=current_user.id,
+            to_user_id=note.author_id,
+            is_broadcast=False,
+            subject=f"Tu mejora fue cancelada — {note.page_label or note.page}",
+            content=(
+                f"Hola {author_name},\n\n"
+                f"Tu sugerencia de mejora en \"{note.page_label or note.page}\" fue cancelada "
+                f"por {admin_name}.\n\n"
+                f"📝 Tu nota: \"{note_text_preview}\"\n\n"
+                f"❌ Motivo de cancelación: {body.reason}\n\n"
+                f"Si tenés dudas, contactá a {admin_name} por mensajería."
+            ),
+            is_read=False,
+            company_id=current_user.company_id,
+        )
+        db.add(msg)
+
+    db.delete(note)
+    db.commit()
+    _export_markdown(db)
+    return {"ok": True}
 
 
 @router.delete("/{note_id}")
