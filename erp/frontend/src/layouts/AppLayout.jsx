@@ -364,12 +364,16 @@ export default function AppLayout() {
   useEffect(() => {
     if (user?.role === 'MEGAADMIN' || !modulesLoaded) return;
 
-    // Flatten NAV_ITEMS including children for module guard
+    // Flatten NAV_ITEMS including children AND sub-groups for module guard
     const allRoutes = NAV_ITEMS.flatMap(item =>
       item.children
-        ? item.children.map(c => ({ ...c, module: c.module || item.module, moduleAlt: c.moduleAlt || item.module }))
+        ? item.children.flatMap(c =>
+            c.children
+              ? c.children.map(s => ({ ...s, module: s.module || c.module || item.module, moduleAlt: s.moduleAlt || c.module || item.module }))
+              : [{ ...c, module: c.module || item.module, moduleAlt: c.moduleAlt || item.module }]
+          )
         : [item]
-    ).filter(item => item.module);
+    ).filter(item => item.module && item.to);
 
     const currentModuleRoute = allRoutes
       .sort((a, b) => b.to.length - a.to.length)
