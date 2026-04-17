@@ -215,24 +215,137 @@ def handle_sale(ev, sync_event, device, user, db: Session) -> HandlerResult:
     """
     Handler para eventos de ventas/facturas (aggregate_type="Sale" o "sales").
 
+    Crea la venta en la DB a partir del payload del evento de sync.
+    Si la venta ya existe (por número de comprobante + local), detecta
+    duplicado y la retorna sin error.
+
     Para facturas de contingencia offline (type=FACTURA_A/B emitidas sin internet):
-    - Las encola en afip_queue con status=PENDING para validación posterior.
+    - Encola en afip_queue con status=PENDING para validación posterior.
     - La validación AFIP es asíncrona (no bloquea el sync).
 
     Ref: conflict-resolution.md §2 — Facturas AFIP rechazadas
     Decisión DN-3: contingencia con punto_venta=999 o serie C separada.
     """
+    from app.models.sale import Sale, SaleItem, SaleType, SaleStatus
+    from datetime import date as dt_date
+
     result = HandlerResult(accion_tomada="sale_registered")
     payload = ev.payload or {}
 
-    is_offline = payload.get("offline", False) or payload.get("es_offline", False)
-    sale_type = payload.get("type") or payload.get("tipo")
-    sale_id = payload.get("id") or payload.get("sale_id")
+    sale_type_str = payload.get("type") or payload.get("tipo") or "TICKET"
+    sale_number = payload.get("number") or payload.get("numero") or ""
+    sale_date_str = payload.get("date") or payload.get("fecha") or str(dt_date.today())
+    local_id = payload.get("local_id")
+    is_offline = payload.get("offline", False) or payload.get("es_offline", False) or payload.get("_offline_emitted", False)
+    items_data = payload.get("items") or []
 
-    # Solo encolar para AFIP las ventas offline con tipo de comprobante fiscal
-    if is_offline and sale_id and sale_type in ("FACTURA_A", "FACTURA_B", "TICKET"):
-        _encolar_afip(sale_id, user.company_id, db)
-        result.accion_tomada = "sale_registered_afip_queued"
+    # ── Normalizar tipo ──────────────────────────────────────────────────
+    try:
+        sale_type = SaleType(sale_type_str)
+    except ValueError:
+        sale_type = SaleType.TICKET
+
+    # ── Verificar duplicado por número + empresa ─────────────────────────
+    if sale_number:
+        existing_sale = db.query(Sale).filter(
+            Sale.number == sale_number,
+            Sale.company_id == user.company_id,
+        ).first()
+        if existing_sale:
+            result.accion_tomada = "sale_duplicate_skipped"
+            result.warnings.append(f"Venta #{sale_number} ya existe en la DB (id={existing_sale.id}), ignorada")
+            return result
+
+    # ── Si hay conflicto de número, auto-asignar siguiente ───────────────
+    # Solo para ventas offline con número OFL- o X-
+    if not sale_number or sale_number.startswith("OFL-") or sale_number.startswith("X-"):
+        # Asignar número offline definitivo con prefijo X-
+        last_x = db.execute(
+            text("""
+                SELECT MAX(CAST(REGEXP_REPLACE(number, '[^0-9]', '', 'g') AS INTEGER))
+                FROM sales
+                WHERE number LIKE 'X-%' AND company_id = :cid
+            """),
+            {"cid": user.company_id},
+        ).scalar() or 0
+        sale_number = f"X-{str(last_x + 1).zfill(6)}"
+        result.warnings.append(f"Número offline asignado: {sale_number}")
+
+    # ── Crear la venta ───────────────────────────────────────────────────
+    try:
+        sale_date = dt_date.fromisoformat(sale_date_str) if sale_date_str else dt_date.today()
+    except (ValueError, TypeError):
+        sale_date = dt_date.today()
+
+    sale = Sale(
+        type=sale_type,
+        number=sale_number,
+        date=sale_date,
+        status=SaleStatus.EMITIDA if is_offline else SaleStatus.BORRADOR,
+        customer_name=payload.get("customer_name") or "Consumidor Final",
+        customer_cuit=payload.get("customer_cuit"),
+        notes=payload.get("notes"),
+        subtotal=payload.get("subtotal"),
+        tax=payload.get("tax"),
+        total=payload.get("total"),
+        local_id=int(local_id) if local_id else (device.local_id or None),
+        company_id=user.company_id,
+        created_by_id=user.id,
+    )
+    db.add(sale)
+    db.flush()  # Obtener el ID asignado
+
+    # ── Crear items de la venta ──────────────────────────────────────────
+    for item_data in items_data:
+        variant_id = item_data.get("variant_id")
+        quantity = item_data.get("quantity", 1)
+        unit_price = item_data.get("unit_price", 0)
+        discount_pct = item_data.get("discount_pct", 0)
+
+        if not variant_id:
+            continue
+
+        item = SaleItem(
+            sale_id=sale.id,
+            variant_id=int(variant_id),
+            quantity=int(quantity),
+            unit_price=float(unit_price),
+            discount_pct=float(discount_pct) if discount_pct else 0,
+        )
+        db.add(item)
+
+        # Descontar stock (los handlers de stock se encargan de validar)
+        db.execute(
+            text("UPDATE product_variants SET stock = stock - :qty WHERE id = :vid"),
+            {"qty": int(quantity), "vid": int(variant_id)},
+        )
+
+    db.flush()
+
+    result.accion_tomada = "sale_created"
+
+    # ── Encolar para AFIP si es factura fiscal offline ───────────────────
+    if is_offline and sale_type in (SaleType.FACTURA_A, SaleType.FACTURA_B):
+        _encolar_afip(sale.id, user.company_id, db)
+        result.accion_tomada = "sale_created_afip_queued"
+
+    # Emitir alerta si es offline (para que el admin sepa que llegó)
+    if is_offline:
+        notif = Notification(
+            type=NotificationType.INFO,
+            status=NotificationStatus.NO_LEIDA,
+            title=f"🔄 Venta offline sincronizada — {sale_number}",
+            message=(
+                f"Venta {sale_number} de {payload.get('customer_name', 'consumidor final')} "
+                f"(Local: {local_id or device.local_id or 'sin asignar'}) "
+                f"sincronizada desde modo offline. Total: ${payload.get('total', 0)}"
+            ),
+            to_role="ADMIN",
+            company_id=user.company_id,
+            related_sync_event_id=sync_event.id,
+            device_id=device.id,
+        )
+        db.add(notif)
 
     return result
 

@@ -95,9 +95,11 @@ class PCLicense(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(64), unique=True, nullable=False, default=_gen_pc_key)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    local_id = Column(Integer, ForeignKey("locals.id"), nullable=True, index=True)
     description = Column(String(200), nullable=False, default="")
     is_active = Column(Boolean, default=True)
     machine_id = Column(String(300), nullable=True)  # se fija en el primer uso
+    local_server_url = Column(String(200), nullable=True)  # URL del servidor local por LAN (ej: http://192.168.1.100:8000)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     activated_at = Column(DateTime, nullable=True)   # cuando se vinculó al primer equipo
@@ -105,3 +107,4 @@ class PCLicense(Base):
     deactivated_reason = Column(String(500), nullable=True)
 
     company = relationship("Company", backref="pc_licenses")
+    local = relationship("Local", backref="pc_licenses", foreign_keys=[local_id])
