@@ -491,7 +491,7 @@ export default function AppLayout() {
       </div>
     )}
     <ImpersonationBanner />
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex bg-gray-50">
       {/* Overlay mobile */}
       {mobileOpen && (
         <div
@@ -755,7 +755,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Offline status banner */}
         <OfflineBanner />
 
@@ -836,9 +836,8 @@ function SyncIndicator() {
 // UnifiedTopBar — barra superior unificada (brand + nav + right chips)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MegaDropdown({ group, counts, onNavigate }) {
+function MegaDropdown({ group, counts, onNavigate, anchorRect }) {
   const hasSubGroups = group.children.some((c) => c.children);
-  // Split flat children into up to 3 columns for better visual balance
   const columns = (() => {
     if (hasSubGroups) return null;
     const n = group.children.length;
@@ -851,10 +850,17 @@ function MegaDropdown({ group, counts, onNavigate }) {
     return cols;
   })();
 
+  const minW = hasSubGroups ? 640 : 260;
+  // Clamp left so it never goes off-screen right
+  const left = anchorRect
+    ? Math.min(anchorRect.left, window.innerWidth - minW - 8)
+    : 0;
+  const top = anchorRect ? anchorRect.bottom : 48;
+
   return (
     <div
-      className="absolute top-full left-0 mt-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-b-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.25)] z-[60] overflow-hidden animate-fadeInDown"
-      style={{ minWidth: hasSubGroups ? 640 : 280 }}
+      className="fixed bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-b-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] z-[9999] overflow-hidden animate-fadeInDown"
+      style={{ top, left, minWidth: minW }}
     >
       {/* Header band */}
       <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
@@ -959,7 +965,8 @@ function MegaDropdown({ group, counts, onNavigate }) {
 
 function NavGroupButton({ item, counts, openGroup, setOpenGroup }) {
   const location = useLocation();
-  const ref = useRef(null);
+  const btnRef = useRef(null);
+  const [anchorRect, setAnchorRect] = useState(null);
   const isActive = item.to
     ? item.to === "/"
       ? location.pathname === "/"
@@ -992,10 +999,14 @@ function NavGroupButton({ item, counts, openGroup, setOpenGroup }) {
   }
 
   return (
-    <div ref={ref} className="relative shrink-0 h-full">
+    <div className="shrink-0 h-full">
       <button
+        ref={btnRef}
         onClick={(e) => {
           e.stopPropagation();
+          if (!isOpen && btnRef.current) {
+            setAnchorRect(btnRef.current.getBoundingClientRect());
+          }
           setOpenGroup(isOpen ? null : item.label);
         }}
         className={`flex items-center gap-2 px-3.5 h-full text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
@@ -1015,6 +1026,7 @@ function NavGroupButton({ item, counts, openGroup, setOpenGroup }) {
         <MegaDropdown
           group={item}
           counts={counts}
+          anchorRect={anchorRect}
           onNavigate={() => setOpenGroup(null)}
         />
       )}

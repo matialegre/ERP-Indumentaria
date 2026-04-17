@@ -55,5 +55,9 @@ class User(Base, TimestampMixin):
     # Cuando está seteado, el usuario solo ve los módulos en esta lista
     modules_override: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
 
+    # Módulos donde el usuario tiene acceso de solo lectura (puede ver pero no modificar)
+    # None = sin restricción (puede editar todo lo que puede ver)
+    modules_readonly: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
+
     # Configuración personalizada del dashboard (lista de widget IDs + posición)
     dashboard_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)

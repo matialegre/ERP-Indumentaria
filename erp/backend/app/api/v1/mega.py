@@ -62,6 +62,7 @@ class UserBrief(BaseModel):
     role: UserRole
     is_active: bool
     modules_override: Optional[list] = None
+    modules_readonly: Optional[list] = None
 
     model_config = {"from_attributes": True}
 
@@ -449,12 +450,53 @@ def set_user_modules_mega(
     return UserBrief.model_validate(user)
 
 
+@router.patch("/users/{user_id}/module-permissions")
+def set_user_module_permissions(
+    user_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    """Establece qué módulos son solo-lectura para un usuario. modules_readonly=null = puede editar todo."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    modules_readonly = body.get("modules_readonly")  # None or list of slugs
+    if modules_readonly is not None:
+        modules_readonly = [s.upper() for s in modules_readonly]
+    user.modules_readonly = modules_readonly
+    db.commit()
+    db.refresh(user)
+    return UserBrief.model_validate(user)
+
+
+# ── Locales ──────────────────────────────────────────────────────────────────
+
+class LocalOut(BaseModel):
+    id: int
+    name: str
+    code: str
+    is_active: bool
+    model_config = {"from_attributes": True}
+
+
+@router.get("/companies/{company_id}/locals", response_model=list[LocalOut])
+def get_company_locals(
+    company_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    return db.query(Local).filter(Local.company_id == company_id).order_by(Local.name).all()
+
+
 # ── PC Licenses ──────────────────────────────────────────────────────────────
 
 class PCLicenseOut(BaseModel):
     id: int
     key: str
     company_id: int
+    local_id: Optional[int] = None
+    local_name: Optional[str] = None
     description: str
     is_active: bool
     machine_id: Optional[str] = None
@@ -467,6 +509,7 @@ class PCLicenseOut(BaseModel):
 
 class PCLicenseCreate(BaseModel):
     description: str
+    local_id: Optional[int] = None
 
 
 class PCLicenseUpdate(BaseModel):
@@ -485,7 +528,14 @@ def list_pc_licenses(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    return db.query(PCLicense).filter(PCLicense.company_id == company_id).order_by(PCLicense.created_at.desc()).all()
+    licenses = db.query(PCLicense).filter(PCLicense.company_id == company_id).order_by(PCLicense.local_id, PCLicense.created_at.desc()).all()
+    result = []
+    for lic in licenses:
+        out = PCLicenseOut.model_validate(lic)
+        if lic.local:
+            out.local_name = lic.local.name
+        result.append(out)
+    return result
 
 
 @router.post("/companies/{company_id}/pc-licenses", response_model=PCLicenseOut)
@@ -498,11 +548,18 @@ def create_pc_license(
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    lic = PCLicense(company_id=company_id, description=body.description)
+    if body.local_id:
+        local = db.query(Local).filter(Local.id == body.local_id, Local.company_id == company_id).first()
+        if not local:
+            raise HTTPException(status_code=404, detail="Local no encontrado")
+    lic = PCLicense(company_id=company_id, description=body.description, local_id=body.local_id)
     db.add(lic)
     db.commit()
     db.refresh(lic)
-    return lic
+    out = PCLicenseOut.model_validate(lic)
+    if lic.local:
+        out.local_name = lic.local.name
+    return out
 
 
 @router.patch("/pc-licenses/{license_id}", response_model=PCLicenseOut)
@@ -526,7 +583,10 @@ def update_pc_license(
         lic.activated_at = None
     db.commit()
     db.refresh(lic)
-    return lic
+    out = PCLicenseOut.model_validate(lic)
+    if lic.local:
+        out.local_name = lic.local.name
+    return out
 
 
 @router.delete("/pc-licenses/{license_id}", status_code=204)

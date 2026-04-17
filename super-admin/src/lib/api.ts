@@ -3,7 +3,7 @@
  * Guarda el token en localStorage bajo la clave 'sa_token'.
  */
 
-const API_BASE = 'http://localhost:8000/api/v1'
+const API_BASE = 'http://localhost:8001/api/v1'
 const TOKEN_KEY = 'sa_token'
 
 export function getToken(): string | null {
@@ -98,6 +98,7 @@ export interface UserBriefAPI {
   role: string
   is_active: boolean
   modules_override: string[] | null
+  modules_readonly: string[] | null
 }
 
 export interface LocalBriefAPI {
@@ -171,6 +172,8 @@ export interface PCLicenseAPI {
   id: number
   key: string
   company_id: number
+  local_id: number | null
+  local_name: string | null
   description: string
   is_active: boolean
   machine_id: string | null
@@ -180,14 +183,25 @@ export interface PCLicenseAPI {
   deactivated_reason: string | null
 }
 
+export interface LocalAPI {
+  id: number
+  name: string
+  code: string
+  is_active: boolean
+}
+
 export function getPCLicenses(companyId: number): Promise<PCLicenseAPI[]> {
   return request(`/mega/companies/${companyId}/pc-licenses`)
 }
 
-export function createPCLicense(companyId: number, description: string): Promise<PCLicenseAPI> {
+export function getLocals(companyId: number): Promise<LocalAPI[]> {
+  return request(`/mega/companies/${companyId}/locals`)
+}
+
+export function createPCLicense(companyId: number, description: string, localId?: number | null): Promise<PCLicenseAPI> {
   return request(`/mega/companies/${companyId}/pc-licenses`, {
     method: 'POST',
-    body: JSON.stringify({ description }),
+    body: JSON.stringify({ description, local_id: localId ?? null }),
   })
 }
 
@@ -203,5 +217,12 @@ export function updatePCLicense(
 
 export function deletePCLicense(licenseId: number): Promise<void> {
   return request(`/mega/pc-licenses/${licenseId}`, { method: 'DELETE' })
+}
+
+export function saveUserModulePermissions(userId: number, modulesReadonly: string[] | null): Promise<UserBriefAPI> {
+  return request<UserBriefAPI>(`/mega/users/${userId}/module-permissions`, {
+    method: 'PATCH',
+    body: JSON.stringify({ modules_readonly: modulesReadonly !== null ? modulesReadonly.map(s => s.toUpperCase()) : null }),
+  })
 }
 

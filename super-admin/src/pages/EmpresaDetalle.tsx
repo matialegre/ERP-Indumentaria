@@ -5,6 +5,7 @@ import {
   Package, Save, AlertTriangle, ChevronRight,
   Users, RefreshCw, ChevronDown, ChevronUp, Layers,
   Monitor, Plus, Copy, Trash2, RotateCcw, ShieldCheck, ShieldOff,
+  MapPin, Eye, Edit3, Lock, Unlock,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import {
@@ -12,9 +13,9 @@ import {
   type Modulo, type Categoria,
 } from '../lib/modules'
 import {
-  getEmpresa, getUser, saveModules, saveUserModules, toggleCompanyActive,
-  getPCLicenses, createPCLicense, updatePCLicense, deletePCLicense,
-  type EmpresaDetailAPI, type UserBriefAPI, type PCLicenseAPI,
+  getEmpresa, getUser, saveModules, saveUserModules, saveUserModulePermissions, toggleCompanyActive,
+  getPCLicenses, getLocals, createPCLicense, updatePCLicense, deletePCLicense,
+  type EmpresaDetailAPI, type UserBriefAPI, type PCLicenseAPI, type LocalAPI,
 } from '../lib/api'
 
 const CAT_COLORS: Record<Categoria, string> = {
