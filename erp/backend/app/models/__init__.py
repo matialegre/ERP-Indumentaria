@@ -69,8 +69,17 @@ from app.models.rrhh import (
     ComunicacionRRHH, TipoComunicacion, LecturaComunicacion,
 )
 
+# CONTROL DE CAJAS — caja por ciudad + movimientos
+from app.models.caja import Caja, CajaMovimiento, MovimientoTipo, MovimientoEstado
+
 # MENSAJERÍA INTERNA
 from app.models.message import Message
+
+# CALENDARIO DE EVENTOS
+from app.models.calendar_event import CalendarEvent, EventType
+
+# WEBAUTHN / WINDOWS HELLO
+from app.models.webauthn_credential import WebAuthnCredential
 
 # DEPOSITO — gestión de depósito para indumentaria
 from app.models.deposito import (
@@ -150,8 +159,14 @@ __all__ = [
     "Fichaje", "TipoFichaje", "OrigenFichaje", "EstadoFichaje",
     "DocumentoRRHH", "TipoDocumentoRRHH", "EstadoFirma",
     "ComunicacionRRHH", "TipoComunicacion", "LecturaComunicacion",
+    # CONTROL DE CAJAS
+    "Caja", "CajaMovimiento", "MovimientoTipo", "MovimientoEstado",
     # MENSAJERÍA INTERNA
     "Message",
+    # CALENDARIO DE EVENTOS
+    "CalendarEvent", "EventType",
+    # WEBAUTHN
+    "WebAuthnCredential",
     # DEPOSITO
     "StockLocal", "Transferencia", "TransferenciaItem",
     "ConteoInventario", "ConteoItem",

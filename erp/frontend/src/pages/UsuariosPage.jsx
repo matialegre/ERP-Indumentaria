@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Users, Plus, Pencil, Trash2, Power, X, Search, Layers } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Power, X, Search, Layers, KeyRound, MapPin } from "lucide-react";
 
 const ROLES = [
   "SUPERADMIN", "ADMIN", "COMPRAS", "ADMINISTRACION",
-  "GESTION_PAGOS", "VENDEDOR", "DEPOSITO",
+  "GESTION_PAGOS", "VENDEDOR", "DEPOSITO", "SUPERVISOR", "MONITOREO", "TRANSPORTE",
 ];
 
 const ROLE_COLORS = {
@@ -16,9 +16,12 @@ const ROLE_COLORS = {
   GESTION_PAGOS: "bg-emerald-100 text-emerald-700",
   VENDEDOR: "bg-cyan-100 text-cyan-700",
   DEPOSITO: "bg-slate-100 text-slate-700",
+  SUPERVISOR: "bg-orange-100 text-orange-700",
+  MONITOREO: "bg-pink-100 text-pink-700",
+  TRANSPORTE: "bg-teal-100 text-teal-700",
 };
 
-function UserModal({ user, onClose, onSave }) {
+function UserModal({ user, onClose, onSave, locals }) {
   const [form, setForm] = useState({
     username: user?.username || "",
     password: "",
@@ -26,6 +29,7 @@ function UserModal({ user, onClose, onSave }) {
     email: user?.email || "",
     role: user?.role || "VENDEDOR",
     company_id: user?.company_id || null,
+    local_id: user?.local_id || null,
   });
   const [error, setError] = useState("");
 
@@ -42,8 +46,8 @@ function UserModal({ user, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white">
           <h3 className="font-semibold text-gray-900">
             {user ? "Editar usuario" : "Nuevo usuario"}
           </h3>
@@ -109,6 +113,20 @@ function UserModal({ user, onClose, onSave }) {
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Local asignado</label>
+            <select
+              value={form.local_id || ""}
+              onChange={(e) => setForm({ ...form, local_id: e.target.value ? parseInt(e.target.value) : null })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+            >
+              <option value="">— Sin asignar —</option>
+              {locals.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Al logear, se auto-selecciona este local en la PC.</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button
@@ -319,6 +337,12 @@ export default function UsuariosPage() {
   });
   const users = pageData?.items ?? [];
 
+  const { data: locals = [] } = useQuery({
+    queryKey: ["locals-for-users"],
+    queryFn: () => api.get("/locals"),
+    staleTime: 60_000,
+  });
+
   const createMutation = useMutation({
     mutationFn: (data) => api.post("/users/", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
@@ -337,6 +361,14 @@ export default function UsuariosPage() {
   const toggleMutation = useMutation({
     mutationFn: (id) => api.patch(`/users/${id}/toggle`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, new_password }) => api.patch(`/users/${id}/reset-password`, { new_password }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      alert(data.message || "Contraseña reseteada");
+    },
   });
 
   const handleSave = async (form) => {
@@ -388,7 +420,8 @@ export default function UsuariosPage() {
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Usuario</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Nombre</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Rol</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Módulos</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Local</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-600">Perfil</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Estado</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-600">Acciones</th>
               </tr>
@@ -419,12 +452,20 @@ export default function UsuariosPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      {u.modules_override === null || u.modules_override === undefined ? (
-                        <span className="text-xs text-gray-400">Todos</span>
-                      ) : (
-                        <span className="text-xs text-violet-600 font-medium">
-                          {u.modules_override.length} seleccionados
+                      {u.local_name ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
+                          <MapPin size={12} />
+                          {u.local_name}
                         </span>
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {u.profile_complete ? (
+                        <span className="text-xs text-emerald-600 font-medium">✓ Completo</span>
+                      ) : (
+                        <span className="text-xs text-amber-600 font-medium">⏳ Pendiente</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -448,6 +489,16 @@ export default function UsuariosPage() {
                           title="Configurar módulos"
                         >
                           <Layers size={15} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const pw = prompt(`Nueva contraseña para ${u.username}:`, "1234");
+                            if (pw) resetPasswordMutation.mutate({ id: u.id, new_password: pw });
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-orange-600 transition"
+                          title="Resetear contraseña"
+                        >
+                          <KeyRound size={15} />
                         </button>
                         <button
                           onClick={() => toggleMutation.mutate(u.id)}
@@ -481,6 +532,7 @@ export default function UsuariosPage() {
           user={modal === "new" ? null : modal}
           onClose={() => setModal(null)}
           onSave={handleSave}
+          locals={locals}
         />
       )}
 

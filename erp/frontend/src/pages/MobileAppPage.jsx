@@ -369,7 +369,7 @@ function NexusScreen({ navigate }) {
     setMsgs(m => [...m, { role:"user", text:msg }]);
     setLoading(true);
     try {
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const res = await fetch("/api/v1/asistente/chat", {
         method:"POST",
         headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${token}` },

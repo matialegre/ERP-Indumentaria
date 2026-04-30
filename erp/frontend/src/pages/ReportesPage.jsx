@@ -13,6 +13,7 @@ const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#0
 
 const STATUS_COLOR_MAP = {
   BORRADOR: "#9ca3af",
+  PENDIENTE: "#3b82f6",
   ENVIADO: "#3b82f6",
   RECIBIDO: "#f59e0b",
   COMPLETADO: "#10b981",
@@ -71,6 +72,7 @@ function LoadingState() {
 function StatusBadge({ status }) {
   const colorMap = {
     BORRADOR: "bg-gray-100 text-gray-600",
+    PENDIENTE: "bg-blue-100 text-blue-700",
     ENVIADO: "bg-blue-100 text-blue-700",
     RECIBIDO: "bg-amber-100 text-amber-700",
     COMPLETADO: "bg-green-100 text-green-700",
@@ -125,7 +127,7 @@ function PedidosSection({ data, isLoading }) {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard title="Total pedidos" value={fmtNum(orders.length)} icon={ShoppingCart} colorClass="bg-blue-50 text-blue-700 border-blue-200" />
-        <StatCard title="Enviados" value={fmtNum(countByStatus("ENVIADO"))} icon={TrendingUp} colorClass="bg-indigo-50 text-indigo-700 border-indigo-200" />
+        <StatCard title="Pendientes" value={fmtNum(countByStatus("PENDIENTE") + countByStatus("ENVIADO"))} icon={TrendingUp} colorClass="bg-indigo-50 text-indigo-700 border-indigo-200" />
         <StatCard title="Recibidos" value={fmtNum(countByStatus("RECIBIDO"))} icon={CheckCircle} colorClass="bg-amber-50 text-amber-700 border-amber-200" />
         <StatCard title="Completados" value={fmtNum(countByStatus("COMPLETADO"))} icon={CheckCircle} colorClass="bg-green-50 text-green-700 border-green-200" />
         <StatCard title="Anulados" value={fmtNum(countByStatus("ANULADO"))} icon={XCircle} colorClass="bg-red-50 text-red-700 border-red-200" />

@@ -5,7 +5,7 @@ import { exportCSV, exportExcel } from "../lib/exportUtils";
 import {
   Truck, Plus, Search, Eye, Pencil, CheckCircle,
   X, Package, Clock, MapPin, FileText, Download,
-  ArrowRight, Send,
+  ArrowRight, Send, ArrowLeftRight, Building2, Filter,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────
@@ -21,6 +21,7 @@ const TABS = [
   { id: "EN_TRANSITO",  label: "En Tránsito" },
   { id: "ENTREGADO",    label: "Entregados" },
   { id: "ALL",          label: "Todos" },
+  { id: "REPOSICION",   label: "Reposición Rápida", icon: ArrowLeftRight },
 ];
 
 const fmtDate = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("es-AR") : "—";
@@ -68,6 +69,7 @@ export default function TransportePage() {
   // Queries
   const { data: shipmentsData, isLoading } = useQuery({
     queryKey: ["shipments", activeTab],
+    enabled: activeTab !== "REPOSICION",
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeTab !== "ALL") params.set("status", activeTab);
@@ -169,8 +171,9 @@ export default function TransportePage() {
                 ${active ? "border-blue-600 text-blue-700 bg-blue-50" : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"}`}
             >
               {cfg && <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
+              {tab.icon && <tab.icon size={13} />}
               {tab.label}
-              {tabCounts[tab.id] != null && (
+              {tab.id !== "REPOSICION" && tabCounts[tab.id] != null && (
                 <span className={`text-[10px] px-1 rounded-full ${active ? "bg-blue-200 text-blue-700" : "bg-gray-200 text-gray-600"}`}>
                   {tabCounts[tab.id] || 0}
                 </span>
@@ -180,6 +183,11 @@ export default function TransportePage() {
         })}
       </div>
 
+      {/* Contenido: Reposición Rápida o Envíos */}
+      {activeTab === "REPOSICION" ? (
+        <ReposicionRapida locals={locals} />
+      ) : (
+        <>
       {/* Search */}
       <div className="relative max-w-md">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -264,6 +272,8 @@ export default function TransportePage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Create Modal */}
       {createOpen && (
@@ -567,6 +577,229 @@ function ShipmentDetailModal({ id, onClose }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Reposición Rápida ─────────────────────────────
+
+function ReposicionRapida({ locals }) {
+  const [localA, setLocalA] = useState("");
+  const [localB, setLocalB] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [soloDiferencias, setSoloDiferencias] = useState(true);
+
+  const enabled = !!localA && !!localB && localA !== localB;
+
+  const { data: stockData, isLoading, isFetching } = useQuery({
+    queryKey: ["stock-reposicion", brandFilter, searchFilter],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: "500" });
+      if (brandFilter) params.set("brand", brandFilter);
+      if (searchFilter) params.set("search", searchFilter);
+      return api.get(`/stock/by-locals?${params}`);
+    },
+    enabled,
+    staleTime: 60000,
+  });
+
+  const localAName = locals.find(l => String(l.id) === localA)?.name ?? "Local A";
+  const localBName = locals.find(l => String(l.id) === localB)?.name ?? "Local B";
+
+  const rows = useMemo(() => {
+    if (!stockData?.items || !enabled) return [];
+    return stockData.items
+      .map(item => {
+        const stockA = item.stock_by_local?.[localA] ?? 0;
+        const stockB = item.stock_by_local?.[localB] ?? 0;
+        const diff = stockA - stockB;
+        return { ...item, stockA, stockB, diff };
+      })
+      .filter(item => {
+        if (soloDiferencias) return item.diff !== 0 && (item.stockA > 0 || item.stockB > 0);
+        return item.stockA > 0 || item.stockB > 0;
+      })
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  }, [stockData, localA, localB, soloDiferencias, enabled]);
+
+  return (
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter size={15} className="text-blue-600" />
+          <span className="text-sm font-semibold text-gray-700">Comparar stock entre locales</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Local A */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+              <Building2 size={12} /> Local A (origen)
+            </label>
+            <select
+              value={localA}
+              onChange={e => setLocalA(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Seleccionar…</option>
+              {locals.map(l => (
+                <option key={l.id} value={String(l.id)} disabled={String(l.id) === localB}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Local B */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+              <Building2 size={12} /> Local B (destino)
+            </label>
+            <select
+              value={localB}
+              onChange={e => setLocalB(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Seleccionar…</option>
+              {locals.map(l => (
+                <option key={l.id} value={String(l.id)} disabled={String(l.id) === localA}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Marca / Proveedor */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Marca / Proveedor</label>
+            <input
+              value={brandFilter}
+              onChange={e => setBrandFilter(e.target.value)}
+              placeholder="Ej: Columbia, Nike…"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Buscar */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Buscar producto / SKU</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={searchFilter}
+                onChange={e => setSearchFilter(e.target.value)}
+                placeholder="Nombre, SKU…"
+                className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Toggle solo diferencias */}
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => setSoloDiferencias(v => !v)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${soloDiferencias ? "bg-blue-600" : "bg-gray-300"}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${soloDiferencias ? "translate-x-4.5" : "translate-x-0.5"}`} />
+          </button>
+          <span className="text-xs text-gray-600">Solo mostrar productos con diferencias de stock</span>
+        </div>
+      </div>
+
+      {/* Resultado */}
+      {!enabled ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
+          <ArrowLeftRight size={36} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium">Seleccioná dos locales distintos para comparar el stock</p>
+        </div>
+      ) : isLoading || isFetching ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" />
+          <p className="text-sm">Cargando stock...</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-400">
+          <Package size={36} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No hay productos con stock en los locales seleccionados</p>
+          {soloDiferencias && (
+            <button
+              onClick={() => setSoloDiferencias(false)}
+              className="mt-2 text-xs text-blue-600 hover:underline"
+            >
+              Mostrar todos los productos
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-700">
+              {rows.length} producto{rows.length !== 1 ? "s" : ""}
+              {soloDiferencias ? " con diferencias" : " con stock"}
+            </span>
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                A tiene más
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                B tiene más
+              </span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600 uppercase text-[11px]">
+                <tr>
+                  <th className="px-4 py-3 text-left">Producto</th>
+                  <th className="px-4 py-3 text-left">SKU</th>
+                  <th className="px-4 py-3 text-left">Marca</th>
+                  <th className="px-4 py-3 text-left">Talle/Color</th>
+                  <th className="px-4 py-3 text-center">{localAName}</th>
+                  <th className="px-4 py-3 text-center">{localBName}</th>
+                  <th className="px-4 py-3 text-center">Diferencia</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {rows.map(item => {
+                  const diffAbs = Math.abs(item.diff);
+                  const diffColor = item.diff > 0
+                    ? "text-green-700 bg-green-50"
+                    : item.diff < 0
+                    ? "text-amber-700 bg-amber-50"
+                    : "text-gray-400";
+                  return (
+                    <tr key={item.variant_id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate" title={item.product_name}>
+                        {item.product_name}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{item.sku || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{item.brand || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        {[item.size, item.color].filter(Boolean).join(" / ") || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-800">{item.stockA}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-800">{item.stockB}</td>
+                      <td className="px-4 py-3 text-center">
+                        {item.diff !== 0 ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${diffColor}`}>
+                            {item.diff > 0 ? "+" : ""}{item.diff}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">igual</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

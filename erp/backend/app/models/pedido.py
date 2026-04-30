@@ -32,6 +32,7 @@ class Pedido(Base, TimestampMixin):
     )
     notes: Mapped[str | None] = mapped_column(Text)
     total: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    excel_file: Mapped[str | None] = mapped_column(String(500))
 
     provider_id: Mapped[int] = mapped_column(ForeignKey("providers.id"), nullable=False)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)

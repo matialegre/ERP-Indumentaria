@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { WifiOff, Wifi, Building2, Eye, EyeOff } from "lucide-react";
+import { WifiOff, Wifi, Building2, Eye, EyeOff, Fingerprint } from "lucide-react";
 import { useBranding } from "../context/BrandingContext";
 import { Spotlight } from "../components/ui/spotlight";
 import { SplineScene } from "../components/ui/spline-scene";
+import { isPlatformAuthenticatorAvailable, getAssertion } from "../lib/webauthn";
+import { api } from "../lib/api";
 
 const SPLINE_SCENE = "https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const {
@@ -24,6 +26,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [companyBranding, setCompanyBranding] = useState(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const companyId = searchParams.get("company") || localStorage.getItem("login_company_id") || null;
   const blockedReason = searchParams.get("blocked");
@@ -63,6 +67,62 @@ export default function LoginPage() {
     logo_url: companyBranding?.logo_url || logo_url,
   }), [companyBranding, app_name, short_name, welcome_message, primary_color, secondary_color, logo_url]);
 
+  useEffect(() => {
+    isPlatformAuthenticatorAvailable().then(setBiometricAvailable).catch(() => {});
+  }, []);
+
+  const handleBiometric = async () => {
+    if (!username.trim()) {
+      setError("Ingresá tu usuario primero");
+      return;
+    }
+    setError("");
+    setBiometricLoading(true);
+    try {
+      const begin = await api.post("/auth/webauthn/authenticate/begin", { username: username.trim() });
+      const assertion = await getAssertion(begin);
+      const result = await api.post("/auth/webauthn/authenticate/complete", {
+        username: username.trim(),
+        challenge: begin.challenge,
+        ...assertion,
+      });
+      await loginWithToken(result.access_token);
+      refreshBranding();
+      await hardReloadAfterLogin();
+    } catch (err) {
+      const msg = err.message || "";
+      if (msg.includes("No hay credencial")) {
+        setError("No tenés huella registrada en esta PC. Registrala desde Configuración → Mi Perfil.");
+      } else if (err.name === "NotAllowedError" || err.name === "AbortError") {
+        setError("Verificación cancelada.");
+      } else if (msg.includes("LICENCIA_SUSPENDIDA")) {
+        setError("🔒 Licencia suspendida.");
+      } else if (msg.includes("LICENCIA_CANCELADA")) {
+        setError("❌ Licencia cancelada.");
+      } else {
+        setError("No se pudo verificar la huella. Intentá con contraseña.");
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  // Hard reload tras login: limpia service workers y caches para evitar tener que hacer Ctrl+Shift+R
+  const hardReloadAfterLogin = async () => {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister().catch(() => {})));
+      }
+      if (typeof caches !== "undefined") {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k).catch(() => {})));
+      }
+    } catch {}
+    // Reload duro — preserva sessionStorage (token), descarta toda cache de assets
+    window.location.replace("/");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -70,7 +130,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       refreshBranding();
-      navigate("/");
+      await hardReloadAfterLogin();
     } catch (err) {
       const msg = err.message || "Credenciales incorrectas";
       if (msg.includes("LICENCIA_SUSPENDIDA")) {
@@ -177,6 +237,18 @@ export default function LoginPage() {
             >
               {loading ? "Ingresando..." : online ? "Ingresar" : "Ingresar (Offline)"}
             </button>
+
+            {biometricAvailable && online && (
+              <button
+                type="button"
+                onClick={handleBiometric}
+                disabled={biometricLoading}
+                className="w-full py-3 rounded-xl text-sm font-semibold border border-white/20 text-white/80 hover:bg-white/10 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Fingerprint size={18} />
+                {biometricLoading ? "Verificando huella..." : "Entrar con Windows Hello / Huella"}
+              </button>
+            )}
           </form>
 
           {!online && (

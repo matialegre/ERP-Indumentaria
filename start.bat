@@ -15,10 +15,10 @@ powershell -NoProfile -Command "try { $tcp = New-Object Net.Sockets.TcpClient; $
 echo.
 
 REM ── Levantar Backend ──────────────────────────────────────────────────────
-echo [2/4] Levantando backend FastAPI en puerto 8000...
+echo [2/4] Levantando backend FastAPI en puerto 8001...
 
-REM Verificar si ya está corriendo
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:8000/api/v1/health' -TimeoutSec 2 -UseBasicParsing; Write-Host '       Ya estaba corriendo — OK' -ForegroundColor Yellow } catch { Write-Host '       Iniciando nuevo proceso...' -ForegroundColor Cyan; Start-Process cmd -ArgumentList '/k title Backend ERP :8000 ^& cd /d ""D:\ERP MUNDO OUTDOOR\erp\backend"" ^& .\venv\Scripts\activate ^& python -m uvicorn main:app --host 0.0.0.0 --port 8000' -WindowStyle Normal }"
+REM Verificar si ya está corriendo en 8001
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://localhost:8001/api/v1/health' -TimeoutSec 2 -UseBasicParsing; Write-Host '       Ya estaba corriendo en :8001 — OK' -ForegroundColor Yellow } catch { Write-Host '       Iniciando nuevo proceso en :8001...' -ForegroundColor Cyan; Start-Process cmd -ArgumentList '/k title Backend ERP :8001 ^& cd /d ""D:\ERP MUNDO OUTDOOR\erp\backend"" ^& .\venv\Scripts\activate ^& python -m uvicorn main:app --reload --host 0.0.0.0 --port 8001' -WindowStyle Normal }"
 
 REM Esperar a que el backend esté listo (hasta 15s)
 echo       Esperando que el backend responda...
@@ -27,7 +27,7 @@ $ok = $false
 for ($i = 0; $i -lt 15; $i++) {
     Start-Sleep -Seconds 1
     try {
-        $r = Invoke-WebRequest -Uri 'http://localhost:8000/api/v1/health' -TimeoutSec 1 -UseBasicParsing
+        $r = Invoke-WebRequest -Uri 'http://localhost:8001/api/v1/health' -TimeoutSec 1 -UseBasicParsing
         Write-Host '       Backend listo!' -ForegroundColor Green
         $ok = $true
         break
@@ -61,8 +61,8 @@ echo.
 echo ╔══════════════════════════════════════════════════════════╗
 echo ║                   SISTEMA INICIADO                       ║
 echo ╠══════════════════════════════════════════════════════════╣
-echo ║  Backend API    →  http://localhost:8000                 ║
-echo ║  Swagger/Docs   →  http://localhost:8000/docs            ║
+echo ║  Backend API    →  http://localhost:8001                 ║
+echo ║  Swagger/Docs   →  http://localhost:8001/docs            ║
 echo ║  Frontend ERP   →  http://localhost:5174                 ║
 echo ║                                                          ║
 echo ║  Usuario admin: admin / MundoAdmin2026!                  ║

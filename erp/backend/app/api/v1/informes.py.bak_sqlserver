@@ -1,0 +1,1476 @@
+"""
+informes.py — Módulo de Informes completo
+=========================================
+Ejecuta reportes contra SQL Server (192.168.0.109:9970 / DATOS).
+Acceso restringido a ADMIN, SUPERADMIN y MEGAADMIN.
+"""
+
+from datetime import date, timedelta
+from typing import Optional, Any
+
+from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
+
+from app.api.deps import get_current_user, require_roles
+from app.models.user import User, UserRole
+
+# ── Conexión SQL Server ────────────────────────────────────────────────────────
+
+_CONN_STR = (
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=192.168.0.109,9970;"
+    "DATABASE=DATOS;"
+    "UID=MUNDO;"
+    "PWD=sanmartin126;"
+    "TrustServerCertificate=yes"
+)
+
+_CONN_STR_FALLBACK = (
+    "DRIVER={SQL Server};"
+    "SERVER=192.168.0.109,9970;"
+    "DATABASE=DATOS;"
+    "UID=MUNDO;"
+    "PWD=sanmartin126;"
+)
+
+
+def _get_conn():
+    try:
+        import pyodbc
+        try:
+            return pyodbc.connect(_CONN_STR, timeout=0)
+        except Exception:
+            return pyodbc.connect(_CONN_STR_FALLBACK, timeout=0)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"SQL Server no disponible: {exc}")
+
+
+def _mes_actual() -> tuple[date, date]:
+    hoy = date.today()
+    return hoy.replace(day=1), hoy
+
+
+def _parse_fechas(desde: Optional[str], hasta: Optional[str]) -> tuple[date, date]:
+    if desde and hasta:
+        try:
+            return date.fromisoformat(desde), date.fromisoformat(hasta)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usar YYYY-MM-DD")
+    return _mes_actual()
+
+
+def _rows_to_dicts(cursor) -> list[dict]:
+    cols = [c[0] for c in cursor.description]
+    rows = cursor.fetchall()
+    result = []
+    for row in rows:
+        d = {}
+        for i, col in enumerate(cols):
+            val = row[i]
+            if hasattr(val, 'isoformat'):
+                val = val.isoformat()[:10]
+            elif isinstance(val, float):
+                val = round(val, 2)
+            d[col] = val
+        result.append(d)
+    return result
+
+
+def _locales_clause(csv: Optional[str], col_sql: str) -> tuple[str, list]:
+    """
+    Construye un fragmento SQL para filtrar por uno o múltiples locales.
+    - csv: "Local1,Local2" o None/""
+    - col_sql: expresión SQL de la columna de local, ej. "REPLACE(LOCAL,'DRAGONFISH_','')"
+    Devuelve (sql_fragment, params_list). Si no hay filtro, devuelve ("1=1", []).
+    """
+    if not csv or not csv.strip():
+        return ("1=1", [])
+    vals = [v.strip() for v in csv.split(",") if v.strip()]
+    if not vals:
+        return ("1=1", [])
+    placeholders = ",".join(["?"] * len(vals))
+    return (f"{col_sql} IN ({placeholders})", vals)
+
+
+# ── Router ────────────────────────────────────────────────────────────────────
+
+router = APIRouter(prefix="/informes", tags=["Informes"])
+
+_ADMIN_ROLES = [UserRole.MEGAADMIN, UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.ADMINISTRACION]
+
+
+# ── 1. Evaluación de Empleados (NUEVO) ───────────────────────────────────────
+
+_SQL_EMPLEADOS = """
+WITH DetallePorComprobante AS (
+    SELECT
+        CAST(FECHA AS DATE) AS FECHA,
+        VENDEDOR,
+        REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+        COMPROBANTE_NUMERO,
+        COMPROBANTE_TIPO,
+        SUM(
+            CASE
+                WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+                THEN -1
+                ELSE 1
+            END
+        ) AS CantidadArticulos
+    FROM VENTAS
+    WHERE
+        CAST(FECHA AS DATE) BETWEEN ? AND ?
+        AND PRECIO_UNIDAD > 10
+        AND VENDEDOR IS NOT NULL
+        AND VENDEDOR <> 'Sin Vendedor'
+        AND VENDEDOR <> ''
+        AND {LOCAL_FILTER}
+    GROUP BY
+        CAST(FECHA AS DATE),
+        VENDEDOR,
+        REPLACE(LOCAL, 'DRAGONFISH_', ''),
+        COMPROBANTE_NUMERO,
+        COMPROBANTE_TIPO
+)
+SELECT
+    FECHA,
+    VENDEDOR,
+    LOCAL,
+    COUNT(*) AS TOTAL_TICKETS,
+    SUM(CASE WHEN CantidadArticulos > 1 THEN 1 ELSE 0 END) AS TICKETS_MULTIARTICULO,
+    SUM(CantidadArticulos) AS TOTAL_ARTICULOS,
+    CAST(
+        CASE WHEN COUNT(*) > 0
+            THEN CAST(SUM(CantidadArticulos) AS FLOAT) / COUNT(*)
+            ELSE 0
+        END
+    AS DECIMAL(10,2)) AS PROMEDIO_ARTICULOS_TICKET
+FROM DetallePorComprobante
+GROUP BY
+    FECHA,
+    VENDEDOR,
+    LOCAL
+ORDER BY
+    FECHA DESC,
+    TOTAL_ARTICULOS DESC
+"""
+
+
+@router.get("/empleados")
+def informe_empleados(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    vendedor: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    """Evaluación de empleados: tickets y artículos por día y vendedor."""
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_EMPLEADOS.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp
+        ))
+        rows = _rows_to_dicts(cursor)
+        if vendedor:
+            rows = [r for r in rows if vendedor.lower() in str(r.get("VENDEDOR", "")).lower()]
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": rows}
+    finally:
+        conn.close()
+
+
+# ── 2. Ventas Agrupadas (por día y local) ────────────────────────────────────
+
+_SQL_VENTAS_AGRUPADAS = """
+SELECT
+    CAST(FECHA AS DATE) AS FECHA,
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN CANTIDAD_VENDIDA * -1
+            ELSE CANTIDAD_VENDIDA
+        END
+    ) AS CANTIDAD_VENDIDA,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN MONTO_VENTA_NETO_IVA * -1
+            ELSE MONTO_VENTA_NETO_IVA
+        END
+    ) AS MONTO_VENDIDO,
+    COUNT(DISTINCT
+        CASE
+            WHEN COMPROBANTE_TIPO LIKE 'TKF%%' OR COMPROBANTE_TIPO = 'TIQUE'
+            THEN CONCAT(REPLACE(LOCAL, 'DRAGONFISH_', ''), '|', COMPROBANTE_TIPO, '|', CONVERT(VARCHAR(100), COMPROBANTE_NUMERO))
+            ELSE NULL
+        END
+    ) AS CANTIDAD_FACTURAS,
+    COUNT(DISTINCT
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO = 'AUTOCON' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN CONCAT(REPLACE(LOCAL, 'DRAGONFISH_', ''), '|', COMPROBANTE_TIPO, '|', CONVERT(VARCHAR(100), COMPROBANTE_NUMERO))
+            ELSE NULL
+        END
+    ) AS CANTIDAD_NOTA_CREDITO
+FROM VENTAS
+WHERE
+    CAST(FECHA AS DATE) BETWEEN ? AND ?
+    AND {LOCAL_FILTER}
+GROUP BY
+    CAST(FECHA AS DATE),
+    REPLACE(LOCAL, 'DRAGONFISH_', '')
+ORDER BY FECHA DESC, MONTO_VENDIDO DESC
+"""
+
+
+@router.get("/ventas-agrupadas")
+def informe_ventas_agrupadas(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_AGRUPADAS.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 3. Artículos por Ticket ───────────────────────────────────────────────────
+
+_SQL_ARTICULOS_TICKET = """
+SELECT
+    MIN(CAST(FECHA AS DATE)) AS FECHA,
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    VENDEDOR,
+    COMPROBANTE_NUMERO,
+    COMPROBANTE_TIPO,
+    SUM(
+        CANTIDAD_VENDIDA * CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN -1
+            ELSE 1
+        END
+    ) AS CANTIDAD_ARTICULOS
+FROM VENTAS
+WHERE
+    CAST(FECHA AS DATE) BETWEEN ? AND ?
+    AND PRECIO_UNIDAD > 10
+    AND {LOCAL_FILTER}
+GROUP BY
+    REPLACE(LOCAL, 'DRAGONFISH_', ''),
+    VENDEDOR,
+    COMPROBANTE_NUMERO,
+    COMPROBANTE_TIPO
+HAVING
+    SUM(
+        CANTIDAD_VENDIDA * CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN -1
+            ELSE 1
+        END
+    ) >= ?
+ORDER BY
+    FECHA DESC,
+    LOCAL ASC
+"""
+
+
+@router.get("/articulos-por-ticket")
+def informe_articulos_ticket(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    min_articulos: int = Query(1),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_ARTICULOS_TICKET.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            min_articulos
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 4. Ventas por Vendedor [ELIMINADO — mejora id=110] ───────────────────────
+# El informe "Ventas por Vendedor" fue removido del sistema.
+
+
+# ── 5. Ventas por Marca ───────────────────────────────────────────────────────
+
+_SQL_VENTAS_MARCA = """
+WITH ARTICULOS_DEPURADO AS (
+    SELECT *
+    FROM (
+        SELECT *,
+            ROW_NUMBER() OVER (
+                PARTITION BY CODIGO_ARTICULO, COLOR_DESCRIPCION, TALLE_DESCRIPCION
+                ORDER BY CODIGO_ARTICULO
+            ) AS RN
+        FROM ARTICULOS
+    ) A
+    WHERE RN = 1
+)
+SELECT
+    V.MARCA,
+    REPLACE(V.LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    SUM(
+        CASE
+            WHEN V.COMPROBANTE_TIPO = 'AUTOCONS' OR V.COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN V.CANTIDAD_VENDIDA * -1
+            ELSE V.CANTIDAD_VENDIDA
+        END
+    ) AS CANTIDAD_VENDIDA,
+    SUM(
+        CASE
+            WHEN V.COMPROBANTE_TIPO = 'AUTOCONS' OR V.COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN V.MONTO_VENTA_NETO_IVA * -1
+            ELSE V.MONTO_VENTA_NETO_IVA
+        END
+    ) AS MONTO_VENDIDO
+FROM VENTAS V
+LEFT JOIN ARTICULOS_DEPURADO A
+    ON V.CODIGO_ARTICULO = A.CODIGO_ARTICULO
+    AND V.CODIGO_COLOR = A.COLOR_DESCRIPCION
+    AND V.CODIGO_TALLE = A.TALLE_DESCRIPCION
+WHERE
+    CAST(V.FECHA AS DATE) BETWEEN ? AND ?
+    AND V.PRECIO_UNIDAD > 10
+    AND {LOCAL_FILTER_V}
+    AND (? IS NULL OR ? = '' OR V.MARCA = ?)
+    AND (? IS NULL OR ? = '' OR A.PROVEEDOR = ?)
+GROUP BY
+    V.MARCA,
+    REPLACE(V.LOCAL, 'DRAGONFISH_', '')
+ORDER BY V.MARCA ASC, MONTO_VENDIDO DESC
+"""
+
+
+@router.get("/ventas-marca")
+def informe_ventas_marca(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    proveedor: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(V.LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    pv = proveedor if proveedor and proveedor.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_MARCA.replace("{LOCAL_FILTER_V}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            mv, mv, mv,
+            pv, pv, pv,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 6. Ventas por Artículo ────────────────────────────────────────────────────
+
+_SQL_VENTAS_ARTICULO = """
+WITH VentasFiltradas AS (
+    SELECT
+        REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+        CODIGO_ARTICULO,
+        TRIM(
+            CASE
+                WHEN CHARINDEX(' Variante', ARTICULO_DESCRIPCION) > 0
+                THEN LEFT(ARTICULO_DESCRIPCION, CHARINDEX(' Variante', ARTICULO_DESCRIPCION) - 1)
+                ELSE ARTICULO_DESCRIPCION
+            END
+        ) AS ARTICULO_LIMPIO,
+        CANTIDAD_VENDIDA
+    FROM VENTAS
+    WHERE CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND {LOCAL_FILTER}
+      AND (? IS NULL OR ? = '' OR MARCA = ?)
+      AND UPPER(CODIGO_ARTICULO) NOT IN (
+          'AJUSTE','NRMPBSABS6NB0ST','NRMPBSABS2','1','3',
+          'PTF3539APCOUT','PTF4539APCOUT','PTR2530APCOUT',
+          'PTF7050APCOUT','DESCUENTO','NRMPBSABS1','NRMPBSABS5','2'
+      )
+)
+SELECT
+    LOCAL,
+    CODIGO_ARTICULO,
+    ARTICULO_LIMPIO,
+    SUM(CANTIDAD_VENDIDA) AS TOTAL_VENDIDO
+FROM VentasFiltradas
+GROUP BY LOCAL, CODIGO_ARTICULO, ARTICULO_LIMPIO
+ORDER BY SUM(CANTIDAD_VENDIDA) DESC
+"""
+
+
+@router.get("/ventas-articulo")
+def informe_ventas_articulo(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_ARTICULO.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            mv, mv, mv,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 7. Ventas con Código de Promoción ────────────────────────────────────────
+
+_SQL_VENTAS_PROMO = """
+SELECT
+    CAST(FECHA AS DATE) AS FECHA,
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    COMPROBANTE_NUMERO,
+    COMPROBANTE_TIPO,
+    VENDEDOR,
+    ISNULL(CODIGOPROMOCION, '') AS CODIGOPROMOCION,
+    CODIGO_ARTICULO,
+    TRIM(CASE
+        WHEN CHARINDEX(' Variante', ARTICULO_DESCRIPCION) > 0
+        THEN LEFT(ARTICULO_DESCRIPCION, CHARINDEX(' Variante', ARTICULO_DESCRIPCION) - 1)
+        ELSE ARTICULO_DESCRIPCION
+    END) AS ARTICULO,
+    SUM(CANTIDAD_VENDIDA) AS TOTAL_CANTIDAD
+FROM VENTAS
+WHERE
+    CAST(FECHA AS DATE) BETWEEN ? AND ?
+    AND VENDEDOR IS NOT NULL
+    AND VENDEDOR <> 'Sin Vendedor'
+    AND VENDEDOR <> ''
+    AND (? IS NULL OR ? = '' OR CODIGO_ARTICULO = ?)
+    AND {LOCAL_FILTER}
+    AND (? IS NULL OR ? = '' OR MARCA = ?)
+GROUP BY
+    CAST(FECHA AS DATE),
+    REPLACE(LOCAL, 'DRAGONFISH_', ''),
+    COMPROBANTE_NUMERO,
+    COMPROBANTE_TIPO,
+    VENDEDOR,
+    ISNULL(CODIGOPROMOCION, ''),
+    CODIGO_ARTICULO,
+    TRIM(CASE
+        WHEN CHARINDEX(' Variante', ARTICULO_DESCRIPCION) > 0
+        THEN LEFT(ARTICULO_DESCRIPCION, CHARINDEX(' Variante', ARTICULO_DESCRIPCION) - 1)
+        ELSE ARTICULO_DESCRIPCION
+    END)
+ORDER BY FECHA ASC, LOCAL ASC, COMPROBANTE_NUMERO ASC
+"""
+
+
+@router.get("/ventas-promo")
+def informe_ventas_promo(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    codigo_articulo: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    cv = codigo_articulo if codigo_articulo and codigo_articulo.strip() else None
+    mv = marca if marca and marca.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_PROMO.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            cv, cv, cv,
+            *lp,
+            mv, mv, mv,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 8. Medio de Pago ─────────────────────────────────────────────────────────
+
+_SQL_MEDIO_PAGO = """
+SELECT
+    v.FECHA_DIA AS FECHA,
+    ISNULL(mp.FORMAPAGODETALLE, 'Sin Especificar') AS MEDIO_PAGO,
+    REPLACE(mp.LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    SUM(
+        CASE
+            WHEN mp.COMPROBANTE_TIPO = 'AUTOCONS' OR mp.COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN -mp.MONTOPAGO
+            ELSE mp.MONTOPAGO
+        END
+    ) AS MONTO_VENDIDO
+FROM MEDIOS_PAGOS mp
+INNER JOIN (
+    SELECT IDVENTA, LOCAL, CAST(MIN(FECHA) AS DATE) AS FECHA_DIA
+    FROM VENTAS GROUP BY IDVENTA, LOCAL
+) v ON v.IDVENTA = CONVERT(VARCHAR(50), mp.IDVENTA) AND v.LOCAL = mp.LOCAL
+WHERE
+    v.FECHA_DIA BETWEEN ? AND ?
+    AND {LOCAL_FILTER_MP}
+    AND (? IS NULL OR ? = '' OR mp.FORMAPAGODETALLE = ?)
+GROUP BY
+    v.FECHA_DIA,
+    ISNULL(mp.FORMAPAGODETALLE, 'Sin Especificar'),
+    REPLACE(mp.LOCAL, 'DRAGONFISH_', '')
+ORDER BY FECHA DESC, MONTO_VENDIDO DESC
+"""
+
+
+@router.get("/medio-pago")
+def informe_medio_pago(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    medio_pago: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(mp.LOCAL,'DRAGONFISH_','')")
+    mpv = medio_pago if medio_pago and medio_pago.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_MEDIO_PAGO.replace("{LOCAL_FILTER_MP}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            mpv, mpv, mpv,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 9. Ventas y Stock ─────────────────────────────────────────────────────────
+
+_SQL_VENTAS_STOCK = """
+WITH ResumenVentas AS (
+    SELECT
+        CODIGO_ARTICULO,
+        SUM(CASE
+                WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+                THEN CANTIDAD_VENDIDA * -1
+                ELSE CANTIDAD_VENDIDA
+            END) AS TOTAL_VENDIDO
+    FROM VENTAS
+    WHERE CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND PRECIO_UNIDAD > 10
+      AND {LOCAL_FILTER}
+    GROUP BY CODIGO_ARTICULO
+),
+ResumenStock AS (
+    SELECT
+        CODIGO_ARTICULO,
+        MAX(LTRIM(RTRIM(
+            CASE
+                WHEN CHARINDEX('Variante', DESCRIPCION) > 0
+                THEN LEFT(DESCRIPCION, CHARINDEX('Variante', DESCRIPCION) - 1)
+                ELSE DESCRIPCION
+            END
+        ))) AS DESCRIPCION,
+        SUM(STOCK) AS TOTAL_STOCK
+    FROM STOCKS
+    WHERE (? IS NULL OR ? = '' OR MARCA = ?)
+      AND (? IS NULL OR ? = '' OR PROVEEDOR = ?)
+      AND {LOCAL_FILTER}
+    GROUP BY CODIGO_ARTICULO
+)
+SELECT
+    S.CODIGO_ARTICULO,
+    S.DESCRIPCION,
+    ISNULL(S.TOTAL_STOCK, 0) AS STOCK_ACTUAL,
+    ISNULL(V.TOTAL_VENDIDO, 0) AS CANTIDAD_VENDIDA
+FROM ResumenStock S
+LEFT JOIN ResumenVentas V ON S.CODIGO_ARTICULO = V.CODIGO_ARTICULO
+ORDER BY CANTIDAD_VENDIDA DESC, STOCK_ACTUAL DESC
+"""
+
+
+@router.get("/ventas-stock")
+def informe_ventas_stock(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    proveedor: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    pv = proveedor if proveedor and proveedor.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_STOCK.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            mv, mv, mv,
+            pv, pv, pv,
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 10. Stock Valorizado ──────────────────────────────────────────────────────
+
+_SQL_STOCK_VALORIZADO = """
+WITH StocksUnicos AS (
+    SELECT DISTINCT
+        CODIGO_ARTICULO,
+        CODIGO_COLOR,
+        CODIGO_TALLE,
+        LOCAL,
+        STOCK,
+        COSTO,
+        MARCA,
+        PROVEEDOR
+    FROM STOCKS
+)
+SELECT
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    SUM(
+        CAST(STOCK AS DECIMAL(18,4)) * ISNULL(CAST(COSTO AS DECIMAL(18,4)), 0)
+    ) AS VALOR_TOTAL
+FROM StocksUnicos
+WHERE (? IS NULL OR ? = '' OR MARCA = ?)
+  AND (? IS NULL OR ? = '' OR PROVEEDOR = ?)
+  AND {LOCAL_FILTER}
+GROUP BY REPLACE(LOCAL, 'DRAGONFISH_', '')
+ORDER BY LOCAL
+"""
+
+
+@router.get("/stock-valorizado")
+def informe_stock_valorizado(
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    proveedor: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    pv = proveedor if proveedor and proveedor.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_STOCK_VALORIZADO.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            mv, mv, mv,
+            pv, pv, pv,
+            *lp,
+        ))
+        return {"rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 11. Fichas de Compras por Local ──────────────────────────────────────────
+
+_SQL_FICHAS_LOCALES = """
+WITH SS AS (
+    SELECT
+        LOCAL,
+        COUNT(COMPRO) AS COMPRAS
+    FROM FICHACOMPRO
+    WHERE COMPRO = 'SI'
+      AND CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND {LOCAL_FILTER_RAW}
+    GROUP BY LOCAL
+),
+ST AS (
+    SELECT
+        LOCAL,
+        COUNT(*) AS TOTAL
+    FROM FICHACOMPRO
+    WHERE CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND {LOCAL_FILTER_RAW}
+    GROUP BY LOCAL
+)
+SELECT
+    ST.LOCAL,
+    ? AS DESDE,
+    ? AS HASTA,
+    ST.TOTAL AS TOTAL_OPERACIONES,
+    COALESCE(SS.COMPRAS, 0) AS COMPRAS_EFECTIVAS,
+    CASE
+        WHEN ST.TOTAL = 0 THEN 0
+        ELSE ROUND((COALESCE(SS.COMPRAS, 0) * 100.0) / ST.TOTAL, 2)
+    END AS PORCENTAJE_CONVERSION
+FROM ST
+LEFT JOIN SS ON SS.LOCAL = ST.LOCAL
+ORDER BY PORCENTAJE_CONVERSION DESC
+"""
+
+
+@router.get("/fichas-locales")
+def informe_fichas_locales(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "LOCAL")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_FICHAS_LOCALES.replace("{LOCAL_FILTER_RAW}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            str(fecha_desde), str(fecha_hasta),
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 12. Fichas de Compras Diarias ─────────────────────────────────────────────
+
+_SQL_FICHAS_DIARIAS = """
+WITH SS AS (
+    SELECT
+        CAST(FECHA AS DATE) AS FECHA_DIA,
+        COUNT(COMPRO) AS COMPRAS
+    FROM FICHACOMPRO
+    WHERE COMPRO = 'SI'
+      AND CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND {LOCAL_FILTER_RAW}
+    GROUP BY CAST(FECHA AS DATE)
+),
+ST AS (
+    SELECT
+        CAST(FECHA AS DATE) AS FECHA_DIA,
+        COUNT(*) AS TOTAL
+    FROM FICHACOMPRO
+    WHERE CAST(FECHA AS DATE) BETWEEN ? AND ?
+      AND {LOCAL_FILTER_RAW}
+    GROUP BY CAST(FECHA AS DATE)
+)
+SELECT
+    ST.FECHA_DIA,
+    ST.TOTAL AS TOTAL_OPERACIONES_DIA,
+    COALESCE(SS.COMPRAS, 0) AS COMPRAS_EFECTIVAS_DIA,
+    CASE
+        WHEN ST.TOTAL = 0 THEN 0
+        ELSE ROUND((COALESCE(SS.COMPRAS, 0) * 100.0) / ST.TOTAL, 2)
+    END AS PORCENTAJE_DIARIO
+FROM ST
+LEFT JOIN SS ON SS.FECHA_DIA = ST.FECHA_DIA
+ORDER BY ST.FECHA_DIA ASC
+"""
+
+
+@router.get("/fichas-diarias")
+def informe_fichas_diarias(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "LOCAL")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_FICHAS_DIARIAS.replace("{LOCAL_FILTER_RAW}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 13. MercadoLibre por Categoría ───────────────────────────────────────────
+
+_SQL_ML_CATEGORIAS = """
+SELECT
+    v.CATEGORY_NAME AS CATEGORIA,
+    SUM(CASE WHEN v.DATE_CREATED >= ? AND v.DATE_CREATED < DATEADD(DAY, 1, ?) THEN v.CANTIDAD ELSE 0 END) AS UNIDADES,
+    SUM(CASE WHEN v.DATE_CREATED >= ? AND v.DATE_CREATED < DATEADD(DAY, 1, ?) THEN v.TOTAL_AMOUNT ELSE 0 END) AS VENTAS
+FROM VENTAS_MERCADOLIBRE v
+WHERE
+    v.ESTADO = 'VENTA_COMPLETADA'
+    AND (? IS NULL OR ? = '' OR v.CATEGORY_NAME = ?)
+    AND {LOCAL_FILTER_ML}
+GROUP BY v.CATEGORY_NAME
+ORDER BY VENTAS DESC
+"""
+
+
+@router.get("/mercadolibre-categorias")
+def informe_ml_categorias(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    categoria: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    catv = categoria if categoria and categoria.strip() else None
+    lc, lp = _locales_clause(local, "v.LOCAL")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_ML_CATEGORIAS.replace("{LOCAL_FILTER_ML}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            str(fecha_desde), str(fecha_hasta),
+            catv, catv, catv,
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 14. MercadoLibre por Producto ─────────────────────────────────────────────
+
+_SQL_ML_PRODUCTOS = """
+SELECT
+    v.PRODUCT_NAME AS PRODUCTO,
+    SUM(CASE WHEN v.DATE_CREATED >= ? AND v.DATE_CREATED < DATEADD(DAY, 1, ?) THEN v.CANTIDAD ELSE 0 END) AS UNIDADES,
+    SUM(CASE WHEN v.DATE_CREATED >= ? AND v.DATE_CREATED < DATEADD(DAY, 1, ?) THEN v.TOTAL_AMOUNT ELSE 0 END) AS VENTAS
+FROM VENTAS_MERCADOLIBRE v
+WHERE
+    v.ESTADO = 'VENTA_COMPLETADA'
+    AND (? IS NULL OR v.PRODUCT_NAME LIKE '%' + ? + '%')
+    AND {LOCAL_FILTER_ML}
+GROUP BY v.PRODUCT_NAME
+ORDER BY VENTAS DESC
+"""
+
+
+@router.get("/mercadolibre-productos")
+def informe_ml_productos(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    producto: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    pv = producto if producto and producto.strip() else None
+    lc, lp = _locales_clause(local, "v.LOCAL")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_ML_PRODUCTOS.replace("{LOCAL_FILTER_ML}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            str(fecha_desde), str(fecha_hasta),
+            pv, pv,
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 15. Ticket Promedio ───────────────────────────────────────────────────────
+
+_SQL_TICKET_PROMEDIO = """
+WITH Tickets AS (
+    SELECT
+        CAST(FECHA AS DATE) AS FECHA,
+        REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+        COMPROBANTE_NUMERO,
+        SUM(MONTO_VENTA_NETO_IVA) AS MONTO_TICKET,
+        COUNT(*) AS ARTICULOS_TICKET
+    FROM VENTAS
+    WHERE
+        CAST(FECHA AS DATE) BETWEEN ? AND ?
+        AND PRECIO_UNIDAD > 10
+        AND COMPROBANTE_TIPO NOT LIKE 'NCR%%'
+        AND COMPROBANTE_TIPO != 'AUTOCONS'
+        AND COMPROBANTE_TIPO != 'AUTOCON'
+        AND {LOCAL_FILTER}
+    GROUP BY
+        CAST(FECHA AS DATE),
+        REPLACE(LOCAL, 'DRAGONFISH_', ''),
+        COMPROBANTE_NUMERO
+)
+SELECT
+    LOCAL,
+    COUNT(*) AS TOTAL_TICKETS,
+    SUM(MONTO_TICKET) AS MONTO_TOTAL,
+    CAST(ROUND(AVG(MONTO_TICKET), 0) AS DECIMAL(18,0)) AS TICKET_PROMEDIO
+FROM Tickets
+GROUP BY LOCAL
+ORDER BY LOCAL ASC
+"""
+
+
+@router.get("/ticket-promedio")
+def informe_ticket_promedio(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_TICKET_PROMEDIO.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 16. Ventas por Categoría ──────────────────────────────────────────────────
+
+_SQL_VENTAS_CATEGORIA = """
+SELECT
+    CAST(FECHA AS DATE) AS FECHA,
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    CASE
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%ZAPATILLA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOTA %%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOTIN%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SANDALIA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CALZADO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ALPARGATA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ESCARPINES%%'
+        THEN 'CALZADO'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMPERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%REMERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%PANTALON%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BUZO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CHOMBA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMISA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CALZA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BERMUDA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%POLAR%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMISETA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MUSCULOSA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%VESTIDO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%POLERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SHORT%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%JEAN%%'
+        THEN 'INDUMENTARIA'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%MOCHILA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOLSO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GORRA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GUANTE%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GORRO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BEANIE%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%RIÑONERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BUFF%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MEDIAS%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ANTEOJOS%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%LENTES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BASTONES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GUANTES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MANTA%%'
+        THEN 'ACCESORIOS'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%CARPA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOLSA DE DORMIR%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SLEEPING%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%COLCHON%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SILLA CAMP%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%LINTERNA%%'
+        THEN 'CAMPING/EQUIPAMIENTO'
+        ELSE 'OTROS'
+    END AS CATEGORIA,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN CANTIDAD_VENDIDA * -1
+            ELSE CANTIDAD_VENDIDA
+        END
+    ) AS CANTIDAD_VENDIDA,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN MONTO_VENTA_NETO_IVA * -1
+            ELSE MONTO_VENTA_NETO_IVA
+        END
+    ) AS MONTO_VENDIDO
+FROM VENTAS
+WHERE
+    CAST(FECHA AS DATE) BETWEEN ? AND ?
+    AND PRECIO_UNIDAD > 10
+    AND {LOCAL_FILTER}
+GROUP BY
+    CAST(FECHA AS DATE),
+    REPLACE(LOCAL, 'DRAGONFISH_', ''),
+    CASE
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%ZAPATILLA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOTA %%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOTIN%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SANDALIA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CALZADO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ALPARGATA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ESCARPINES%%'
+        THEN 'CALZADO'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMPERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%REMERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%PANTALON%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BUZO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CHOMBA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMISA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CALZA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BERMUDA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%POLAR%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%CAMISETA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MUSCULOSA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%VESTIDO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%POLERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SHORT%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%JEAN%%'
+        THEN 'INDUMENTARIA'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%MOCHILA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOLSO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GORRA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GUANTE%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GORRO%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BEANIE%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%RIÑONERA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BUFF%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MEDIAS%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%ANTEOJOS%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%LENTES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BASTONES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%GUANTES%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%MANTA%%'
+        THEN 'ACCESORIOS'
+        WHEN UPPER(ARTICULO_DESCRIPCION) LIKE '%%CARPA%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%BOLSA DE DORMIR%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SLEEPING%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%COLCHON%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%SILLA CAMP%%'
+          OR UPPER(ARTICULO_DESCRIPCION) LIKE '%%LINTERNA%%'
+        THEN 'CAMPING/EQUIPAMIENTO'
+        ELSE 'OTROS'
+    END
+ORDER BY FECHA DESC, MONTO_VENDIDO DESC
+"""
+
+
+@router.get("/ventas-categoria")
+def informe_ventas_categoria(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_VENTAS_CATEGORIA.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 17. Stock Actual por Producto ─────────────────────────────────────────────
+
+_SQL_STOCK_ACTUAL = """
+SELECT
+    CODIGO_ARTICULO,
+    MAX(LTRIM(RTRIM(
+        CASE
+            WHEN CHARINDEX('Variante', DESCRIPCION) > 0
+            THEN LEFT(DESCRIPCION, CHARINDEX('Variante', DESCRIPCION) - 1)
+            ELSE DESCRIPCION
+        END
+    ))) AS DESCRIPCION,
+    MAX(MARCA) AS MARCA,
+    MAX(PROVEEDOR) AS PROVEEDOR,
+    SUM(STOCK) AS STOCK_TOTAL
+FROM STOCKS
+WHERE (? IS NULL OR ? = '' OR MARCA = ?)
+  AND (? IS NULL OR ? = '' OR PROVEEDOR = ?)
+  AND {LOCAL_FILTER}
+GROUP BY CODIGO_ARTICULO
+HAVING SUM(STOCK) > 0
+ORDER BY STOCK_TOTAL DESC
+"""
+
+
+@router.get("/stock-actual")
+def informe_stock_actual(
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    proveedor: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    pv = proveedor if proveedor and proveedor.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_STOCK_ACTUAL.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            mv, mv, mv,
+            pv, pv, pv,
+            *lp,
+        ))
+        return {"rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 18. Productos sin movimiento ──────────────────────────────────────────────
+
+_SQL_PRODUCTOS_SIN_MOVIMIENTO = """
+WITH UltimasVentas AS (
+    SELECT
+        CODIGO_ARTICULO,
+        MAX(CAST(FECHA AS DATE)) AS ULTIMA_VENTA
+    FROM VENTAS
+    WHERE PRECIO_UNIDAD > 10
+    GROUP BY CODIGO_ARTICULO
+),
+StockPorArticulo AS (
+    SELECT
+        CODIGO_ARTICULO,
+        MAX(LTRIM(RTRIM(
+            CASE
+                WHEN CHARINDEX('Variante', DESCRIPCION) > 0
+                THEN LEFT(DESCRIPCION, CHARINDEX('Variante', DESCRIPCION) - 1)
+                ELSE DESCRIPCION
+            END
+        ))) AS DESCRIPCION,
+        MAX(MARCA) AS MARCA,
+        MAX(PROVEEDOR) AS PROVEEDOR,
+        SUM(STOCK) AS STOCK_TOTAL
+    FROM STOCKS
+    WHERE (? IS NULL OR ? = '' OR MARCA = ?)
+      AND {LOCAL_FILTER}
+    GROUP BY CODIGO_ARTICULO
+)
+SELECT
+    S.CODIGO_ARTICULO,
+    S.DESCRIPCION,
+    S.MARCA,
+    S.PROVEEDOR,
+    S.STOCK_TOTAL AS STOCK_ACTUAL,
+    UV.ULTIMA_VENTA,
+    DATEDIFF(DAY, ISNULL(UV.ULTIMA_VENTA, '2000-01-01'), CAST(GETDATE() AS DATE)) AS DIAS_SIN_MOVIMIENTO
+FROM StockPorArticulo S
+LEFT JOIN UltimasVentas UV ON S.CODIGO_ARTICULO = UV.CODIGO_ARTICULO
+WHERE S.STOCK_TOTAL > 0
+  AND (UV.ULTIMA_VENTA IS NULL OR DATEDIFF(DAY, UV.ULTIMA_VENTA, CAST(GETDATE() AS DATE)) >= ?)
+ORDER BY DIAS_SIN_MOVIMIENTO DESC, S.STOCK_TOTAL DESC
+"""
+
+
+@router.get("/productos-sin-movimiento")
+def informe_productos_sin_movimiento(
+    dias: int = Query(30),
+    local: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    mv = marca if marca and marca.strip() else None
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_PRODUCTOS_SIN_MOVIMIENTO.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            mv, mv, mv,
+            *lp,
+            dias,
+        ))
+        return {"dias": dias, "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 19. Declaración Shopping ─────────────────────────────────────────────────
+
+_SQL_DECLARACION_SHOPPING = """
+SELECT
+    CAST(FECHA AS DATE) AS FECHA,
+    REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN MONTO_VENTA_NETO_IVA * -1
+            ELSE MONTO_VENTA_NETO_IVA
+        END
+    ) AS MONTO_VENDIDO,
+    SUM(
+        CASE
+            WHEN COMPROBANTE_TIPO = 'AUTOCONS' OR COMPROBANTE_TIPO LIKE 'NCR%%'
+            THEN CANTIDAD_VENDIDA * -1
+            ELSE CANTIDAD_VENDIDA
+        END
+    ) AS CANTIDAD_VENDIDA,
+    COUNT(DISTINCT
+        CASE
+            WHEN COMPROBANTE_TIPO LIKE 'TKF%%' OR COMPROBANTE_TIPO = 'TIQUE'
+            THEN CONCAT(REPLACE(LOCAL, 'DRAGONFISH_', ''), '|', COMPROBANTE_TIPO, '|', CONVERT(VARCHAR(100), COMPROBANTE_NUMERO))
+            ELSE NULL
+        END
+    ) AS CANTIDAD_TICKETS
+FROM VENTAS
+WHERE
+    CAST(FECHA AS DATE) BETWEEN ? AND ?
+    AND {LOCAL_FILTER}
+GROUP BY
+    CAST(FECHA AS DATE),
+    REPLACE(LOCAL, 'DRAGONFISH_', '')
+ORDER BY FECHA ASC
+"""
+
+
+@router.get("/declaracion-shopping")
+def informe_declaracion_shopping(
+    desde: Optional[str] = Query(None),
+    hasta: Optional[str] = Query(None),
+    local: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Sin permiso")
+    fecha_desde, fecha_hasta = _parse_fechas(desde, hasta)
+    lc, lp = _locales_clause(local, "REPLACE(LOCAL,'DRAGONFISH_','')")
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        sql = _SQL_DECLARACION_SHOPPING.replace("{LOCAL_FILTER}", lc)
+        cursor.execute(sql, (
+            str(fecha_desde), str(fecha_hasta),
+            *lp,
+        ))
+        return {"fecha_desde": str(fecha_desde), "fecha_hasta": str(fecha_hasta), "local": lv, "rows": _rows_to_dicts(cursor)}
+    finally:
+        conn.close()
+
+
+# ── 20. Locales disponibles (para filtros) ────────────────────────────────────
+
+@router.get("/locales-disponibles")
+def get_locales_disponibles(current_user: User = Depends(get_current_user)):
+    """Devuelve lista de locales únicos disponibles en SQL Server para los filtros."""
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT REPLACE(LOCAL, 'DRAGONFISH_', '') AS LOCAL
+            FROM VENTAS
+            WHERE LOCAL IS NOT NULL AND LOCAL <> ''
+            ORDER BY LOCAL
+        """)
+        rows = cursor.fetchall()
+        # Deduplicar después del REPLACE (DRAGONFISH_X y X quedan igual)
+        seen = set()
+        result = []
+        for row in rows:
+            v = row[0]
+            if v and v not in seen:
+                seen.add(v)
+                result.append(v)
+        return result
+    finally:
+        conn.close()
+
+
+
+@router.get("/marcas-disponibles")
+def get_marcas_disponibles(current_user: User = Depends(get_current_user)):
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT MARCA FROM VENTAS
+            WHERE MARCA IS NOT NULL AND MARCA <> ''
+            UNION
+            SELECT DISTINCT MARCA FROM STOCKS
+            WHERE MARCA IS NOT NULL AND MARCA <> ''
+            ORDER BY MARCA
+        """)
+        return [row[0] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+@router.get("/proveedores-disponibles")
+def get_proveedores_disponibles(current_user: User = Depends(get_current_user)):
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT PROVEEDOR FROM VENTAS
+            WHERE PROVEEDOR IS NOT NULL AND PROVEEDOR <> ''
+            UNION
+            SELECT DISTINCT PROVEEDOR FROM STOCKS
+            WHERE PROVEEDOR IS NOT NULL AND PROVEEDOR <> ''
+            ORDER BY PROVEEDOR
+        """)
+        return [row[0] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+# ── 16. Stock por locales (para tabla multi-local en StockPage) ────────────────
+
+@router.get("/stock-locales")
+def stock_por_locales(
+    locales: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    marca: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retorna stock de SQL Server pivoteado por local.
+    locales: lista separada por comas (ej: deposito,mnbahia,mundoal)
+    Devuelve una fila por variante con columnas dinámicas por cada local seleccionado.
+    """
+    locale_list = [l.strip() for l in (locales or "").split(",") if l.strip()]
+    if not locale_list:
+        # Sin locales seleccionados: devolver lista de locales disponibles
+        return {"rows": [], "locales": []}
+
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+
+        # Construir SELECT dinámico con CASE por cada local
+        local_cases = ", ".join(
+            f"SUM(CASE WHEN REPLACE(LOCAL,'DRAGONFISH_','')=? THEN STOCK ELSE 0 END) AS [{loc}]"
+            for loc in locale_list
+        )
+        params = list(locale_list)  # para los CASE
+
+        where_clauses = []
+        if marca:
+            where_clauses.append("MARCA = ?")
+            params.append(marca)
+        if search:
+            where_clauses.append("(DESCRIPCION LIKE ? OR CODIGO_ARTICULO LIKE ?)")
+            params += [f"%{search}%", f"%{search}%"]
+
+        # Filtrar solo locales solicitados
+        placeholders = ",".join("?" for _ in locale_list)
+        where_clauses.append(f"REPLACE(LOCAL,'DRAGONFISH_','') IN ({placeholders})")
+        params += locale_list
+
+        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+        sql_query = f"""
+            SELECT
+                CODIGO_ARTICULO,
+                CODIGO_COLOR,
+                CODIGO_TALLE,
+                MAX(MARCA) AS MARCA,
+                MAX(LTRIM(RTRIM(
+                    CASE
+                        WHEN CHARINDEX('Variante', DESCRIPCION) > 0
+                        THEN LEFT(DESCRIPCION, CHARINDEX('Variante', DESCRIPCION) - 1)
+                        ELSE DESCRIPCION
+                    END
+                ))) AS DESCRIPCION,
+                {local_cases}
+            FROM STOCKS
+            {where_sql}
+            GROUP BY CODIGO_ARTICULO, CODIGO_COLOR, CODIGO_TALLE
+            ORDER BY MAX(MARCA), MAX(DESCRIPCION), CODIGO_COLOR, CODIGO_TALLE
+        """
+        cursor.execute(sql_query, params)
+        rows = _rows_to_dicts(cursor)
+        return {"rows": rows, "locales": locale_list}
+    finally:
+        conn.close()

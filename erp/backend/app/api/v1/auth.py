@@ -1,10 +1,14 @@
 """
-Router de autenticación — login + /me
+Router de autenticación — login + /me + profile setup
 """
 
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
+from typing import Optional
+
+EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
 from app.db.session import get_db
 from app.core.security import verify_password, hash_password, create_access_token
@@ -32,7 +36,6 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         )
 
     # ── Verificar licencia de la empresa ──────────────────────────────────
-    # MEGAADMIN y usuarios sin empresa (SUPERADMIN plataforma) no se bloquean
     if user.company_id:
         active_sub = (
             db.query(CompanySubscription)
@@ -61,9 +64,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Re-query with joinedload to get local relationship
+    user = db.query(User).options(joinedload(User.local)).filter(User.id == current_user.id).first()
+    return UserOut.from_user(user)
 
 
 class PasswordChangeRequest(BaseModel):
@@ -84,3 +89,117 @@ def change_password(
     current_user.hashed_password = hash_password(body.new_password)
     db.commit()
     return {"message": "Contraseña actualizada correctamente"}
+
+
+# ── Profile Setup (primera vez) ──────────────────────────────────────────
+
+class ProfileSetup(BaseModel):
+    full_name: str
+    username: str
+    new_password: Optional[str] = None
+    email: Optional[str] = None
+
+
+class EmailSetRequest(BaseModel):
+    email: str
+
+
+@router.put("/me/email")
+def set_email(
+    body: EmailSetRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Permite que cualquier usuario logueado registre/actualice su email.
+    Se usa para forzar el registro de email cuando aún no lo cargó.
+    """
+    email = (body.email or "").strip().lower()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(400, "Email inválido. Verificá el formato (ej: nombre@dominio.com).")
+    if len(email) > 254:
+        raise HTTPException(400, "Email demasiado largo.")
+
+    existing = (
+        db.query(User)
+        .filter(User.email == email, User.id != current_user.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(409, "Ese email ya está registrado por otra cuenta.")
+
+    current_user.email = email
+    db.commit()
+
+    user = db.query(User).options(joinedload(User.local)).filter(User.id == current_user.id).first()
+    return {"user": UserOut.from_user(user)}
+
+
+@router.put("/me/profile")
+def setup_profile(
+    body: ProfileSetup,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    El usuario configura su perfil la primera vez:
+    - Elige su nombre completo
+    - Elige su username (debe ser único)
+    - Opcionalmente cambia contraseña
+    """
+    # Validate username length
+    username = body.username.strip().lower()
+    if len(username) < 3:
+        raise HTTPException(400, "El nombre de usuario debe tener al menos 3 caracteres")
+    if not username.isalnum() and not all(c.isalnum() or c in ("_", ".") for c in username):
+        raise HTTPException(400, "El nombre de usuario solo puede tener letras, números, punto y guion bajo")
+
+    full_name = body.full_name.strip()
+    if len(full_name) < 2:
+        raise HTTPException(400, "El nombre completo es obligatorio")
+
+    # Check username unique (excluding self)
+    existing = db.query(User).filter(User.username == username, User.id != current_user.id).first()
+    if existing:
+        raise HTTPException(409, "Ese nombre de usuario ya está ocupado. Elegí otro.")
+
+    current_user.username = username
+    current_user.full_name = full_name
+    current_user.profile_complete = True
+
+    if body.email:
+        email_norm = body.email.strip().lower()
+        if not EMAIL_RE.match(email_norm):
+            raise HTTPException(400, "Email inválido.")
+        existing_email = (
+            db.query(User)
+            .filter(User.email == email_norm, User.id != current_user.id)
+            .first()
+        )
+        if existing_email:
+            raise HTTPException(409, "Ese email ya está registrado por otra cuenta.")
+        current_user.email = email_norm
+
+    if body.new_password:
+        if len(body.new_password) < 4:
+            raise HTTPException(400, "La contraseña debe tener al menos 4 caracteres")
+        current_user.hashed_password = hash_password(body.new_password)
+
+    db.commit()
+
+    # Refresh with local
+    user = db.query(User).options(joinedload(User.local)).filter(User.id == current_user.id).first()
+
+    # Issue new token with updated username
+    token = create_access_token(
+        data={
+            "sub": user.username,
+            "role": user.role.value,
+            "company_id": user.company_id,
+        }
+    )
+    return {
+        "user": UserOut.from_user(user),
+        "access_token": token,
+        "token_type": "bearer",
+    }

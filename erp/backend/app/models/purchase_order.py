@@ -1,6 +1,6 @@
 """
 Notas de Pedido — órdenes de compra a proveedores.
-Workflow: BORRADOR → ENVIADO → RECIBIDO → COMPLETADO | ANULADO
+Workflow: BORRADOR → PENDIENTE → RECIBIDO → COMPLETADO | ANULADO
 """
 
 from __future__ import annotations
@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 class PurchaseOrderStatus(str, enum.Enum):
     BORRADOR = "BORRADOR"
-    ENVIADO = "ENVIADO"
+    PENDIENTE = "PENDIENTE"
+    ENVIADO = "ENVIADO"  # legacy alias — kept for existing DB rows; new code uses PENDIENTE
     RECIBIDO = "RECIBIDO"
     COMPLETADO = "COMPLETADO"
     ANULADO = "ANULADO"
@@ -72,6 +73,8 @@ class PurchaseOrder(Base, TimestampMixin):
 
     excel_file: Mapped[str | None] = mapped_column(String(500))
     pdf_file: Mapped[str | None] = mapped_column(String(500))
+    # Marcas seleccionadas para este pedido (subconjunto de las del proveedor, separadas por coma)
+    selected_brands: Mapped[str | None] = mapped_column(String(1000))
 
     # Relaciones
     provider: Mapped[Provider] = relationship("Provider", lazy="selectin")
@@ -100,8 +103,8 @@ class PurchaseOrderItem(Base, TimestampMixin):
     purchase_order_id: Mapped[int] = mapped_column(
         ForeignKey("purchase_orders.id"), nullable=False
     )
-    variant_id: Mapped[int] = mapped_column(
-        ForeignKey("product_variants.id"), nullable=False
+    variant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("product_variants.id"), nullable=True
     )
     code: Mapped[str | None] = mapped_column(String(50))
     description: Mapped[str | None] = mapped_column(String(300))

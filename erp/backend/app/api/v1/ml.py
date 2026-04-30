@@ -277,10 +277,11 @@ def ml_indicators(
     })
     total_orders_30d = orders_resp.get("paging", {}).get("total", 0)
 
-    # Today's orders
+    # Today's orders (paid only — ID-113/114 fix)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%S.000-00:00")
     today_resp = mgr.call("GET", "/orders/search", params={
         "seller": user_id,
+        "order.status": "paid",
         "order.date_created.from": today_start,
         "limit": 1,
     })
@@ -357,6 +358,17 @@ def ml_orders(
     for o in results:
         order_items = o.get("order_items", [])
         first_item = order_items[0] if order_items else {}
+        # Detect fulfillment/shipping type (ID-118)
+        tags = o.get("tags", []) or []
+        shipping = o.get("shipping", {}) or {}
+        ship_tags = shipping.get("tags") or []
+        logistic_type = shipping.get("logistic_type") or ""
+        if "fulfillment" in tags or logistic_type == "fulfillment":
+            fulfillment_type = "Full"
+        elif "flex" in ship_tags or logistic_type == "flex":
+            fulfillment_type = "Flex"
+        else:
+            fulfillment_type = "Colecta"
         orders.append({
             "id": o.get("id"),
             "status": o.get("status"),
@@ -369,9 +381,11 @@ def ml_orders(
             "item_title": first_item.get("item", {}).get("title"),
             "item_quantity": first_item.get("quantity"),
             "unit_price": first_item.get("unit_price"),
+            "full_unit_price": first_item.get("full_unit_price"),  # ID-117: pre-discount price
             "sku": first_item.get("item", {}).get("seller_sku"),
-            "shipping_id": o.get("shipping", {}).get("id"),
-            "tags": o.get("tags", []),
+            "shipping_id": shipping.get("id"),
+            "tags": tags,
+            "fulfillment_type": fulfillment_type,  # ID-118
         })
 
     return {
@@ -1250,6 +1264,19 @@ def ml_deposito_publish_note(
 # FASE 5 — Webhook
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Mapa de user_id de ML → nombre de cuenta en _managers
+_ML_USER_ID_TO_ACCOUNT = {
+    "756086955": "neuquen",   # RM Neuquén
+    "209611492": "valen",     # RM Indumentaria / Valen
+}
+
+
+def _account_for_event(event: "MeliWebhookEvent") -> str:
+    """Devuelve el nombre de cuenta (_managers key) para el evento de webhook."""
+    uid = (event.user_id or "").strip()
+    return _ML_USER_ID_TO_ACCOUNT.get(uid, "valen")
+
+
 def _process_ml_webhook_event(event: "MeliWebhookEvent", db: Session):
     """
     Procesa un evento de webhook ML en segundo plano.
@@ -1262,9 +1289,10 @@ def _process_ml_webhook_event(event: "MeliWebhookEvent", db: Session):
         resource_id = event.resource_id
 
         if topic == "questions" and resource_id:
-            # Fetch question detail from ML API
+            # Fetch question detail from ML API using the correct account
             try:
-                mgr = _managers.get("valen")
+                account_name = _account_for_event(event)
+                mgr = _managers.get(account_name) or _managers.get("valen")
                 if mgr:
                     q_data = mgr.call("GET", f"/questions/{resource_id}")
                     question_text = q_data.get("text", "")
@@ -1286,9 +1314,10 @@ def _process_ml_webhook_event(event: "MeliWebhookEvent", db: Session):
 
                     # Create internal notification
                     from app.models.notification import Notification, NotificationType
+                    account_label = mgr.get_label() if mgr else account_name
                     notif = Notification(
                         type=NotificationType.INFO,
-                        title=f"🛒 Nueva pregunta ML: {item_title[:60]}",
+                        title=f"🛒 Nueva pregunta ML ({account_label}): {item_title[:50]}",
                         message=question_text[:300] if question_text else f"Pregunta en publicación {item_id}",
                         company_id=1,
                         to_role="ADMIN",
@@ -1359,6 +1388,7 @@ async def ml_webhook(
 def ml_webhook_events(
     status: Optional[str] = Query(None),
     topic: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -1369,6 +1399,8 @@ def ml_webhook_events(
         q = q.filter(MeliWebhookEvent.status == status)
     if topic:
         q = q.filter(MeliWebhookEvent.topic == topic)
+    if seller_id:
+        q = q.filter(MeliWebhookEvent.user_id == seller_id)
     events = q.order_by(MeliWebhookEvent.received_at.desc()).limit(limit).all()
     return [{
         "id": e.id,
@@ -1376,12 +1408,63 @@ def ml_webhook_events(
         "topic": e.topic,
         "resource": e.resource,
         "resource_id": e.resource_id,
+        "seller_id": e.user_id,
         "status": e.status,
         "attempts": e.attempts,
         "processed_at": e.processed_at.isoformat() if e.processed_at else None,
         "question_text": (e.payload_raw or {}).get("_question_text"),
         "item_title": (e.payload_raw or {}).get("_item_title"),
     } for e in events]
+
+
+@router.get("/webhook/questions")
+def ml_webhook_questions(
+    seller_id: Optional[str] = Query(None),
+    limit: int = Query(20, le=100),
+    hours: int = Query(72, ge=1, le=720),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Consultas (preguntas) recibidas via webhook en las últimas N horas.
+    seller_id: filtrar por vendedor (756086955=Neuquén, 209611492=Valen/Indumentaria).
+    Permite mostrar preguntas en tiempo real en el frontend.
+    """
+    from datetime import datetime as _dt, timedelta as _td
+    since = _dt.utcnow() - _td(hours=hours)
+    q = db.query(MeliWebhookEvent).filter(
+        MeliWebhookEvent.topic == "questions",
+        MeliWebhookEvent.received_at >= since,
+    )
+    if seller_id:
+        q = q.filter(MeliWebhookEvent.user_id == seller_id)
+    events = q.order_by(MeliWebhookEvent.received_at.desc()).limit(limit).all()
+
+    result = []
+    for e in events:
+        payload = e.payload_raw or {}
+        question_text = payload.get("_question_text") or ""
+        item_title = payload.get("_item_title") or payload.get("_item_id") or ""
+        item_id = payload.get("_item_id") or ""
+        # Determine account label
+        uid = (e.user_id or "").strip()
+        acc_name = _ML_USER_ID_TO_ACCOUNT.get(uid, "valen")
+        mgr = _managers.get(acc_name)
+        account_label = mgr.get_label() if mgr else acc_name
+        result.append({
+            "event_id": e.id,
+            "question_id": e.resource_id,
+            "received_at": e.received_at.isoformat() if e.received_at else None,
+            "question_text": question_text,
+            "item_id": item_id,
+            "item_title": item_title,
+            "seller_id": e.user_id,
+            "account": acc_name,
+            "account_label": account_label,
+            "status": e.status,
+            "enriched": bool(question_text),
+        })
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -17,6 +17,8 @@ class Product(Base, TimestampMixin):
     brand: Mapped[str | None] = mapped_column(String(100))
     category: Mapped[str | None] = mapped_column(String(100))
     base_cost: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    gender: Mapped[str | None] = mapped_column(String(50))
+    season: Mapped[str | None] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Multi-tenant

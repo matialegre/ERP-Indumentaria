@@ -5,6 +5,7 @@ import {
   CreditCard, Building2, FileText, Plus, Check, X, ChevronDown,
   AlertCircle, Loader2, RefreshCw, GitCompare,
   BarChart3, FileStack, History, RotateCcw, Printer,
+  Users, Search, Pencil, Trash2, Tag,
 } from "lucide-react";
 import CrucePreciosModal from "../components/CrucePreciosModal";
 import { printMinuta } from "../lib/minutaPDF";
@@ -22,6 +23,7 @@ const ACCOUNT_TYPES = ["CORRIENTE", "CAJA_AHORRO", "VIRTUAL"];
 
 const TOP_TABS = [
   { id: "resumen",        label: "Resumen",             icon: BarChart3   },
+  { id: "abm-proveedores",label: "ABM Proveedores",     icon: Users       },
   { id: "vouchers",       label: "Comprobantes",        icon: CreditCard  },
   { id: "bank-accounts",  label: "Cuentas Bancarias",   icon: Building2   },
   { id: "credit-notes",   label: "Notas de Crédito",    icon: FileText    },
@@ -978,6 +980,303 @@ function HistorialTab() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+/* ─────────────────────────────────────────────────── */
+/*  ABM PROVEEDORES (gestión completa con marcas)      */
+/* ─────────────────────────────────────────────────── */
+const KNOWN_BRANDS = ["Montagne", "Miding", "World Sport", "OMBAK"];
+
+function ProveedoresAbmTab() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [brandFilter, setBrandFilter] = useState("ALL");
+  const [editing, setEditing] = useState(null); // provider object or { __new: true }
+  const [showInactive, setShowInactive] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["providers", "abm"],
+    queryFn: () => api.get("/providers/", { params: { limit: 1000 } }),
+  });
+  const allProviders = data?.items ?? data ?? [];
+
+  const filtered = useMemo(() => {
+    let list = allProviders;
+    if (!showInactive) list = list.filter(p => p.is_active !== false);
+    if (brandFilter === "WITH_BRAND") list = list.filter(p => p.brands);
+    else if (brandFilter === "WITHOUT_BRAND") list = list.filter(p => !p.brands);
+    else if (brandFilter !== "ALL") list = list.filter(p => p.brands === brandFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(p => p.name?.toLowerCase().includes(q) || p.cuit?.includes(q));
+    }
+    return list;
+  }, [allProviders, search, brandFilter, showInactive]);
+
+  const createMut = useMutation({
+    mutationFn: (body) => api.post("/providers/", body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["providers"] }); setEditing(null); },
+  });
+  const updateMut = useMutation({
+    mutationFn: ({ id, body }) => api.put(`/providers/${id}`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["providers"] }); setEditing(null); },
+  });
+  const deleteMut = useMutation({
+    mutationFn: (id) => api.delete(`/providers/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["providers"] }),
+  });
+
+  const counts = useMemo(() => {
+    const c = { ALL: allProviders.length, WITH_BRAND: 0, WITHOUT_BRAND: 0 };
+    KNOWN_BRANDS.forEach(b => { c[b] = 0; });
+    allProviders.forEach(p => {
+      if (p.brands) { c.WITH_BRAND++; c[p.brands] = (c[p.brands] || 0) + 1; }
+      else c.WITHOUT_BRAND++;
+    });
+    return c;
+  }, [allProviders]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">ABM Proveedores</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Gestión completa de proveedores · {filtered.length} de {allProviders.length}</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => refetch()} className="p-2 hover:bg-gray-100 rounded-lg" title="Actualizar">
+            <RefreshCw className={`w-4 h-4 text-gray-500 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+          <button onClick={() => setEditing({ __new: true })}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+            <Plus className="w-4 h-4" /> Nuevo proveedor
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o CUIT…"
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+          <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+          Mostrar inactivos
+        </label>
+      </div>
+
+      {/* Brand filter pills */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mr-1">Marca:</span>
+        {[
+          { key: "ALL", label: "Todos" },
+          { key: "WITH_BRAND", label: "Con marca" },
+          { key: "WITHOUT_BRAND", label: "Sin marca" },
+          ...KNOWN_BRANDS.map(b => ({ key: b, label: b })),
+        ].map(opt => (
+          <button key={opt.key} onClick={() => setBrandFilter(opt.key)}
+            className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition ${
+              brandFilter === opt.key
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}>
+            {opt.label} <span className="ml-1 opacity-70">{counts[opt.key] || 0}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Form (modal-like card) */}
+      {editing && (
+        <ProviderEditCard
+          initial={editing.__new ? {} : editing}
+          onCancel={() => setEditing(null)}
+          onSave={(body) => editing.__new ? createMut.mutate(body) : updateMut.mutate({ id: editing.id, body })}
+          isPending={createMut.isPending || updateMut.isPending}
+          error={createMut.error?.message || updateMut.error?.message}
+        />
+      )}
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <p>No hay proveedores</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+                  <th className="text-left px-3 py-2">Proveedor</th>
+                  <th className="text-left px-3 py-2">CUIT</th>
+                  <th className="text-left px-3 py-2">Contacto</th>
+                  <th className="text-left px-3 py-2">Teléfono</th>
+                  <th className="text-left px-3 py-2 min-w-[120px]">Marca</th>
+                  <th className="text-center px-3 py-2">Estado</th>
+                  <th className="text-right px-3 py-2">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(p => (
+                  <tr key={p.id} className={`hover:bg-gray-50 ${!p.is_active ? "opacity-50" : ""}`}>
+                    <td className="px-3 py-2 font-medium text-gray-800">{p.name}</td>
+                    <td className="px-3 py-2 font-mono text-gray-600">{p.cuit || "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{p.contact_name || "—"}</td>
+                    <td className="px-3 py-2 text-gray-600">{p.phone || "—"}</td>
+                    <td className="px-3 py-2">
+                      {p.brands
+                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-medium">
+                            <Tag className="w-2.5 h-2.5" />{p.brands}
+                          </span>
+                        : <span className="text-gray-300 italic text-[10px]">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${p.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {p.is_active ? "Activo" : "Inactivo"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setEditing(p)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {p.is_active && (
+                          <button
+                            onClick={() => { if (window.confirm(`¿Desactivar "${p.name}"?`)) deleteMut.mutate(p.id); }}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded" title="Desactivar">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderEditCard({ initial = {}, onCancel, onSave, isPending, error }) {
+  const [form, setForm] = useState({
+    name:         initial.name || "",
+    cuit:         initial.cuit || "",
+    razon_social: initial.razon_social || "",
+    contact_name: initial.contact_name || "",
+    phone:        initial.phone || "",
+    email:        initial.email || "",
+    address:      initial.address || "",
+    notes:        initial.notes || "",
+    brands:       initial.brands || "",
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    const body = { ...form };
+    Object.keys(body).forEach(k => { if (body[k] === "") body[k] = null; });
+    onSave(body);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+      <p className="text-sm font-semibold text-blue-800">{initial.id ? `Editando: ${initial.name}` : "Nuevo proveedor"}</p>
+
+      {error && (
+        <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
+          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">CUIT</label>
+          <input value={form.cuit} onChange={e => setForm(f => ({ ...f, cuit: e.target.value }))} placeholder="20-12345678-9"
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Razón Social</label>
+          <input value={form.razon_social} onChange={e => setForm(f => ({ ...f, razon_social: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Contacto</label>
+          <input value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
+          <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+          <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} type="email"
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Domicilio</label>
+          <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">
+          <Tag className="inline w-3 h-3 mr-1" />Marca (sólo si es proveedor de Notas de Pedido)
+        </label>
+        <div className="flex gap-2 flex-wrap mb-1">
+          {KNOWN_BRANDS.map(b => (
+            <button key={b} type="button"
+              onClick={() => setForm(f => ({ ...f, brands: f.brands === b ? "" : b }))}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
+                form.brands === b
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              }`}>
+              {b}
+            </button>
+          ))}
+          {form.brands && !KNOWN_BRANDS.includes(form.brands) && (
+            <span className="px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 text-xs">{form.brands}</span>
+          )}
+        </div>
+        <p className="text-[10px] text-gray-500">Sólo Montagne / Miding / World Sport / OMBAK aparecen en el dropdown de Notas de Pedido.</p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Observaciones</label>
+        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
+          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onCancel}
+          className="flex-1 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+          Cancelar
+        </button>
+        <button type="submit" disabled={isPending}
+          className="flex-1 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          {isPending ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function GestionPagosPage() {
   const [activeTab, setActiveTab] = useState("resumen");
 
@@ -1026,6 +1325,7 @@ export default function GestionPagosPage() {
 
         <div className="p-6">
           {activeTab === "resumen"        && <ResumenTab />}
+          {activeTab === "abm-proveedores"&& <ProveedoresAbmTab />}
           {activeTab === "vouchers"       && <VouchersTab providers={providers} />}
           {activeTab === "bank-accounts"  && <BankAccountsTab providers={providers} />}
           {activeTab === "credit-notes"   && <CreditNotesTab providers={providers} />}

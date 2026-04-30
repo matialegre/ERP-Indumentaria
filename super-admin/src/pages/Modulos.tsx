@@ -18,7 +18,7 @@ import {
   type Categoria,
 } from '../lib/modules'
 
-const CAT_ORDER: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm']
+const CAT_ORDER: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm', 'rfid']
 
 const CAT_COLORS: Record<Categoria, string> = {
   core: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
@@ -26,6 +26,7 @@ const CAT_COLORS: Record<Categoria, string> = {
   integraciones: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   reportes: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
   crm: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+  rfid: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
 }
 
 const RUBROS: Record<string, string> = {

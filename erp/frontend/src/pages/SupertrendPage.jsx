@@ -3,7 +3,7 @@
  */
 import { useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CssBarChart } from "../components/CssCharts";
+import { CssBarChart, CssPieChart } from "../components/CssCharts";
 import { api } from "../lib/api";
 import {
   TrendingUp,
@@ -48,6 +48,24 @@ function pctColor(pct) {
   if (pct > 0)  return "text-red-600";   // competitor cheaper — our price higher
   if (pct < 0)  return "text-green-600"; // we're cheaper
   return "text-gray-500";
+}
+
+// ─── ID-112: Account display-name overrides ──────────────────────────────────
+
+const ACCOUNT_LABELS = { valen: "MUNDO.OUTDOOR", neuquen: "aspen" };
+function accountLabel(key, backendLabel) {
+  return ACCOUNT_LABELS[key] || backendLabel || key;
+}
+
+// ─── ID-118: Shipping type label ─────────────────────────────────────────────
+
+function shippingTypeLabel(tags, fulfillmentType) {
+  if (fulfillmentType === "Full" || fulfillmentType === "Flex" || fulfillmentType === "Colecta") return fulfillmentType;
+  if (Array.isArray(tags)) {
+    if (tags.includes("fulfillment")) return "Full";
+    if (tags.includes("flex")) return "Flex";
+  }
+  return "Colecta";
 }
 
 // ─── Reputation thermometer (Real Trends style) ──────────────────────────────
@@ -287,6 +305,7 @@ export default function SupertrendPage() {
   const [mlcSelected, setMlcSelected] = useState(null); // selected tracked_seller id
   const [mlcSubTab, setMlcSubTab] = useState("items"); // items | price_changes | top_sales | stock_changes
   const [mlcExpandedItem, setMlcExpandedItem] = useState(null); // item_id for expanded variants
+  const [chartGroupBy, setChartGroupBy] = useState("day"); // "day" | "week" — ID-119/120
 
   // Cargar cuentas configuradas
   const { data: mlAccountsList = [] } = useQuery({
@@ -343,6 +362,14 @@ export default function SupertrendPage() {
     queryFn: () => api.get(`/ml/questions?status=${mlQStatus}&limit=50&account=${mlAccount}`),
     enabled: tab === "ml_questions",
     staleTime: 60 * 1000,
+  });
+
+  const ML_SELLER_IDS = { valen: "209611492", neuquen: "756086955" };
+  const { data: webhookQuestions = [], refetch: refetchWhQ } = useQuery({
+    queryKey: ["ml-webhook-questions-st", mlAccount],
+    queryFn: () => api.get(`/ml/webhook/questions?seller_id=${ML_SELLER_IDS[mlAccount] || ""}&limit=10&hours=72`),
+    enabled: tab === "ml_questions",
+    refetchInterval: 15_000,
   });
 
   // Mutations — competitors
@@ -536,6 +563,52 @@ export default function SupertrendPage() {
       }));
   }, [mlRecentOrders]);
 
+  // ID-119/120: Weekly grouped data for the period chart
+  const weeklyData = useMemo(() => {
+    if (!dailyData.length) return [];
+    const weeks = {};
+    dailyData.forEach(d => {
+      const date = new Date(d.date + "T12:00:00");
+      const dow = date.getDay();
+      const diff = dow === 0 ? -6 : 1 - dow;
+      const mon = new Date(date);
+      mon.setDate(date.getDate() + diff);
+      const key = mon.toISOString().slice(0, 10);
+      if (!weeks[key]) weeks[key] = { date: key, count: 0, amount: 0 };
+      weeks[key].count += d.count;
+      weeks[key].amount += d.amount;
+    });
+    return Object.values(weeks)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(w => ({
+        ...w,
+        dateLabel: new Date(w.date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+      }));
+  }, [dailyData]);
+
+  // ID-121: Today vs yesterday comparison from recent 7-day data
+  const todayVsYesterday = useMemo(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const ydKey = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const tDay = recentDailyData.find(d => d.date === todayKey) || { count: 0, amount: 0 };
+    const yDay = recentDailyData.find(d => d.date === ydKey) || { count: 0, amount: 0 };
+    return { today: tDay, yesterday: yDay };
+  }, [recentDailyData]);
+
+  // ID-123: Shipping type distribution for donut chart
+  const shippingTypeData = useMemo(() => {
+    if (!mlOrders?.orders?.length) return [];
+    const counts = {};
+    mlOrders.orders.forEach(o => {
+      const type = shippingTypeLabel(o.tags || [], o.fulfillment_type);
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    const COLORS = { Full: "#71D8BF", Flex: "#F5B868", Colecta: "#A78BFA" };
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value, fill: COLORS[name] || "#9CA3AF", color: COLORS[name] || "#9CA3AF" }))
+      .sort((a, b) => b.value - a.value);
+  }, [mlOrders]);
+
   // ─── render ───────────────────────────────────────────────────────────────
 
   return (
@@ -571,12 +644,17 @@ export default function SupertrendPage() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap relative ${
               tab === t.key ? "text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"
             }`}
             style={tab === t.key ? { borderColor: "#71D8BF" } : {}}
           >
             {t.label}
+            {t.key === "ml_questions" && webhookQuestions.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                {webhookQuestions.length > 9 ? "9+" : webhookQuestions.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -596,7 +674,7 @@ export default function SupertrendPage() {
               }`}
               style={mlAccount === acc.key ? { backgroundColor: "#71D8BF", color: "#0d4d3a" } : {}}
             >
-              {acc.label || acc.key}
+              {accountLabel(acc.key, acc.label)}
             </button>
           ))}
         </div>
@@ -805,6 +883,37 @@ export default function SupertrendPage() {
                 </div>
               </div>
             )}
+
+            {/* ── Today vs Yesterday comparison (ID-121) ── */}
+            <div className="bg-white border rounded-xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Hoy vs Ayer</p>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {[
+                  { label: "Hoy", d: todayVsYesterday.today, color: "#71D8BF" },
+                  { label: "Ayer", d: todayVsYesterday.yesterday, color: "#CBD5E1" },
+                ].map(({ label, d, color }) => (
+                  <div key={label} className="text-center">
+                    <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+                    <p className="text-3xl font-bold" style={{ color }}>{d.count}</p>
+                    {d.amount > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {d.amount.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <CssBarChart
+                data={[
+                  { dateLabel: "Ayer", count: todayVsYesterday.yesterday.count, color: "#CBD5E1" },
+                  { dateLabel: "Hoy", count: todayVsYesterday.today.count, color: "#71D8BF" },
+                ]}
+                height={72}
+                color="#71D8BF"
+                labelKey="dateLabel"
+                valueKey="count"
+              />
+            </div>
 
             {/* ── Quick nav ── */}
             <div className="grid grid-cols-3 gap-3">
@@ -1174,11 +1283,46 @@ export default function SupertrendPage() {
                 </div>
               </div>
 
-              {/* Daily bar chart */}
+              {/* Daily/weekly bar chart with groupBy toggle — ID-119/120 */}
               {dailyData.length > 1 && (
                 <div className="bg-white border rounded-xl p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Ventas por día</p>
-                  <CssBarChart data={dailyData} height={160} color="#71D8BF" labelKey="dateLabel" valueKey="count" />
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ventas por período</p>
+                    <div className="flex items-center gap-1 border rounded-lg overflow-hidden text-xs">
+                      <button
+                        onClick={() => setChartGroupBy("day")}
+                        className="px-3 py-1.5 transition"
+                        style={chartGroupBy === "day"
+                          ? { backgroundColor: "#71D8BF", color: "#0d4d3a" }
+                          : { color: "#6b7280", backgroundColor: "#fff" }}
+                      >
+                        Por día
+                      </button>
+                      <button
+                        onClick={() => setChartGroupBy("week")}
+                        className="px-3 py-1.5 transition"
+                        style={chartGroupBy === "week"
+                          ? { backgroundColor: "#71D8BF", color: "#0d4d3a" }
+                          : { color: "#6b7280", backgroundColor: "#fff" }}
+                      >
+                        Por semana
+                      </button>
+                    </div>
+                  </div>
+                  <div className={chartGroupBy === "day" && dailyData.length > 30 ? "overflow-x-auto" : ""}>
+                    <div style={chartGroupBy === "day" && dailyData.length > 30 ? { minWidth: `${dailyData.length * 26}px` } : {}}>
+                      <CssBarChart
+                        data={chartGroupBy === "week" ? weeklyData : dailyData}
+                        height={160}
+                        color="#71D8BF"
+                        labelKey="dateLabel"
+                        valueKey="count"
+                      />
+                    </div>
+                  </div>
+                  {chartGroupBy === "day" && dailyData.length > 30 && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">← Deslizá para ver todos los días →</p>
+                  )}
                 </div>
               )}
 
@@ -1190,50 +1334,125 @@ export default function SupertrendPage() {
                   <p className="text-xs mt-1">Probá con otro rango de fechas</p>
                 </div>
               ) : (
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      Detalle de ventas
-                    </p>
-                    <span className="text-xs text-gray-400">
-                      {mlOrders.orders.length} mostradas{mlOrders.total > mlOrders.orders.length ? ` de ${mlOrders.total}` : ""}
-                    </span>
+                <>
+                  {/* Sales table — ID-115, ID-116, ID-117, ID-118 */}
+                  <div className="bg-white border rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Detalle de ventas
+                      </p>
+                      <span className="text-xs text-gray-400">
+                        {mlOrders.orders.length} mostradas{mlOrders.total > mlOrders.orders.length ? ` de ${mlOrders.total}` : ""}
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                          <tr className="text-xs text-gray-500">
+                            <th className="px-3 py-2 text-left whitespace-nowrap font-medium">Fecha</th>
+                            <th className="px-3 py-2 text-left whitespace-nowrap font-medium">Orden ID</th>
+                            <th className="px-3 py-2 text-left font-medium">Artículo</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap font-medium">Cant.</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap font-medium">Precio Unit.</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap font-medium">Descuento ML</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap font-medium">Total</th>
+                            <th className="px-3 py-2 text-left whitespace-nowrap font-medium">Tipo Envío</th>
+                            <th className="px-3 py-2 text-left whitespace-nowrap font-medium">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {mlOrders.orders.map(o => {
+                            const unitQty = (o.item_quantity || 1);
+                            const discount = o.full_unit_price && o.full_unit_price > (o.unit_price || 0)
+                              ? (o.full_unit_price - (o.unit_price || 0)) * unitQty
+                              : 0;
+                            const shipType = shippingTypeLabel(o.tags || [], o.fulfillment_type);
+                            return (
+                              <tr key={o.id} className="hover:bg-gray-50 transition">
+                                <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap">
+                                  {(o.date_closed || o.date_created)
+                                    ? new Date(o.date_closed || o.date_created).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })
+                                    : "—"}
+                                </td>
+                                {/* ID-115 + ID-116: Orden ID with ML link */}
+                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-mono text-gray-600">{o.id}</span>
+                                    <a
+                                      href={`https://www.mercadolibre.com.ar/ventas/${o.id}/detalle`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-gray-300 hover:text-blue-500 transition"
+                                      title="Ver en MercadoLibre"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2.5 max-w-xs">
+                                  <p className="text-sm font-medium text-gray-800 truncate">{o.item_title || "—"}</p>
+                                  <p className="text-xs text-gray-400 truncate">{o.buyer_nickname || ""}{o.sku ? ` · SKU: ${o.sku}` : ""}</p>
+                                </td>
+                                <td className="px-3 py-2.5 text-right text-gray-600 whitespace-nowrap">
+                                  {o.item_quantity ?? "—"}
+                                </td>
+                                {/* ID-117: unit price + discount */}
+                                <td className="px-3 py-2.5 text-right whitespace-nowrap text-gray-700">
+                                  {o.unit_price != null
+                                    ? o.unit_price.toLocaleString("es-AR", { style: "currency", currency: o.currency_id || "ARS", maximumFractionDigits: 0 })
+                                    : "—"}
+                                </td>
+                                <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                  {discount > 0
+                                    ? <span className="text-green-600 font-medium text-xs">-{discount.toLocaleString("es-AR", { style: "currency", currency: o.currency_id || "ARS", maximumFractionDigits: 0 })}</span>
+                                    : <span className="text-gray-300 text-xs">—</span>}
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-bold text-gray-900 whitespace-nowrap">
+                                  {o.total_amount != null
+                                    ? o.total_amount.toLocaleString("es-AR", { style: "currency", currency: o.currency_id || "ARS", maximumFractionDigits: 0 })
+                                    : "—"}
+                                </td>
+                                {/* ID-118: Shipping type */}
+                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                    shipType === "Full"    ? "bg-teal-100 text-teal-700" :
+                                    shipType === "Flex"    ? "bg-orange-100 text-orange-700" :
+                                                            "bg-purple-100 text-purple-700"
+                                  }`}>
+                                    {shipType}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                    o.status === "paid"      ? "text-green-700 bg-green-100" :
+                                    o.status === "confirmed" ? "text-blue-700 bg-blue-100" :
+                                    o.status === "cancelled" ? "text-red-700 bg-red-100" :
+                                    "text-gray-600 bg-gray-100"
+                                  }`}>
+                                    {o.status === "paid" ? "Cobrado" : o.status === "confirmed" ? "Confirmado" : o.status === "cancelled" ? "Cancelado" : o.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="divide-y">
-                    {mlOrders.orders.map(o => (
-                      <div key={o.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition">
-                        <div className="text-xs text-gray-400 whitespace-nowrap w-20 shrink-0">
-                          {(o.date_closed || o.date_created)
-                            ? new Date(o.date_closed || o.date_created).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })
-                            : "—"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{o.item_title || "—"}</p>
-                          <p className="text-xs text-gray-400 truncate">
-                            {[o.buyer_nickname, o.sku ? `SKU: ${o.sku}` : null, o.item_quantity ? `x${o.item_quantity}` : null].filter(Boolean).join(" · ")}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-gray-900">
-                            {o.total_amount != null
-                              ? o.total_amount.toLocaleString("es-AR", { style: "currency", currency: o.currency_id || "ARS", maximumFractionDigits: 0 })
-                              : "—"}
-                          </p>
-                        </div>
-                        <div className="shrink-0">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            o.status === "paid"      ? "text-green-700 bg-green-100" :
-                            o.status === "confirmed" ? "text-blue-700 bg-blue-100" :
-                            o.status === "cancelled" ? "text-red-700 bg-red-100" :
-                            "text-gray-600 bg-gray-100"
-                          }`}>
-                            {o.status === "paid" ? "Cobrado" : o.status === "confirmed" ? "Confirmado" : o.status === "cancelled" ? "Cancelado" : o.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+
+                  {/* ID-123: Donut chart — shipping type distribution */}
+                  {shippingTypeData.length > 0 && (
+                    <div className="bg-white border rounded-xl p-5">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">
+                        Distribución por tipo de envío
+                      </p>
+                      <CssPieChart data={shippingTypeData} size={120} />
+                      <p className="text-xs text-gray-400 mt-3 text-center">
+                        Basado en las {mlOrders.orders.length} ventas mostradas
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -1280,6 +1499,46 @@ export default function SupertrendPage() {
             <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl p-4">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <span className="text-sm">{mlQError?.message || "Error conectando a MercadoLibre"}</span>
+            </div>
+          )}
+
+          {/* ── Consultas tiempo real (webhook) ── */}
+          {webhookQuestions.length > 0 && (
+            <div className="rounded-xl overflow-hidden border border-amber-200">
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-xs font-bold text-amber-800">TIEMPO REAL — últimas 72h</span>
+                <span className="ml-auto text-xs text-amber-600">{webhookQuestions.length} recibida{webhookQuestions.length !== 1 ? "s" : ""} via webhook</span>
+                <button onClick={() => refetchWhQ()} className="ml-1 text-amber-600 hover:text-amber-800">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="divide-y divide-amber-50 bg-white">
+                {webhookQuestions.map(q => {
+                  const diff = (Date.now() - new Date(q.received_at).getTime()) / 1000;
+                  const relTime = diff < 60 ? "hace <1 min" : diff < 3600 ? `hace ${Math.round(diff/60)} min` : `hace ${Math.round(diff/3600)} h`;
+                  return (
+                    <div key={q.event_id} className="px-4 py-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        {q.item_title && <p className="text-xs font-semibold text-blue-600 mb-0.5 truncate">📦 {q.item_title}</p>}
+                        <p className="text-sm text-gray-800">
+                          {q.enriched ? q.question_text : <span className="italic text-gray-400">Procesando…</span>}
+                        </p>
+                        <span className="text-[11px] text-amber-600">{relTime}</span>
+                      </div>
+                      {q.enriched && q.question_id && (
+                        <button
+                          onClick={() => { setAnswerModal({ id: q.question_id, text: q.question_text, item_title: q.item_title, account: mlAccount }); setAnswerText(""); }}
+                          className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition whitespace-nowrap"
+                          style={{ backgroundColor: "#71D8BF", color: "#0d4d3a" }}
+                        >
+                          <Send className="w-3 h-3" /> Responder
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

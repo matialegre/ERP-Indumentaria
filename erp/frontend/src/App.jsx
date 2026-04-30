@@ -16,8 +16,11 @@ const PedidosPage = lazy(() => import("./pages/PedidosPage"));
 const PedidosComprasPage = lazy(() => import("./pages/PedidosComprasPage"));
 const FacturasProveedorPage = lazy(() => import("./pages/FacturasProveedorPage"));
 const GestionPagosPage = lazy(() => import("./pages/GestionPagosPage"));
+const CajasPage = lazy(() => import("./pages/CajasPage"));
+const ClinkApiPage = lazy(() => import("./pages/ClinkApiPage"));
 const KanbanPage = lazy(() => import("./pages/KanbanPage"));
 const StockPage = lazy(() => import("./pages/StockPage"));
+const StockMultilocalPage = lazy(() => import("./pages/StockMultilocalPage"));
 const FacturacionPage = lazy(() => import("./pages/FacturacionPage"));
 const ConsultasPage = lazy(() => import("./pages/ConsultasPage"));
 const ConsultasSQLPage = lazy(() => import("./pages/ConsultasSQLPage"));
@@ -64,6 +67,18 @@ const AsistentePage = lazy(() => import("./pages/AsistentePage"));
 const MobileAppPage = lazy(() => import("./pages/MobileAppPage"));
 const FichajePage = lazy(() => import("./pages/FichajePage"));
 const FichajeCheckInPage = lazy(() => import("./pages/FichajeCheckInPage"));
+/* RFID module */
+const RFIDDashboard  = lazy(() => import("./pages/RFIDDashboard"));
+const RFIDEtiquetas  = lazy(() => import("./pages/RFIDEtiquetas"));
+const RFIDLectores   = lazy(() => import("./pages/RFIDLectores"));
+const RFIDAlertas    = lazy(() => import("./pages/RFIDAlertas"));
+const RFIDInventario = lazy(() => import("./pages/RFIDInventario"));
+const RFIDPropuesta  = lazy(() => import("./pages/RFIDPropuesta"));
+const RFIDPresupuesto = lazy(() => import("./pages/RFIDPresupuesto"));
+const RFIDContenido  = lazy(() => import("./pages/RFIDContenido"));
+const ArenaPage      = lazy(() => import("./pages/ArenaPage"));
+const ReorganizadorPDFPage = lazy(() => import("./pages/ReorganizadorPDFPage"));
+const CalendarioEventosPage = lazy(() => import("./pages/CalendarioEventosPage"));
 
 // CRM Avanzado — prefetch al detectar hover en sidebar (preload inmediato para el Dashboard)
 const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
@@ -138,6 +153,17 @@ export default function App() {
   const { user, loading, backendError, isOfflineSession, retry } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
   const handleSplashFinish = useCallback(() => setSplashDone(true), []);
+
+  // Limpiar el param _wid que inyecta Electron para sub-ventanas (token handoff)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('_wid')) {
+      params.delete('_wid');
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, []);
 
   // Auto-reload cuando el backend publica un nuevo build
   const buildHashRef = useRef(null);
@@ -229,8 +255,13 @@ export default function App() {
             <Route path="pedidos-compras" element={<LazyPage><PedidosComprasPage /></LazyPage>} />
             <Route path="facturas-proveedor" element={<LazyPage><FacturasProveedorPage /></LazyPage>} />
             <Route path="gestion-pagos" element={<LazyPage><GestionPagosPage /></LazyPage>} />
+            <Route path="cajas" element={<LazyPage><CajasPage initialTab="control" /></LazyPage>} />
+            <Route path="gastos-locales" element={<LazyPage><CajasPage initialTab="gastos" /></LazyPage>} />
+            <Route path="clink-api" element={<LazyPage><ClinkApiPage /></LazyPage>} />
             <Route path="kanban" element={<LazyPage><KanbanPage /></LazyPage>} />
             <Route path="stock" element={<LazyPage><StockPage /></LazyPage>} />
+            <Route path="stock-multilocal" element={<LazyPage><StockMultilocalPage /></LazyPage>} />
+            <Route path="pdf-inventario" element={<LazyPage><ReorganizadorPDFPage /></LazyPage>} />
             <Route path="facturacion" element={<LazyPage><FacturacionPage /></LazyPage>} />
             <Route path="consultas" element={<LazyPage><ConsultasPage /></LazyPage>} />
             <Route path="consultas-sql" element={<LazyPage><ConsultasSQLPage /></LazyPage>} />
@@ -280,6 +311,17 @@ export default function App() {
             <Route path="mobile-app"           element={<LazyPage><MobileAppPage /></LazyPage>} />
             <Route path="fichaje"              element={<LazyPage><FichajePage /></LazyPage>} />
             <Route path="fichaje/checkin"      element={<LazyPage><FichajeCheckInPage /></LazyPage>} />
+            {/* RFID module */}
+            <Route path="rfid"                 element={<LazyPage><RFIDDashboard /></LazyPage>} />
+            <Route path="rfid/etiquetas"       element={<LazyPage><RFIDEtiquetas /></LazyPage>} />
+            <Route path="rfid/lectores"        element={<LazyPage><RFIDLectores /></LazyPage>} />
+            <Route path="rfid/alertas"         element={<LazyPage><RFIDAlertas /></LazyPage>} />
+            <Route path="rfid/inventario"      element={<LazyPage><RFIDInventario /></LazyPage>} />
+            <Route path="rfid/propuesta"       element={<LazyPage><RFIDPropuesta /></LazyPage>} />
+            <Route path="rfid/presupuesto"     element={<LazyPage><RFIDPresupuesto /></LazyPage>} />
+            <Route path="rfid/contenido"       element={<LazyPage><RFIDContenido /></LazyPage>} />
+            <Route path="arena"                element={<LazyPage><ArenaPage /></LazyPage>} />
+            <Route path="calendario-eventos"  element={<LazyPage><CalendarioEventosPage /></LazyPage>} />
             {/* CRM Avanzado */}
             <Route path="crm" element={<LazyPage><CRMDashboard /></LazyPage>} />
             <Route path="crm/clientes" element={<LazyPage><CRMClientes /></LazyPage>} />

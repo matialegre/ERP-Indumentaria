@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import {
   X, Send, Trash2, CheckCircle2, Lightbulb,
   Loader2, Bot, PlusCircle,
-  Image as ImageIcon, Check, Pencil as Edit2, MessageSquare
+  Image as ImageIcon, Check, Pencil as Edit2, MessageSquare, Copy
 } from "lucide-react";
 import { api } from "../lib/api";
 
@@ -49,6 +49,12 @@ const ROUTE_LABELS = {
   "/taller/clientes": "Clientes Taller",
   "/taller/stock": "Repuestos",
   "/crm": "CRM Dashboard",
+  "/rfid": "RFID Dashboard",
+  "/rfid/etiquetas": "RFID — Etiquetas",
+  "/rfid/lectores": "RFID — Lectores",
+  "/rfid/alertas": "RFID — Alertas",
+  "/rfid/inventario": "RFID — Inventario",
+  "/rfid/propuesta": "RFID — Propuesta ROI",
   "/crm/clientes": "Clientes 360°",
   "/crm/mensajes": "Inbox CRM",
   "/crm/club": "Mundo Club",
@@ -83,6 +89,7 @@ export default function ImprovementNotes() {
   const pageLabel = ROUTE_LABELS[page] || page.replace("/", "");
 
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(() => sessionStorage.getItem("improvementNotesHidden") === "1");
   const [showForm, setShowForm] = useState(false);
   const [text, setText] = useState("");
   const [priority, setPriority] = useState("NORMAL");
@@ -210,6 +217,18 @@ export default function ImprovementNotes() {
 
   const pendingCount = Array.isArray(notes) ? notes.filter(n => !n.is_done).length : 0;
 
+  if (hidden) {
+    return (
+      <button
+        onClick={() => { setHidden(false); sessionStorage.removeItem("improvementNotesHidden"); }}
+        className="fixed bottom-2 left-1/2 -translate-x-1/2 z-40 w-6 h-6 bg-amber-500/60 hover:bg-amber-500 text-white rounded-full text-xs flex items-center justify-center shadow"
+        title="Mostrar Notas para mejorar"
+      >
+        💡
+      </button>
+    );
+  }
+
   return (
     <>
       {/* Botón flotante */}
@@ -221,13 +240,20 @@ export default function ImprovementNotes() {
         )}
         <button
           onClick={() => setOpen(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
+          className={`relative flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg font-semibold text-sm transition-all ${
             open ? "bg-gray-800 text-white" : "bg-amber-500 hover:bg-amber-600 text-white"
           }`}
           title="Notas para mejorar esta sección"
         >
           <Lightbulb size={16} />
           {pendingCount > 0 ? `Mejoras (${pendingCount})` : "Notas para mejorar"}
+          <span
+            onClick={(e) => { e.stopPropagation(); setHidden(true); setOpen(false); sessionStorage.setItem("improvementNotesHidden", "1"); }}
+            className="absolute -top-2 -right-2 w-5 h-5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-[10px] flex items-center justify-center shadow"
+            title="Ocultar (volverá al recargar)"
+          >
+            ✕
+          </span>
         </button>
       </div>
 
@@ -364,8 +390,16 @@ export default function ImprovementNotes() {
 
 function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, onCancelEdit, onDelete, onMarkDone, saving, isWaiting }) {
   const [showImages, setShowImages] = useState(false);
+  const [copied, setCopied] = useState(false);
   const pConfig = PRIORITY_CONFIG[note.priority] || PRIORITY_CONFIG.NORMAL;
   const isEditing = editingId === note.id;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(note.text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   return (
     <div className="space-y-2">
@@ -440,6 +474,9 @@ function NotePair({ note, editingId, editText, setEditText, onEdit, onSaveEdit, 
               </button>
               <button onClick={() => onMarkDone(note.id)} className="flex items-center gap-1 text-[9px] text-amber-200 hover:text-white transition">
                 <CheckCircle2 size={9} /> Resolver
+              </button>
+              <button onClick={handleCopy} title="Copiar texto" className="flex items-center gap-1 text-[9px] text-amber-200 hover:text-white transition">
+                {copied ? <Check size={9} /> : <Copy size={9} />}
               </button>
               <div className="flex-1" />
               <button onClick={() => onDelete(note.id)} className="flex items-center gap-1 text-[9px] text-red-200 hover:text-white transition">

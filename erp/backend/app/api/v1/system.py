@@ -57,7 +57,7 @@ def sidebar_counts(
 
     pedidos_pendientes = (
         db.query(func.count(PurchaseOrder.id))
-        .filter(PurchaseOrder.status.in_([PurchaseOrderStatus.BORRADOR, PurchaseOrderStatus.ENVIADO]), *co)
+        .filter(PurchaseOrder.status.in_([PurchaseOrderStatus.BORRADOR, PurchaseOrderStatus.PENDIENTE, PurchaseOrderStatus.ENVIADO]), *co)
         .scalar() or 0
     )
 
@@ -69,7 +69,7 @@ def sidebar_counts(
 
     recepcion_pendiente = (
         db.query(func.count(PurchaseOrder.id))
-        .filter(PurchaseOrder.status == PurchaseOrderStatus.ENVIADO, *co)
+        .filter(PurchaseOrder.status.in_([PurchaseOrderStatus.PENDIENTE, PurchaseOrderStatus.ENVIADO]), *co)
         .scalar() or 0
     )
 
@@ -95,7 +95,7 @@ def sidebar_counts(
         db.query(PurchaseOrder.id)
         .outerjoin(PurchaseInvoice, PurchaseInvoice.purchase_order_id == PurchaseOrder.id)
         .filter(
-            PurchaseOrder.status == PurchaseOrderStatus.ENVIADO,
+            PurchaseOrder.status.in_([PurchaseOrderStatus.PENDIENTE, PurchaseOrderStatus.ENVIADO]),
             PurchaseOrder.date <= ten_days_ago,
             *co,
         )

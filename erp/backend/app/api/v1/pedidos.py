@@ -2,11 +2,14 @@
 Router CRUD de Pedidos a Proveedores
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 import datetime
+import os
+import uuid
+import pathlib
 
 from app.db.session import get_db
 from app.models.pedido import Pedido, PedidoItem, PedidoStatus
@@ -51,6 +54,7 @@ class PedidoOut(BaseModel):
     created_by_id: int
     created_by_name: str | None = None
     items: list[PedidoItemOut] = []
+    excel_file: str | None = None
     model_config = {"from_attributes": True}
 
 
@@ -95,7 +99,7 @@ def _to_out(p: Pedido) -> dict:
         provider_id=p.provider_id, provider_name=p.provider.name if p.provider else None,
         company_id=p.company_id, created_by_id=p.created_by_id,
         created_by_name=p.created_by.full_name if p.created_by else None,
-        items=items,
+        items=items, excel_file=p.excel_file,
     )
 
 
@@ -128,7 +132,7 @@ def list_pedidos(
 def create_pedido(
     data: PedidoCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS)),
+    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION)),
 ):
     company_id = user.company_id or 1
     pedido = Pedido(
@@ -165,7 +169,7 @@ def get_pedido(pedido_id: int, db: Session = Depends(get_db), user: User = Depen
 def update_pedido(
     pedido_id: int, data: PedidoUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS)),
+    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION)),
 ):
     p = db.query(Pedido).get(pedido_id)
     if not p:
@@ -184,7 +188,7 @@ def update_pedido(
 
 @router.post("/{pedido_id}/items", status_code=201)
 def add_item(pedido_id: int, data: PedidoItemCreate, db: Session = Depends(get_db),
-             user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS))):
+             user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION))):
     p = db.query(Pedido).get(pedido_id)
     if not p:
         raise HTTPException(404, "Pedido no encontrado")
@@ -204,7 +208,7 @@ def add_item(pedido_id: int, data: PedidoItemCreate, db: Session = Depends(get_d
 
 @router.delete("/{pedido_id}/items/{item_id}", status_code=204)
 def remove_item(pedido_id: int, item_id: int, db: Session = Depends(get_db),
-                user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS))):
+                user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION))):
     item = db.query(PedidoItem).filter(PedidoItem.id == item_id, PedidoItem.pedido_id == pedido_id).first()
     if not item:
         raise HTTPException(404, "Item no encontrado")
@@ -219,7 +223,7 @@ def remove_item(pedido_id: int, item_id: int, db: Session = Depends(get_db),
 
 @router.patch("/{pedido_id}/send")
 def send_pedido(pedido_id: int, db: Session = Depends(get_db),
-                user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS))):
+                user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION))):
     p = db.query(Pedido).get(pedido_id)
     if not p:
         raise HTTPException(404, "Pedido no encontrado")
@@ -293,6 +297,58 @@ def delete_pedido(pedido_id: int, db: Session = Depends(get_db),
         raise HTTPException(400, "Solo se pueden eliminar pedidos en BORRADOR o ANULADO")
     db.delete(p)
     db.commit()
+
+
+PEDIDOS_FILES_DIR = pathlib.Path(__file__).parent.parent.parent.parent / "pedidos_files"
+ALLOWED_EXTENSIONS = {".xlsx", ".xls", ".csv", ".pdf"}
+
+
+@router.post("/{pedido_id}/upload-excel")
+async def upload_pedido_excel(
+    pedido_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION)),
+):
+    p = db.query(Pedido).get(pedido_id)
+    if not p:
+        raise HTTPException(404, "Pedido no encontrado")
+    if user.company_id and p.company_id != user.company_id:
+        raise HTTPException(403, "Sin acceso")
+    ext = pathlib.Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"Extensión no permitida: {ext}")
+    PEDIDOS_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    if p.excel_file:
+        old_path = PEDIDOS_FILES_DIR / p.excel_file
+        if old_path.exists():
+            old_path.unlink()
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    dest = PEDIDOS_FILES_DIR / unique_name
+    content = await file.read()
+    dest.write_bytes(content)
+    p.excel_file = unique_name
+    db.commit()
+    return {"ok": True, "excel_file": unique_name}
+
+
+@router.delete("/{pedido_id}/upload-excel", status_code=204)
+def delete_pedido_excel(
+    pedido_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS, UserRole.ADMINISTRACION)),
+):
+    p = db.query(Pedido).get(pedido_id)
+    if not p:
+        raise HTTPException(404, "Pedido no encontrado")
+    if user.company_id and p.company_id != user.company_id:
+        raise HTTPException(403, "Sin acceso")
+    if p.excel_file:
+        old_path = PEDIDOS_FILES_DIR / p.excel_file
+        if old_path.exists():
+            old_path.unlink()
+        p.excel_file = None
+        db.commit()
 
 
 @router.get("/vista-integrada/all")
@@ -444,3 +500,4 @@ def vista_integrada(
         })
 
     return result
+

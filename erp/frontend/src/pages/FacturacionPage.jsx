@@ -13,6 +13,7 @@ import { useBranding } from "../context/BrandingContext";
 import {
   FileText, Plus, Search, Eye, Trash2, CheckCircle,
   CreditCard, Ban, X, ArrowLeft, WifiOff, RefreshCw, Printer, MapPin,
+  ClipboardList, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 const badge = (text, color) => (
@@ -84,6 +85,8 @@ export default function FacturacionPage() {
   const [catalogSource, setCatalogSource] = useState("network");
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [mainTab, setMainTab] = useState("facturar"); // "facturar" | "consultar"
+  const [expandedRow, setExpandedRow] = useState(null);
 
   useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, dateFrom, dateTo]);
 
@@ -474,6 +477,171 @@ export default function FacturacionPage() {
     </>
   );
 
+  // ── CONSULTAR FACTURAS VIEW ──
+  if (view === "list" && mainTab === "consultar") return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><ClipboardList size={24} /> Consultar Facturas</h1>
+          <p className="text-sm text-gray-500 mt-1">Vista detallada de comprobantes realizados</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isOnline && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-sm font-semibold">
+              <WifiOff size={14} /> OFFLINE
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setMainTab("facturar")}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-white hover:text-gray-900 transition"
+        >
+          <span className="flex items-center gap-2"><Plus size={14} /> Facturar</span>
+        </button>
+        <button
+          onClick={() => setMainTab("consultar")}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-white text-gray-900 shadow-sm transition"
+        >
+          <span className="flex items-center gap-2"><ClipboardList size={14} /> Consultar Facturas</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input type="text" placeholder="Buscar por número o cliente..." value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500" />
+        </div>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="Desde"
+          className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700" />
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="Hasta"
+          className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700" />
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg">
+          <option value="">Todos los tipos</option>
+          {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-4 py-2 border border-gray-300 rounded-lg">
+          <option value="">Todos los estados</option>
+          {Object.keys(statusColors).map(s => <option key={s} value={s}>{statusLabels[s] || s}</option>)}
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        {listLoading ? (
+          <div className="p-8 text-center text-gray-400">Cargando...</div>
+        ) : displaySales.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">Sin comprobantes para los filtros seleccionados</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {displaySales.map(s => {
+              const key = s._isOffline ? s.localId : s.id;
+              const isExpanded = expandedRow === key;
+              const sStatus = statusLabels[s.status] || s.status;
+              return (
+                <div key={key} className={`${s._isOffline ? "bg-amber-50/40" : "bg-white"}`}>
+                  {/* Row header */}
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left"
+                    onClick={() => setExpandedRow(isExpanded ? null : key)}
+                  >
+                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 items-center">
+                      <div className="flex items-center gap-2">
+                        {badge(typeLabels[s.type] || s.type, "bg-gray-100 text-gray-700")}
+                        {s._isOffline && <span className="text-xs text-amber-600">📱</span>}
+                      </div>
+                      <div className="font-semibold text-gray-900 text-sm">{s.number || "—"}</div>
+                      <div className="text-gray-500 text-sm">{s.date}</div>
+                      <div className="text-gray-700 text-sm truncate">{s.customer_name || "Consumidor Final"}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        {badge(sStatus, statusColors[s.status] || "bg-gray-100 text-gray-700")}
+                        <span className="font-bold text-gray-900 text-sm">{s.total ? fmtMoney(s.total) : "—"}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedId(s._isOffline ? s.localId : s.id); setIsOfflineSale(!!s._isOffline); setView("detail"); }}
+                        className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
+                        title="Ver detalle completo"
+                      >
+                        <Eye size={15} />
+                      </button>
+                      {isExpanded ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+                    </div>
+                  </button>
+
+                  {/* Expanded items */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 bg-gray-50/50 px-4 pb-3">
+                      {s.local_name && (
+                        <p className="text-xs text-gray-500 py-2 flex items-center gap-1">
+                          <MapPin size={11} /> {s.local_name}
+                          {s.notes && <span className="ml-3 italic">· {s.notes}</span>}
+                        </p>
+                      )}
+                      {!s.items || s.items.length === 0 ? (
+                        <div className="py-2 text-xs text-gray-400 italic">
+                          {s._isOffline && s.status === "PENDING_SYNC"
+                            ? "Items disponibles en el detalle"
+                            : "Sin items registrados"}
+                        </div>
+                      ) : (
+                        <table className="w-full text-xs mt-1">
+                          <thead>
+                            <tr className="text-gray-500 uppercase">
+                              <th className="py-1.5 text-left font-semibold">Producto</th>
+                              <th className="py-1.5 text-left font-semibold">SKU</th>
+                              <th className="py-1.5 text-center font-semibold">Cant.</th>
+                              <th className="py-1.5 text-right font-semibold">P. Unit.</th>
+                              <th className="py-1.5 text-center font-semibold">Dto.</th>
+                              <th className="py-1.5 text-right font-semibold">Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {s.items.map((it, i) => {
+                              const sub = it.subtotal || Math.round(it.quantity * it.unit_price * (1 - (it.discount_pct || 0) / 100));
+                              return (
+                                <tr key={i} className="text-gray-700">
+                                  <td className="py-1.5 font-medium">{it.product_name || it.name || "—"}</td>
+                                  <td className="py-1.5 font-mono text-gray-500">{it.variant_sku || it.sku || "—"}</td>
+                                  <td className="py-1.5 text-center">{it.quantity}</td>
+                                  <td className="py-1.5 text-right">{fmtMoney(it.unit_price)}</td>
+                                  <td className="py-1.5 text-center">{it.discount_pct ? `${it.discount_pct}%` : "—"}</td>
+                                  <td className="py-1.5 text-right font-semibold">{fmtMoney(sub)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot className="border-t border-gray-200">
+                            {s.tax > 0 && (
+                              <tr className="text-gray-500">
+                                <td colSpan={5} className="py-1.5 text-right">IVA 21%:</td>
+                                <td className="py-1.5 text-right">{fmtMoney(s.tax)}</td>
+                              </tr>
+                            )}
+                            <tr className="font-bold text-gray-900">
+                              <td colSpan={5} className="py-1.5 text-right">Total:</td>
+                              <td className="py-1.5 text-right">{fmtMoney(s.total || 0)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <Pagination total={totalCount} skip={(page - 1) * PAGE_SIZE} limit={PAGE_SIZE} onPageChange={setPage} />
+    </div>
+  );
+
   // ── LIST VIEW ──
   if (view === "list") return (
     <div className="space-y-4">
@@ -493,6 +661,22 @@ export default function FacturacionPage() {
             <Plus size={16} /> Nueva Venta
           </button>
         </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setMainTab("facturar")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mainTab === "facturar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white hover:text-gray-900"}`}
+        >
+          <span className="flex items-center gap-2"><Plus size={14} /> Facturar</span>
+        </button>
+        <button
+          onClick={() => setMainTab("consultar")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${mainTab === "consultar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:bg-white hover:text-gray-900"}`}
+        >
+          <span className="flex items-center gap-2"><ClipboardList size={14} /> Consultar Facturas</span>
+        </button>
       </div>
 
       <OfflineBanner />

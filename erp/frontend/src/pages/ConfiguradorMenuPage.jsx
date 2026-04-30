@@ -323,7 +323,7 @@ export default function ConfiguradorMenuPage() {
   }, [data]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) return;
     const base = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
     const es = new EventSource(`${base}/menu-config/events?token=${encodeURIComponent(token)}`);

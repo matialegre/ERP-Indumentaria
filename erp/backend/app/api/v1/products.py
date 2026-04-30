@@ -4,6 +4,7 @@ Router CRUD de Productos y Variantes
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
 from pydantic import BaseModel
 import io
@@ -42,6 +43,8 @@ class ProductOut(BaseModel):
     description: str | None = None
     brand: str | None = None
     category: str | None = None
+    gender: str | None = None
+    season: str | None = None
     base_cost: float | None = None
     is_active: bool
     company_id: int
@@ -55,6 +58,8 @@ class ProductCreate(BaseModel):
     description: str | None = None
     brand: str | None = None
     category: str | None = None
+    gender: str | None = None
+    season: str | None = None
     base_cost: float | None = None
     variants: list[VariantCreate] = []
 
@@ -65,6 +70,8 @@ class ProductUpdate(BaseModel):
     description: str | None = None
     brand: str | None = None
     category: str | None = None
+    gender: str | None = None
+    season: str | None = None
     base_cost: float | None = None
 
 
@@ -78,6 +85,8 @@ def list_products(
     search: Optional[str] = None,
     brand: Optional[str] = None,
     category: Optional[str] = None,
+    gender: Optional[str] = None,
+    season: Optional[str] = None,
     provider_id: Optional[int] = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
@@ -97,6 +106,10 @@ def list_products(
         q = q.filter(Product.brand.ilike(f"%{brand}%"))
     if category:
         q = q.filter(Product.category == category)
+    if gender:
+        q = q.filter(Product.gender == gender)
+    if season:
+        q = q.filter(Product.season == season)
     if provider_id:
         subq = (
             db.query(ProductVariant.product_id)
@@ -199,6 +212,68 @@ def toggle_product(
     db.commit()
     db.refresh(product)
     return product
+
+
+@router.get("/catalog-options")
+def get_catalog_options(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    company_id = current_user.company_id
+    q = db.query(Product)
+    if current_user.role != UserRole.SUPERADMIN and company_id:
+        q = q.filter(Product.company_id == company_id)
+    genders = [r[0] for r in q.with_entities(Product.gender).distinct().all() if r[0]]
+    seasons = [r[0] for r in q.with_entities(Product.season).distinct().all() if r[0]]
+    categories = [r[0] for r in q.with_entities(Product.category).distinct().all() if r[0]]
+    return {"genders": sorted(genders), "seasons": sorted(seasons), "categories": sorted(categories)}
+
+
+@router.get("/{product_id}/alternatives", response_model=list[ProductOut])
+def get_product_alternatives(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    company_id = product.company_id
+
+    stock_subq = (
+        db.query(ProductVariant.product_id)
+        .filter(ProductVariant.stock > 0, ProductVariant.is_active == True)
+        .group_by(ProductVariant.product_id)
+        .subquery()
+    )
+
+    filters = []
+    if product.category:
+        filters.append(Product.category == product.category)
+    if product.gender:
+        filters.append(Product.gender == product.gender)
+    if product.season:
+        filters.append(Product.season == product.season)
+
+    if not filters:
+        return []
+
+    from sqlalchemy import or_
+    alternatives = (
+        db.query(Product)
+        .filter(
+            Product.company_id == company_id,
+            Product.id != product_id,
+            Product.is_active == True,
+            Product.id.in_(stock_subq),
+            or_(*filters),
+        )
+        .order_by(Product.name)
+        .limit(6)
+        .all()
+    )
+    return alternatives
 
 
 # ── Variantes ──────────────────────────────────────────
@@ -337,6 +412,8 @@ def import_products_excel(
                 code=codigo, name=nombre,
                 description=col(row, "descripcion") or None,
                 brand=marca, category=categoria,
+                gender=col(row, "genero") or None,
+                season=col(row, "temporada") or None,
                 base_cost=precio, company_id=company_id, is_active=True,
             )
             db.add(product)

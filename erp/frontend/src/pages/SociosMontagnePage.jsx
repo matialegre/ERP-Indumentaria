@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import {
@@ -20,6 +20,10 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart2,
+  AlertTriangle,
+  Settings2,
+  Save,
+  Bot,
 } from "lucide-react";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -68,6 +72,11 @@ function LocalCard({ local, onEnviar, sending }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {local.scraping_ok === false && (
+            <span title="Dato anterior — el scraping falló en la última actualización">
+              <AlertTriangle size={14} className="text-yellow-500" />
+            </span>
+          )}
           <PctBadge pct={pct} />
           <button
             onClick={() => onEnviar(local.nombre)}
@@ -171,7 +180,7 @@ function QRModal({ onClose }) {
         </div>
         <div className="p-4">
           <iframe
-            src="http://localhost:3456/qr"
+            src="/api/v1/socios/wa/qr"
             className="w-full h-96 rounded-lg border-0"
             title="WhatsApp QR"
           />
@@ -219,23 +228,172 @@ function LogModal({ log, onClose }) {
   );
 }
 
+// ─── Mensajes Config Modal ────────────────────────────────────────────────────
+function MensajesConfigModal({ onClose }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState(null);
+
+  const { data: configData, isLoading } = useQuery({
+    queryKey: ["socios-mensajes-config"],
+    queryFn: () => api.get("/socios/mensajes-config"),
+  });
+
+  useEffect(() => {
+    if (configData && !form) setForm(configData);
+  }, [configData]);
+
+  const saveMut = useMutation({
+    mutationFn: (data) => api.put("/socios/mensajes-config", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["socios-mensajes-config"] });
+      onClose();
+    },
+  });
+
+  const FIELDS = [
+    {
+      key: "msg_positivo",
+      label: "Mensaje — Objetivo cumplido (pct >= 100%)",
+      color: "border-green-300 bg-green-50",
+      badge: "text-green-700 bg-green-100",
+      emoji: "🟢",
+    },
+    {
+      key: "msg_neutral",
+      label: "Mensaje — Cerca del objetivo (80–99%)",
+      color: "border-yellow-300 bg-yellow-50",
+      badge: "text-yellow-700 bg-yellow-100",
+      emoji: "🟡",
+    },
+    {
+      key: "msg_atrasado",
+      label: "Mensaje — Atrasado (< 80%)",
+      color: "border-red-300 bg-red-50",
+      badge: "text-red-700 bg-red-100",
+      emoji: "🔴",
+    },
+    {
+      key: "bot_auto_reply",
+      label: "Respuesta automática del bot",
+      color: "border-blue-300 bg-blue-50",
+      badge: "text-blue-700 bg-blue-100",
+      emoji: "🤖",
+    },
+  ];
+
+  const PLACEHOLDER_VARS = "{nombre}, {socios_actuales}, {objetivo_mes}, {faltan}, {dias_restantes}";
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+              <MessageSquare size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Configurar Mensajes WhatsApp</h3>
+              <p className="text-xs text-gray-400">Editá las plantillas que se envían a los locales</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none">×</button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+          {isLoading || !form ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            </div>
+          ) : (
+            <>
+              <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-500">
+                <span className="font-semibold text-gray-700">Variables disponibles: </span>
+                <code className="font-mono text-blue-700">{PLACEHOLDER_VARS}</code>
+                <span className="ml-1">— Se reemplazan automáticamente en cada mensaje.</span>
+              </div>
+
+              {FIELDS.map(f => (
+                <div key={f.key}>
+                  <label className={`flex items-center gap-2 text-xs font-semibold mb-1.5 px-2 py-1 rounded-lg w-fit ${f.badge}`}>
+                    <span>{f.emoji}</span>
+                    {f.label}
+                  </label>
+                  <textarea
+                    rows={f.key === "bot_auto_reply" ? 3 : 5}
+                    value={form[f.key] ?? ""}
+                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className={`w-full px-3 py-2.5 border-2 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono leading-relaxed ${f.color}`}
+                    placeholder={`Plantilla de mensaje para este caso...`}
+                  />
+                </div>
+              ))}
+
+              {/* Bot auto-reply note */}
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700">
+                <Bot size={14} className="mt-0.5 shrink-0" />
+                <p>
+                  La respuesta automática del bot se mostrará aquí como referencia. Para activarla en WhatsApp,
+                  configurá esta respuesta directamente en el bot de WhatsApp Business.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => form && saveMut.mutate(form)}
+            disabled={saveMut.isPending || !form}
+            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition"
+          >
+            <Save size={15} />
+            {saveMut.isPending ? "Guardando..." : "Guardar cambios"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PÁGINA PRINCIPAL ────────────────────────────────────────────────────────
 export default function SociosMontagnePage() {
   const qc = useQueryClient();
-  const [showQR, setShowQR]   = useState(false);
-  const [showLog, setShowLog] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [showQR, setShowQR]     = useState(false);
+  const [showLog, setShowLog]   = useState(false);
+  const [showMensajesConfig, setShowMensajesConfig] = useState(false);
+  const [sending, setSending]   = useState(false);
+  const [actualizando, setActualizando] = useState(false);
+  const prevTimestampRef = useRef(null);
 
   const { data: estado, isLoading } = useQuery({
     queryKey: ["socios-estado"],
     queryFn:  () => api.get("/socios/estado"),
-    refetchInterval: 60000,
+    refetchInterval: actualizando ? 10000 : 60000,
   });
+
+  // Dejar de polling cuando cambia la timestamp de actualización
+  useEffect(() => {
+    if (actualizando && estado?.ultima_actualizacion && estado.ultima_actualizacion !== prevTimestampRef.current) {
+      setActualizando(false);
+    }
+  }, [estado?.ultima_actualizacion, actualizando]);
 
   const { data: waStatus, refetch: refetchWA } = useQuery({
     queryKey: ["socios-wa-status"],
     queryFn:  () => api.get("/socios/wa/status"),
-    refetchInterval: 15000,
+    refetchInterval: showQR ? 3000 : 15000,
   });
 
   const { data: log } = useQuery({
@@ -245,12 +403,20 @@ export default function SociosMontagnePage() {
 
   const mutActualizar = useMutation({
     mutationFn: () => api.post("/socios/actualizar"),
-    onSuccess:  () => setTimeout(() => qc.invalidateQueries(["socios-estado"]), 3000),
+    onSuccess: () => {
+      prevTimestampRef.current = estado?.ultima_actualizacion ?? null;
+      setActualizando(true);
+      // Primer refresco rápido a los 15s, luego el polling de 10s toma el control
+      setTimeout(() => qc.invalidateQueries(["socios-estado"]), 15000);
+    },
   });
 
   const mutWAStart = useMutation({
     mutationFn: () => api.post("/socios/wa/start"),
-    onSuccess:  () => setTimeout(() => refetchWA(), 3000),
+    onSuccess:  () => {
+      setShowQR(true);
+      setTimeout(() => refetchWA(), 1500);
+    },
   });
 
   const mutWAStop = useMutation({
@@ -279,6 +445,8 @@ export default function SociosMontagnePage() {
   const locales   = estado?.locales ?? [];
   const waListo   = waStatus?.wa_listo ?? false;
   const waRunning = waStatus?.proceso_corriendo ?? false;
+  const waConnecting = waStatus?.conectandose ?? false;
+  const waTieneQR = waStatus?.tiene_qr ?? false;
 
   // Stats globales
   const totalSocios   = locales.reduce((s, l) => s + (l.socios_actuales ?? 0), 0);
@@ -307,9 +475,9 @@ export default function SociosMontagnePage() {
         {/* Acciones */}
         <div className="flex flex-wrap gap-2">
           {/* WhatsApp status */}
-          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border ${waListo ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
-            {waListo ? <Wifi size={15} /> : <WifiOff size={15} />}
-            {waListo ? "WhatsApp conectado" : waRunning ? "WA iniciando..." : "WA desconectado"}
+          <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border ${waListo ? "bg-green-50 border-green-200 text-green-700" : waTieneQR ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+            {waListo ? <Wifi size={15} /> : waTieneQR ? <Wifi size={15} /> : <WifiOff size={15} />}
+            {waListo ? "WhatsApp conectado" : waTieneQR ? "QR listo para escanear" : waConnecting || waRunning ? "WA iniciando..." : "WA desconectado"}
           </div>
 
           {!waRunning ? (
@@ -343,11 +511,12 @@ export default function SociosMontagnePage() {
 
           <button
             onClick={() => mutActualizar.mutate()}
-            disabled={mutActualizar.isPending}
+            disabled={mutActualizar.isPending || actualizando}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 disabled:opacity-60 transition"
+            title={actualizando ? "El scraping tarda ~2 minutos en completarse" : ""}
           >
-            <RefreshCw size={15} className={mutActualizar.isPending ? "animate-spin" : ""} />
-            {mutActualizar.isPending ? "Actualizando..." : "Actualizar datos"}
+            <RefreshCw size={15} className={(mutActualizar.isPending || actualizando) ? "animate-spin" : ""} />
+            {actualizando ? "Scrapeando (~2 min)..." : "Actualizar datos"}
           </button>
 
           <button
@@ -365,6 +534,15 @@ export default function SociosMontagnePage() {
           >
             <Clock size={15} />
             Ver log
+          </button>
+
+          <button
+            onClick={() => setShowMensajesConfig(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition"
+            title="Editar plantillas de mensajes WhatsApp"
+          >
+            <Settings2 size={15} />
+            Mensajes
           </button>
         </div>
       </div>
@@ -426,6 +604,7 @@ export default function SociosMontagnePage() {
       {/* Modals */}
       {showQR  && <QRModal  onClose={() => setShowQR(false)} />}
       {showLog && <LogModal log={log ?? []} onClose={() => setShowLog(false)} />}
+      {showMensajesConfig && <MensajesConfigModal onClose={() => setShowMensajesConfig(false)} />}
     </div>
   );
 }

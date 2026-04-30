@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<!-- saved from url=(0072)file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFID · Montagne Outdoors · Propuesta Estratégica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link href="./RFID · Montagne Outdoors · Propuesta Estratégica_files/css2" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05070f;
+  --bg-2:#0a0f1e;
+  --bg-3:#0f1629;
+  --surface:rgba(15,22,41,.65);
+  --border:rgba(255,255,255,.08);
+  --border-2:rgba(255,255,255,.14);
+  --text:#e6edf7;
+  --muted:#8a96b2;
+  --blue:#3b82f6;
+  --cyan:#06b6d4;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+  --purple:#8b5cf6;
+  --pink:#ec4899;
+  --grad-1:linear-gradient(135deg,#3b82f6 0%,#06b6d4 50%,#10b981 100%);
+  --grad-2:linear-gradient(135deg,#8b5cf6 0%,#ec4899 50%,#f59e0b 100%);
+  --grad-3:linear-gradient(135deg,#06b6d4 0%,#3b82f6 100%);
+  --grad-text:linear-gradient(135deg,#fff 0%,#9cc8ff 50%,#7af0e0 100%);
+  --shadow-glow:0 0 60px rgba(59,130,246,.35);
+  --shadow-card:0 20px 60px rgba(0,0,0,.45);
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.65;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-2;
+  background:
+    radial-gradient(1200px 800px at 10% -10%, rgba(59,130,246,.18), transparent 60%),
+    radial-gradient(900px 700px at 100% 20%, rgba(139,92,246,.15), transparent 60%),
+    radial-gradient(800px 600px at 50% 110%, rgba(6,182,212,.12), transparent 60%),
+    var(--bg);
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  mask-image:radial-gradient(ellipse at center, #000 0%, transparent 70%);
+}
+h1,h2,h3,h4{font-family:'Syne',sans-serif;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.mono{font-family:'JetBrains Mono',monospace}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+
+/* ---------- PROGRESS BAR ---------- */
+.progress{position:fixed;top:0;left:0;right:0;height:3px;background:transparent;z-index:1000}
+.progress__bar{height:100%;width:0;background:var(--grad-1);box-shadow:0 0 14px rgba(59,130,246,.7);transition:width .1s linear}
+
+/* ---------- NAV ---------- */
+.nav{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:999;
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;border-radius:999px;
+  background:rgba(10,15,30,.7);backdrop-filter:blur(20px) saturate(160%);
+  border:1px solid var(--border-2);
+  box-shadow:0 10px 40px rgba(0,0,0,.4);
+}
+.nav a{
+  font-size:13px;font-weight:500;color:var(--muted);
+  padding:8px 14px;border-radius:999px;transition:all .25s;
+  white-space:nowrap;
+}
+.nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+.nav .cta{background:var(--grad-1);color:#fff;font-weight:600}
+.nav .cta:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(59,130,246,.4)}
+@media(max-width:900px){.nav{display:none}}
+
+/* ---------- LAYOUT ---------- */
+.section{padding:120px 24px;position:relative}
+.container{max-width:1240px;margin:0 auto}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 14px;border-radius:999px;
+  background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);
+  color:#9cc8ff;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;
+  margin-bottom:24px;
+}
+.eyebrow .dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;box-shadow:0 0 12px #3b82f6;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+
+.h-display{font-size:clamp(40px,6vw,84px);line-height:1.02;margin-bottom:24px}
+.h-section{font-size:clamp(32px,4.5vw,56px);margin-bottom:18px}
+.h-grad{background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(17px,1.4vw,21px);color:var(--muted);max-width:720px;margin-bottom:40px}
+
+/* ---------- HERO ---------- */
+.hero{min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden;padding-top:120px}
+#hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.55}
+.hero__inner{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center;width:100%}
+@media(max-width:980px){.hero__inner{grid-template-columns:1fr;gap:40px}}
+.hero__title{font-size:clamp(44px,7.2vw,104px);line-height:.95;margin-bottom:28px;letter-spacing:-.035em}
+.hero__title .glow{
+  background:linear-gradient(135deg,#9cc8ff 0%,#7af0e0 50%,#a78bfa 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 30px rgba(122,240,224,.3));
+}
+.hero__sub{font-size:clamp(17px,1.45vw,22px);color:#b8c2d9;max-width:560px;margin-bottom:36px}
+.hero__cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:16px 28px;border-radius:14px;font-weight:600;font-size:15px;
+  transition:all .3s cubic-bezier(.2,.8,.2,1);cursor:pointer;border:none;
+}
+.btn-primary{background:var(--grad-1);color:#fff;box-shadow:0 12px 40px rgba(59,130,246,.4)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 50px rgba(59,130,246,.55)}
+.btn-ghost{background:rgba(255,255,255,.04);color:#fff;border:1px solid var(--border-2)}
+.btn-ghost:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.25)}
+
+/* ---------- HERO TAG VISUAL ---------- */
+.hero__visual{position:relative;height:520px;display:flex;align-items:center;justify-content:center}
+.tag-wrap{position:relative;width:100%;max-width:480px;aspect-ratio:1}
+.tag-svg{width:100%;height:100%;filter:drop-shadow(0 30px 80px rgba(59,130,246,.45))}
+.wave{transform-origin:50% 50%;animation:waveExpand 3.6s ease-out infinite}
+.wave:nth-child(2){animation-delay:.9s}
+.wave:nth-child(3){animation-delay:1.8s}
+.wave:nth-child(4){animation-delay:2.7s}
+@keyframes waveExpand{
+  0%{transform:scale(.55);opacity:0}
+  20%{opacity:.85}
+  100%{transform:scale(1.6);opacity:0}
+}
+.float{animation:float 6s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+
+.hero__stats{
+  position:absolute;bottom:30px;left:0;right:0;
+  display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+}
+.hero__stat{
+  background:rgba(10,15,30,.75);backdrop-filter:blur(14px);
+  border:1px solid var(--border-2);border-radius:14px;
+  padding:12px 18px;font-size:13px;
+}
+.hero__stat b{color:#7af0e0}
+
+/* ---------- CARDS GENERAL ---------- */
+.card{
+  background:var(--surface);
+  backdrop-filter:blur(20px) saturate(140%);
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:32px;
+  transition:transform .4s cubic-bezier(.2,.8,.2,1), border-color .3s, box-shadow .3s;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);
+}
+.card:hover{border-color:var(--border-2);box-shadow:var(--shadow-card)}
+.tilt{transition:transform .25s ease}
+
+/* ---------- KPI BAND ---------- */
+.kpi-band{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:60px;
+}
+@media(max-width:880px){.kpi-band{grid-template-columns:repeat(2,1fr)}}
+.kpi{
+  text-align:center;padding:28px 18px;border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+  border:1px solid var(--border);
+}
+.kpi__num{font-family:'Syne',sans-serif;font-weight:800;font-size:48px;line-height:1;
+  background:var(--grad-1);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+.kpi__lab{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+
+/* ---------- WHAT IS RFID ---------- */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+@media(max-width:900px){.split{grid-template-columns:1fr;gap:40px}}
+.feat-list{list-style:none;display:flex;flex-direction:column;gap:18px;margin-top:30px}
+.feat-list li{display:flex;gap:16px;align-items:flex-start;padding:18px;
+  background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px;
+  transition:all .3s}
+.feat-list li:hover{transform:translateX(6px);border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.05)}
+.feat-list .ico{
+  flex:0 0 44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  background:var(--grad-1);box-shadow:0 8px 20px rgba(59,130,246,.3);
+}
+.feat-list b{display:block;font-size:16px;margin-bottom:4px;color:#fff}
+.feat-list span{color:var(--muted);font-size:14.5px}
+
+/* ---------- CHAIN / FLOW ---------- */
+.chain{position:relative;margin-top:60px}
+.chain__line{
+  position:absolute;left:50%;top:50px;bottom:50px;width:3px;
+  background:linear-gradient(180deg,#3b82f6,#06b6d4,#10b981,#f59e0b,#ec4899);
+  transform:translateX(-50%);border-radius:2px;
+  box-shadow:0 0 24px rgba(59,130,246,.5);
+}
+@media(max-width:880px){.chain__line{left:30px}}
+.chain__step{
+  display:grid;grid-template-columns:1fr 80px 1fr;gap:30px;align-items:center;
+  margin-bottom:50px;position:relative;
+}
+@media(max-width:880px){.chain__step{grid-template-columns:60px 1fr;gap:20px}.chain__step .chain__side{display:none}.chain__step .chain__card{grid-column:2}.chain__step .chain__node{grid-column:1}}
+.chain__side{text-align:right}
+.chain__step:nth-child(even) .chain__side{order:3;text-align:left}
+.chain__step:nth-child(even) .chain__card{order:1;text-align:right}
+@media(max-width:880px){.chain__step:nth-child(even) .chain__card{text-align:left;order:0}}
+.chain__node{
+  width:80px;height:80px;border-radius:50%;
+  background:var(--bg-2);border:3px solid;
+  display:flex;align-items:center;justify-content:center;font-size:32px;
+  position:relative;z-index:2;
+  box-shadow:0 0 40px currentColor;
+}
+.chain__card{
+  background:var(--surface);backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:18px;padding:24px;
+}
+.chain__card h3{font-size:22px;margin-bottom:10px}
+.chain__card p{color:var(--muted);font-size:14.5px}
+.chain__card .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chain__card .tags span{
+  font-size:11.5px;padding:5px 10px;border-radius:999px;
+  background:rgba(255,255,255,.06);color:#cdd6e8;border:1px solid var(--border);
+}
+.cn-1{color:#3b82f6}.cn-2{color:#06b6d4}.cn-3{color:#10b981}.cn-4{color:#f59e0b}.cn-5{color:#ec4899}
+
+/* ---------- COMPARISON ---------- */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:50px}
+@media(max-width:840px){.compare{grid-template-columns:1fr}}
+.compare__col{padding:36px;border-radius:22px;position:relative;overflow:hidden}
+.compare__col h3{font-size:26px;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.compare__bad{background:linear-gradient(180deg,rgba(239,68,68,.08),rgba(239,68,68,.02));border:1px solid rgba(239,68,68,.25)}
+.compare__good{background:linear-gradient(180deg,rgba(16,185,129,.1),rgba(16,185,129,.02));border:1px solid rgba(16,185,129,.3)}
+.compare ul{list-style:none;display:flex;flex-direction:column;gap:12px}
+.compare li{padding:12px 14px;background:rgba(255,255,255,.03);border-radius:10px;font-size:14.5px;display:flex;gap:10px;align-items:flex-start}
+.compare__bad li::before{content:'✕';color:#ef4444;font-weight:700;flex-shrink:0}
+.compare__good li::before{content:'✓';color:#10b981;font-weight:700;flex-shrink:0}
+
+/* ---------- FITTING ROOM ANIMATION ---------- */
+.fitting{
+  display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;margin-top:50px;
+}
+@media(max-width:900px){.fitting{grid-template-columns:1fr}}
+.fitting-anim{
+  position:relative;aspect-ratio:1.1;border-radius:22px;
+  background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(6,182,212,.04));
+  border:1px solid var(--border-2);overflow:hidden;
+}
+.scan-beam{
+  position:absolute;left:0;right:0;top:0;height:6px;
+  background:linear-gradient(90deg,transparent,#06b6d4,transparent);
+  box-shadow:0 0 30px #06b6d4;
+  animation:scan 3s ease-in-out infinite;
+}
+@keyframes scan{
+  0%,100%{top:8%;opacity:0}
+  10%{opacity:1}
+  50%{top:92%;opacity:1}
+  60%{opacity:0}
+}
+.door{
+  position:absolute;left:50%;top:8%;bottom:8%;width:42%;transform:translateX(-50%);
+  border:2px solid rgba(255,255,255,.2);border-radius:14px;
+  background:rgba(255,255,255,.02);
+}
+.hanger{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--cyan);box-shadow:0 0 14px var(--cyan)}
+.h1{top:30%;left:30%;animation:enter 4s ease-in-out infinite}
+.h2{top:42%;left:36%;animation:enter 4s .3s ease-in-out infinite}
+.h3{top:54%;left:33%;animation:enter 4s .6s ease-in-out infinite}
+@keyframes enter{
+  0%{transform:translateX(-180px) scale(.7);opacity:0}
+  20%,80%{transform:translateX(0) scale(1);opacity:1}
+  100%{transform:translateX(180px) scale(.7);opacity:0;background:var(--green);box-shadow:0 0 14px var(--green)}
+}
+.fitting-anim__label{
+  position:absolute;left:20px;top:20px;font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--cyan);letter-spacing:.1em;
+}
+.fitting-anim__label2{position:absolute;right:20px;bottom:20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green)}
+.counter-pill{
+  position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.6);backdrop-filter:blur(10px);
+  border:1px solid var(--border-2);border-radius:999px;padding:10px 18px;
+  font-size:13px;display:flex;gap:14px;align-items:center;
+}
+.counter-pill .pill-num{font-family:'JetBrains Mono',monospace;color:#7af0e0;font-weight:600;font-size:18px}
+
+/* ---------- ALARM PORTAL ---------- */
+.eas{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;margin-top:50px}
+@media(max-width:900px){.eas{grid-template-columns:1fr}}
+.eas-anim{
+  position:relative;aspect-ratio:1.2;border-radius:22px;
+  background:radial-gradient(ellipse at center bottom, rgba(239,68,68,.15), transparent 60%), rgba(255,255,255,.02);
+  border:1px solid var(--border-2);overflow:hidden;display:flex;align-items:flex-end;justify-content:center;padding-bottom:40px;
+}
+.portal{position:relative;width:70%;height:80%;display:flex;justify-content:space-between;align-items:flex-end}
+.pillar{
+  width:42px;height:100%;border-radius:14px 14px 6px 6px;
+  background:linear-gradient(180deg,#1c2541,#0a0f1e);
+  border:2px solid var(--border-2);position:relative;overflow:hidden;
+}
+.pillar::after{
+  content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:14px;height:14px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 14px var(--green);
+  animation:beacon 2s ease-in-out infinite;
+}
+@keyframes beacon{
+  0%,100%{background:#10b981;box-shadow:0 0 14px #10b981}
+  50%{background:#10b981;box-shadow:0 0 24px #10b981,0 0 40px #10b981}
+}
+.tag-pass{
+  position:absolute;bottom:30%;left:50%;width:28px;height:18px;border-radius:4px;
+  background:linear-gradient(135deg,#06b6d4,#3b82f6);
+  transform:translateX(-50%);
+  animation:tagPass 5s ease-in-out infinite;
+}
+.tag-pass span{
+  position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:#7af0e0;white-space:nowrap;
+}
+@keyframes tagPass{
+  0%{left:-10%;opacity:0}
+  10%{opacity:1}
+  45%{left:50%;opacity:1}
+  55%{left:50%;opacity:1;background:linear-gradient(135deg,#10b981,#059669)}
+  90%{left:110%;opacity:1;background:linear-gradient(135deg,#10b981,#059669)}
+  100%{left:110%;opacity:0}
+}
+
+/* ---------- TRACE GRID ---------- */
+.trace-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:50px}
+@media(max-width:880px){.trace-grid{grid-template-columns:1fr}}
+.trace{padding:28px;border-radius:18px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden}
+.trace::after{content:'';position:absolute;inset:0;background:var(--grad-1);opacity:0;transition:opacity .3s;z-index:-1;border-radius:18px}
+.trace:hover{transform:translateY(-6px);border-color:var(--border-2)}
+.trace .num{font-family:'Syne',sans-serif;font-weight:800;font-size:60px;line-height:1;
+  background:var(--grad-1);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:.55;margin-bottom:6px}
+.trace h4{font-size:20px;margin-bottom:8px}
+.trace p{color:var(--muted);font-size:14px}
+
+/* ---------- MONEY / FINANCE ---------- */
+.money{
+  display:grid;grid-template-columns:1.1fr .9fr;gap:50px;align-items:center;margin-top:50px;
+}
+@media(max-width:980px){.money{grid-template-columns:1fr}}
+.money-table{
+  background:var(--surface);border:1px solid var(--border);border-radius:22px;overflow:hidden;
+}
+.money-row{
+  display:grid;grid-template-columns:1.5fr 1fr 1fr;
+  padding:18px 22px;border-bottom:1px solid var(--border);
+  font-size:15px;align-items:center;
+}
+.money-row:last-child{border-bottom:none}
+.money-row.head{
+  background:rgba(255,255,255,.04);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;
+}
+.money-row.total{
+  background:linear-gradient(90deg,rgba(16,185,129,.12),rgba(16,185,129,.04));
+  font-weight:700;font-size:18px;
+}
+.money-row.total .v{color:#7af0e0}
+.money-row .v{font-family:'JetBrains Mono',monospace;text-align:right;font-weight:600}
+.money-row .v.neg{color:#fca5a5}
+.money-row .v.pos{color:#86efac}
+@media(max-width:560px){.money-row{grid-template-columns:1fr 1fr;font-size:13px;padding:14px}.money-row.head .v:first-of-type, .money-row .v:first-of-type{display:none}}
+
+.payback-card{
+  padding:36px;border-radius:22px;text-align:center;
+  background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(6,182,212,.08));
+  border:1px solid rgba(16,185,129,.3);
+}
+.payback-card .big{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:96px;line-height:1;
+  background:linear-gradient(135deg,#10b981,#06b6d4);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.payback-card .lab{color:var(--muted);text-transform:uppercase;letter-spacing:.12em;font-size:13px;margin-top:8px}
+.payback-card .extra{margin-top:24px;color:#cdd6e8;font-size:15px}
+
+#chart{width:100%;height:280px;margin-top:30px}
+
+/* ---------- TAG COST DETAIL ---------- */
+.unit-cost{
+  margin-top:50px;padding:40px;border-radius:22px;
+  background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(239,68,68,.04));
+  border:1px solid rgba(245,158,11,.25);
+  display:grid;grid-template-columns:1fr 1.5fr;gap:40px;align-items:center;
+}
+@media(max-width:880px){.unit-cost{grid-template-columns:1fr}}
+.unit-cost h3{font-size:28px;margin-bottom:14px}
+.unit-cost .price{font-family:'Syne',sans-serif;font-weight:800;font-size:88px;line-height:1;
+  background:linear-gradient(135deg,#f59e0b,#fbbf24);-webkit-background-clip:text;background-clip:text;color:transparent}
+.unit-cost .price small{font-size:24px;color:var(--muted);font-weight:400;font-family:'Inter',sans-serif}
+.unit-cost p{color:var(--muted);margin-bottom:8px}
+.unit-cost ul{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.unit-cost ul li{display:flex;gap:10px;align-items:center;font-size:14.5px}
+.unit-cost ul li::before{content:'→';color:var(--amber)}
+
+/* ---------- VIDEOS ---------- */
+.video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:50px}
+@media(max-width:840px){.video-grid{grid-template-columns:1fr}}
+.video{
+  position:relative;aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+  border:1px solid var(--border-2);background:#000;
+  box-shadow:var(--shadow-card);
+}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.video-caption{margin-top:14px;font-size:14px;color:var(--muted)}
+
+/* ---------- CASES ---------- */
+.cases{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:50px}
+@media(max-width:840px){.cases{grid-template-columns:1fr}}
+.case{
+  padding:32px;border-radius:22px;background:var(--surface);border:1px solid var(--border);
+  position:relative;overflow:hidden;transition:all .3s;
+}
+.case:hover{transform:translateY(-6px);border-color:var(--border-2);box-shadow:var(--shadow-card)}
+.case .badge{
+  display:inline-block;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:600;
+  background:rgba(59,130,246,.15);color:#9cc8ff;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;
+}
+.case h4{font-size:24px;margin-bottom:12px}
+.case .quote{font-size:15px;color:#cdd6e8;font-style:italic;margin-bottom:18px;line-height:1.6}
+.case .stat{display:flex;gap:18px;margin-top:14px;padding-top:18px;border-top:1px solid var(--border)}
+.case .stat div{flex:1}
+.case .stat b{display:block;font-family:'Syne',sans-serif;font-size:28px;
+  background:var(--grad-1);-webkit-background-clip:text;background-clip:text;color:transparent}
+.case .stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+
+/* ---------- ROADMAP ---------- */
+.roadmap{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-top:50px}
+@media(max-width:980px){.roadmap{grid-template-columns:repeat(2,1fr)}}
+.phase{
+  padding:24px 18px;border-radius:16px;background:var(--surface);
+  border:1px solid var(--border);position:relative;
+}
+.phase .ph-num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan);letter-spacing:.15em;margin-bottom:8px}
+.phase h4{font-size:16px;margin-bottom:8px}
+.phase p{font-size:13px;color:var(--muted)}
+
+/* ---------- CTA ---------- */
+.cta-final{
+  text-align:center;padding:80px 40px;border-radius:32px;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(59,130,246,.25), transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(139,92,246,.2), transparent 50%),
+    linear-gradient(180deg,rgba(15,22,41,.8),rgba(10,15,30,.9));
+  border:1px solid var(--border-2);position:relative;overflow:hidden;
+}
+.cta-final h2{font-size:clamp(34px,5vw,64px);margin-bottom:20px}
+.cta-final p{color:#b8c2d9;font-size:18px;margin-bottom:32px;max-width:680px;margin-left:auto;margin-right:auto}
+
+/* ---------- FOOTER ---------- */
+footer{padding:60px 24px 40px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
+
+/* ---------- SCROLL REVEAL ---------- */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .9s ease, transform .9s cubic-bezier(.2,.8,.2,1)}
+.reveal.show{opacity:1;transform:none}
+.reveal-d-1{transition-delay:.1s}
+.reveal-d-2{transition-delay:.2s}
+.reveal-d-3{transition-delay:.3s}
+
+/* ---------- IMAGE BLOCKS ---------- */
+.img-block{
+  border-radius:22px;overflow:hidden;border:1px solid var(--border-2);
+  position:relative;aspect-ratio:4/3;
+  box-shadow:var(--shadow-card);
+}
+.img-block img{width:100%;height:100%;object-fit:cover;transition:transform .8s ease}
+.img-block:hover img{transform:scale(1.05)}
+.img-block::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 50%,rgba(5,7,15,.9));
+  pointer-events:none;
+}
+.img-block .cap{
+  position:absolute;left:20px;right:20px;bottom:18px;z-index:2;
+  font-size:13px;color:#cdd6e8;font-weight:500;
+}
+
+/* ---------- PARALLAX BG ---------- */
+.parallax{
+  position:relative;padding:140px 24px;border-radius:32px;overflow:hidden;
+  background-image:url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80');
+  background-size:cover;background-position:center;background-attachment:fixed;
+}
+.parallax::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(5,7,15,.85),rgba(10,15,30,.7))}
+.parallax > *{position:relative;z-index:2}
+
+/* ---------- BENEFITS ICON GRID ---------- */
+.bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:50px}
+@media(max-width:980px){.bgrid{grid-template-columns:repeat(2,1fr)}}
+.bcard{padding:24px;border-radius:18px;background:var(--surface);border:1px solid var(--border);transition:all .3s}
+.bcard:hover{transform:translateY(-4px);border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.04)}
+.bcard .ico{
+  width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;background:var(--grad-1);margin-bottom:14px;
+  box-shadow:0 8px 20px rgba(59,130,246,.3);
+}
+.bcard h4{font-size:17px;margin-bottom:6px}
+.bcard p{color:var(--muted);font-size:13.5px}
+
+/* ---------- DIVIDER ---------- */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border-2),transparent);margin:60px auto;max-width:600px}
+
+/* ---------- BIG NUMBER LIST ---------- */
+.bignum{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:50px}
+@media(max-width:840px){.bignum{grid-template-columns:1fr}}
+.bn{padding:30px;background:var(--surface);border:1px solid var(--border);border-radius:18px;text-align:center}
+.bn .n{font-family:'Syne',sans-serif;font-weight:800;font-size:64px;line-height:1;
+  background:var(--grad-2);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+.bn h4{font-size:18px;margin-bottom:8px}
+.bn p{color:var(--muted);font-size:14px}
+
+/* ---------- INVEST DETAIL ---------- */
+.invest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:40px}
+@media(max-width:880px){.invest-grid{grid-template-columns:1fr}}
+.invest-card{padding:28px;border-radius:18px;background:var(--surface);border:1px solid var(--border)}
+.invest-card .lab{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
+.invest-card .v{font-family:'Syne',sans-serif;font-weight:800;font-size:36px;
+  background:var(--grad-1);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+.invest-card p{font-size:13.5px;color:var(--muted)}
+
+/* ---------- HERO BADGE ---------- */
+.hero-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:34px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.05);
+  border:1px solid var(--border-2);font-size:12.5px;color:#cdd6e8;
+}
+.hero-badge .b-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+
+/* ---------- SECTION DECORATIONS ---------- */
+.deco-blob{position:absolute;width:500px;height:500px;border-radius:50%;filter:blur(120px);opacity:.25;pointer-events:none;z-index:0}
+.deco-blob.a{background:#3b82f6;top:-100px;left:-150px}
+.deco-blob.b{background:#8b5cf6;bottom:-150px;right:-100px}
+.section .container{position:relative;z-index:1}
+
+</style>
+</head>
+<body>
+
+<div class="progress"><div class="progress__bar" id="pbar" style="width: 6.31411%;"></div></div>
+
+<nav class="nav">
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#hero">Inicio</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#que-es">Qué es</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#cadena">Cadena</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#operaciones">Operación</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#numeros">Números</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#videos">Videos</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#casos">Casos</a>
+  <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#cta" class="cta">Avancemos →</a>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="section hero" id="hero">
+  <canvas id="hero-canvas" width="1905" height="1108"></canvas>
+  <div class="container hero__inner">
+    <div>
+      <div class="eyebrow"><span class="dot"></span>Propuesta estratégica · Montagne Outdoors</div>
+      <h1 class="hero__title">
+        Cada prenda<br>con su propia <span class="glow">identidad digital.</span>
+      </h1>
+      <p class="hero__sub">
+        Tecnología RFID integral, diseñada y operada por nosotros, end-to-end. Del depósito mayorista al ticket de caja: visibilidad total, inventarios en minutos, cero quiebres de stock y la merma reducida hasta un 70%.
+      </p>
+      <div class="hero__cta">
+        <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#numeros" class="btn btn-primary">Ver el retorno financiero →</a>
+        <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#videos" class="btn btn-ghost">▶ Ver casos reales</a>
+      </div>
+      <div class="hero-badges">
+        <span class="hero-badge"><span class="b-dot"></span>Software propio</span>
+        <span class="hero-badge"><span class="b-dot"></span>Hardware integrado</span>
+        <span class="hero-badge"><span class="b-dot"></span>Soporte local</span>
+        <span class="hero-badge"><span class="b-dot"></span>Etiquetas a USD 0,07</span>
+      </div>
+    </div>
+
+    <div class="hero__visual">
+      <div class="tag-wrap float">
+        <svg class="tag-svg" viewBox="0 0 400 400">
+          <defs>
+            <radialgradient id="g1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#06b6d4" stop-opacity=".9"></stop>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"></stop>
+            </radialgradient>
+            <lineargradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#06b6d4"></stop>
+              <stop offset="100%" stop-color="#3b82f6"></stop>
+            </lineargradient>
+          </defs>
+          <!-- Waves -->
+          <circle class="wave" cx="200" cy="200" r="80" fill="none" stroke="url(#g2)" stroke-width="2" opacity=".6"></circle>
+          <circle class="wave" cx="200" cy="200" r="80" fill="none" stroke="url(#g2)" stroke-width="2" opacity=".6"></circle>
+          <circle class="wave" cx="200" cy="200" r="80" fill="none" stroke="url(#g2)" stroke-width="2" opacity=".6"></circle>
+          <circle class="wave" cx="200" cy="200" r="80" fill="none" stroke="url(#g2)" stroke-width="2" opacity=".6"></circle>
+          <!-- Tag body -->
+          <rect x="120" y="160" width="160" height="80" rx="10" fill="#0a0f1e" stroke="url(#g2)" stroke-width="2"></rect>
+          <!-- Chip -->
+          <rect x="180" y="185" width="40" height="30" rx="4" fill="url(#g2)"></rect>
+          <!-- Antenna lines -->
+          <path d="M140 200 Q 130 180 150 170 Q 175 155 200 175" stroke="#06b6d4" stroke-width="1.5" fill="none" opacity=".7"></path>
+          <path d="M260 200 Q 270 180 250 170 Q 225 155 200 175" stroke="#06b6d4" stroke-width="1.5" fill="none" opacity=".7"></path>
+          <path d="M140 200 Q 130 220 150 230 Q 175 245 200 225" stroke="#06b6d4" stroke-width="1.5" fill="none" opacity=".7"></path>
+          <path d="M260 200 Q 270 220 250 230 Q 225 245 200 225" stroke="#06b6d4" stroke-width="1.5" fill="none" opacity=".7"></path>
+          <!-- Center dot -->
+          <circle cx="200" cy="200" r="4" fill="#fff"></circle>
+        </svg>
+      </div>
+      <div class="hero__stats">
+        <div class="hero__stat">📦 <b>1.000 prendas/min</b></div>
+        <div class="hero__stat">🎯 <b>99,9% precisión</b></div>
+        <div class="hero__stat">⚡ Sin línea de visión</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT IS RFID ============ -->
+<section class="section" id="que-es">
+  <div class="deco-blob a"></div>
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>El concepto en 30 segundos</div>
+    <h2 class="h-section h-grad">¿Qué hace exactamente esta tecnología?</h2>
+    <p class="lead">Cada prenda lleva un microchip pasivo del tamaño de una etiqueta común. No usa batería, no requiere mantenimiento y permite leer cientos o miles de productos por minuto a distancia, sin tener que escanear de a uno como con el código de barras.</p>
+
+    <div class="split">
+      <div>
+        <ul class="feat-list">
+          <li class="reveal show"><div class="ico">🏷️</div><div><b>Etiqueta inteligente</b><span>Microchip + antena impresos en una etiqueta tan delgada como papel. Vida útil de años.</span></div></li>
+          <li class="reveal reveal-d-1 show"><div class="ico">📡</div><div><b>Lectura masiva sin contacto</b><span>Un solo lector capta cientos de prendas por segundo. Sin abrir cajas, sin desplegar, sin escanear de a una.</span></div></li>
+          <li class="reveal reveal-d-2 show"><div class="ico">🛡️</div><div><b>Antirrobo 2.0</b><span>El mismo tag funciona como antena de alarma. Al vender la prenda, se desactiva sola en la caja.</span></div></li>
+          <li class="reveal reveal-d-3 show"><div class="ico">🔄</div><div><b>Reutilizable y económico</b><span>Etiquetas desde USD 0,07 por unidad. Marginal frente al precio de venta.</span></div></li>
+        </ul>
+      </div>
+      <div class="reveal show">
+        <div class="img-block">
+          <img src="./RFID · Montagne Outdoors · Propuesta Estratégica_files/photo-1441986300917-64674bd600d8" alt="Tienda de ropa moderna" onerror="this.style.display=&#39;none&#39;">
+          <div class="cap">Cada prenda en piso de venta — visible, contada y trazada en tiempo real.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-band">
+      <div class="kpi reveal"><div class="kpi__num" data-count="99.9">0</div><div class="kpi__lab">% Precisión inventario</div></div>
+      <div class="kpi reveal reveal-d-1"><div class="kpi__num" data-count="70">0</div><div class="kpi__lab">% Reducción de mermas</div></div>
+      <div class="kpi reveal reveal-d-2"><div class="kpi__num" data-count="80">0</div><div class="kpi__lab">% Menos tiempo de inventario</div></div>
+      <div class="kpi reveal reveal-d-3"><div class="kpi__num" data-count="25">0</div><div class="kpi__lab">% Más ventas (omnicanal)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHAIN ============ -->
+<section class="section" id="cadena">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>De punta a punta</div>
+    <h2 class="h-section">La cadena completa, <span class="h-grad">sin puntos ciegos</span></h2>
+    <p class="lead">Hoy hay tramos donde la mercadería desaparece de la vista: salidas del CD, recepción en sucursal, probador, depósito de tienda. RFID elimina cada zona oscura.</p>
+
+    <div class="chain">
+      <div class="chain__line"></div>
+
+      <div class="chain__step reveal">
+        <div class="chain__side"><h3 style="color:#7af0e0">Fábrica / Proveedor</h3><p style="color:var(--muted)">Etiquetado en origen — costo más bajo, prenda lista para recibir.</p></div>
+        <div class="chain__node cn-1">🏭</div>
+        <div class="chain__card">
+          <h3>Etiquetado en origen</h3>
+          <p>Cada prenda recibe su tag antes de salir de fábrica. Codificación con SKU + número de serie único. El proveedor envía un ASN digital con todos los EPC.</p>
+          <div class="tags"><span>SKU + serie único</span><span>ASN electrónico</span><span>Cero re-etiquetado</span></div>
+        </div>
+      </div>
+
+      <div class="chain__step reveal">
+        <div class="chain__card">
+          <h3>Centro de distribución</h3>
+          <p>Recepción de un container completo en minutos pasando por un portal RFID. Sistema concilia automáticamente lo recibido vs lo facturado y alerta diferencias antes de pagar al proveedor.</p>
+          <div class="tags"><span>Recepción 10× más rápida</span><span>Conciliación automática</span><span>Reclamos documentados</span></div>
+        </div>
+        <div class="chain__node cn-2">📦</div>
+        <div class="chain__side"><h3 style="color:#06b6d4">Depósito Mayorista</h3><p style="color:var(--muted)">Visibilidad de cada bulto, cada caja, cada prenda. Picking guiado y verificado.</p></div>
+      </div>
+
+      <div class="chain__step reveal">
+        <div class="chain__side"><h3 style="color:#10b981">En tránsito</h3><p style="color:var(--muted)">Desde CD a sucursal: cada despacho se valida automáticamente.</p></div>
+        <div class="chain__node cn-3">🚚</div>
+        <div class="chain__card">
+          <h3>Despacho y tránsito</h3>
+          <p>Antes de cargar el camión, un portal lee el 100% de las prendas. Si falta una unidad o sobra, se detecta antes de cerrar la puerta. La sucursal recibe y vuelve a leer: cualquier diferencia, instantánea y con responsable identificado.</p>
+          <div class="tags"><span>Doble validación</span><span>Cero faltantes ocultos</span><span>Trazabilidad por chofer</span></div>
+        </div>
+      </div>
+
+      <div class="chain__step reveal">
+        <div class="chain__card">
+          <h3>Recepción y piso de venta</h3>
+          <p>Reposición ágil: el sistema avisa qué talles faltan exhibidos vs el stock real del depósito. Inventario completo de una sucursal en menos de 1 hora — hoy puede llevar un día entero cerrado.</p>
+          <div class="tags"><span>Inventario diario factible</span><span>Reposición inteligente</span><span>Más venta de talles correctos</span></div>
+        </div>
+        <div class="chain__node cn-4">🏬</div>
+        <div class="chain__side"><h3 style="color:#f59e0b">Tienda Minorista</h3><p style="color:var(--muted)">El piso siempre cargado. El depósito siempre ordenado. El cliente siempre encuentra su talle.</p></div>
+      </div>
+
+      <div class="chain__step reveal">
+        <div class="chain__side"><h3 style="color:#ec4899">Cliente y caja</h3><p style="color:var(--muted)">Probador inteligente, caja sin escaneo, antirrobo automático.</p></div>
+        <div class="chain__node cn-5">🛒</div>
+        <div class="chain__card">
+          <h3>Probador, caja y salida</h3>
+          <p>El probador detecta cuántas prendas entraron y cuántas salieron. La caja lee el carrito completo en 1 segundo y marca los tags como vendidos: al pasar por la puerta no suena la alarma. Si pasa una prenda no facturada — alarma instantánea.</p>
+          <div class="tags"><span>Conteo entrada/salida</span><span>Cobro en 1 segundo</span><span>EAS automático</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ INGRESS / EGRESS CONTROL ============ -->
+<section class="section" id="operaciones">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Control operativo</div>
+    <h2 class="h-section">Quién, qué, cuándo: <span class="h-grad">sin lugar para excusas</span></h2>
+    <p class="lead">Cada movimiento de mercadería deja huella digital. Por primera vez, todo ingreso y egreso queda firmado por el empleado responsable.</p>
+
+    <div class="trace-grid">
+      <div class="trace reveal">
+        <div class="num">01</div>
+        <h4>Ingreso firmado</h4>
+        <p>Cada caja recibida queda registrada con fecha, hora y empleado que la procesó. El sistema concilia automáticamente contra el remito.</p>
+      </div>
+      <div class="trace reveal reveal-d-1">
+        <div class="num">02</div>
+        <h4>Egreso autorizado</h4>
+        <p>Ninguna prenda sale del depósito o sucursal sin orden registrada. El portal en la puerta detecta cualquier movimiento no autorizado.</p>
+      </div>
+      <div class="trace reveal reveal-d-2">
+        <div class="num">03</div>
+        <h4>Trazabilidad por empleado</h4>
+        <p>Reportes por usuario: cuántas prendas movió, recibió, despachó, vendió. Las diferencias quedan visibles y atribuibles.</p>
+      </div>
+      <div class="trace reveal">
+        <div class="num">04</div>
+        <h4>Auditoría continua</h4>
+        <p>El sistema corre auditorías silenciosas todas las noches. Si falta algo, se sabe a la mañana siguiente — no al fin del trimestre.</p>
+      </div>
+      <div class="trace reveal reveal-d-1">
+        <div class="num">05</div>
+        <h4>Alertas en tiempo real</h4>
+        <p>Movimientos sospechosos, salidas fuera de horario, accesos a depósito sin autorización: todos disparan notificación al gerente.</p>
+      </div>
+      <div class="trace reveal reveal-d-2">
+        <div class="num">06</div>
+        <h4>Cero discusión</h4>
+        <p>Cuando hay un faltante, no hay "yo no fui": queda exactamente registrado quién lo procesó por última vez y cuándo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FITTING ROOM ============ -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Probador inteligente</div>
+    <h2 class="h-section">Entró con 5. Salió con 3. <span class="h-grad">Sabemos cuáles 2 quedaron.</span></h2>
+    <p class="lead">El probador es uno de los puntos donde más se pierde mercadería. Con sensores RFID en la entrada del probador, el sistema cuenta cada prenda que entra y cada una que sale. Y si una prenda entró pero no volvió ni se vendió, el sistema lo sabe.</p>
+
+    <div class="fitting">
+      <div class="fitting-anim">
+        <div class="fitting-anim__label">PROBADOR · LECTOR ACTIVO</div>
+        <div class="scan-beam"></div>
+        <div class="door"></div>
+        <div class="hanger h1"></div>
+        <div class="hanger h2"></div>
+        <div class="hanger h3"></div>
+        <div class="fitting-anim__label2">↻ contando...</div>
+        <div class="counter-pill">
+          <span>Entraron: <span class="pill-num">5</span></span>
+          <span style="opacity:.4">|</span>
+          <span>Salieron: <span class="pill-num">3</span></span>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:28px;margin-bottom:18px">Beneficios concretos</h3>
+        <ul class="feat-list">
+          <li><div class="ico">👀</div><div><b>Conteo automático</b><span>Sin asistente parado en la puerta. El sistema cuenta solo.</span></div></li>
+          <li><div class="ico">📊</div><div><b>Datos de comportamiento</b><span>Qué prendas se prueban más, cuáles se prueban pero no se compran, cuáles se llevan al probador con cuáles. Insights de marketing reales.</span></div></li>
+          <li><div class="ico">🚨</div><div><b>Detección de pérdida en probador</b><span>Si una prenda entra y no sale ni se vende — alerta inmediata al gerente.</span></div></li>
+          <li><div class="ico">💡</div><div><b>Recomendaciones cruzadas</b><span>El espejo inteligente puede sugerir prendas que combinan con lo que el cliente está probando.</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EAS / ALARM ============ -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Antirrobo inteligente</div>
+    <h2 class="h-section">Una sola etiqueta. <span class="h-grad">Inventario y antirrobo, todo junto.</span></h2>
+    <p class="lead">Hoy hay dos sistemas paralelos: el código de barras para vender y el alarmín plástico que la cajera tiene que sacar a mano (o se olvida y suena la alarma con el cliente afuera). Con RFID, todo es la misma etiqueta. Al cobrar, el sistema marca la prenda como vendida — y la puerta deja de detectarla automáticamente. Cero alarmas falsas.</p>
+
+    <div class="eas">
+      <div>
+        <ul class="feat-list">
+          <li><div class="ico" style="background:linear-gradient(135deg,#ef4444,#f59e0b)">🔴</div><div><b>Hoy: alarmín plástico manual</b><span>La cajera tiene que sacarlo con un imán. Si se olvida → alarma con el cliente legítimo. Si no lo pone → robo sin alarma. Doble margen de error humano.</span></div></li>
+          <li><div class="ico" style="background:linear-gradient(135deg,#10b981,#06b6d4)">🟢</div><div><b>Mañana: el mismo tag</b><span>Al pasar por la caja, el sistema lo marca como vendido. La puerta lo detecta como "OK, vendido" y no suena. Si pasa uno sin vender → alarma instantánea con foto de cámara.</span></div></li>
+          <li><div class="ico" style="background:var(--grad-1)">📸</div><div><b>Evidencia automática</b><span>Cada alarma queda registrada con video, hora, prenda exacta y empleado de turno. Cero discusión, cero "no me di cuenta".</span></div></li>
+          <li><div class="ico" style="background:var(--grad-2)">🛍️</div><div><b>Cliente feliz</b><span>Sin alarmines colgando, sin esperar que la cajera los saque, sin alarmas falsas. Experiencia premium.</span></div></li>
+        </ul>
+      </div>
+      <div class="eas-anim">
+        <div class="portal">
+          <div class="pillar"></div>
+          <div class="pillar"></div>
+          <div class="tag-pass"><span>VENDIDO ✓</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARISON HOY vs RFID ============ -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Hoy vs Mañana</div>
+    <h2 class="h-section">El día a día: <span class="h-grad">antes y después</span></h2>
+
+    <div class="compare">
+      <div class="compare__col compare__bad">
+        <h3>🚫 Cómo se trabaja hoy</h3>
+        <ul>
+          <li>Inventarios cerrando la tienda 1-2 días enteros, 2 veces al año</li>
+          <li>Faltantes que aparecen meses después y nadie sabe cómo</li>
+          <li>Recepción de mercadería "a ojo" o contando bulto por bulto</li>
+          <li>Probadores sin control: prendas se pierden adentro</li>
+          <li>Alarmas que suenan con el cliente bueno y no con el ladrón</li>
+          <li>Reposición tarde — el talle se pierde en el depósito</li>
+          <li>Caja lenta: una prenda, un beep, una a una</li>
+          <li>Discusiones internas sin registro de quién hizo qué</li>
+          <li>Quiebres de stock invisibles hasta que el cliente se va</li>
+          <li>Mermas anuales del 1,5% al 3% de la facturación</li>
+        </ul>
+      </div>
+      <div class="compare__col compare__good">
+        <h3>✅ Cómo se trabaja con RFID</h3>
+        <ul>
+          <li>Inventario completo en 30-60 minutos, sin cerrar la tienda</li>
+          <li>Auditoría diaria automática — los faltantes salen en horas</li>
+          <li>Recepción de container completo en minutos, conciliada al instante</li>
+          <li>Probador con conteo automático entrada/salida</li>
+          <li>Antirrobo certero: solo suena cuando algo sale sin pagar</li>
+          <li>Reposición proactiva: el sistema avisa qué talles faltan</li>
+          <li>Caja lee el carrito completo en 1 segundo</li>
+          <li>Cada movimiento firmado por usuario y fecha/hora</li>
+          <li>Visibilidad omnicanal: stock real online y por sucursal</li>
+          <li>Mermas reducidas hasta el 0,5% — recupero anual fuerte</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PARALLAX QUOTE ============ -->
+<section class="section" style="padding:60px 24px">
+  <div class="container">
+    <div class="parallax">
+      <div class="eyebrow" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff">El cambio de paradigma</div>
+      <h2 style="font-size:clamp(28px,4vw,52px);max-width:900px;margin-bottom:20px">"Pasamos de inventariar 2 veces al año, a saber exactamente qué tenemos y dónde está, todos los días."</h2>
+      <p style="color:#cdd6e8;font-size:17px;max-width:700px">— Patrón común en cadenas de retail que adoptaron RFID. La conversación deja de ser "cuántas tenemos" y pasa a ser "qué hacemos con lo que sabemos".</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EXTRA BENEFITS GRID ============ -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Beneficios laterales</div>
+    <h2 class="h-section">Lo que se gana <span class="h-grad">además</span> del control</h2>
+
+    <div class="bgrid">
+      <div class="bcard reveal"><div class="ico">📈</div><h4>Más ventas</h4><p>Stock siempre disponible en piso. Cliente encuentra lo que busca → +5 a 25% en facturación.</p></div>
+      <div class="bcard reveal reveal-d-1"><div class="ico">⏱️</div><h4>Menos horas-hombre</h4><p>Inventarios y reposiciones automáticas liberan al personal para vender, no contar.</p></div>
+      <div class="bcard reveal reveal-d-2"><div class="ico">🌐</div><h4>Omnicanal real</h4><p>Stock unificado online + tiendas. Click &amp; collect, ship-from-store, devoluciones cruzadas.</p></div>
+      <div class="bcard reveal reveal-d-3"><div class="ico">🎯</div><h4>Pricing dinámico</h4><p>Saber qué se vende y qué no, en tiempo real, permite ajustar precios y mover stock difícil.</p></div>
+      <div class="bcard reveal"><div class="ico">📦</div><h4>Recepción 10×</h4><p>Lo que tarda 4 horas con código de barras, 20 minutos con RFID.</p></div>
+      <div class="bcard reveal reveal-d-1"><div class="ico">🔍</div><h4>Búsqueda guiada</h4><p>Lector handheld pita más fuerte cerca del producto buscado. Encuentra prenda perdida en segundos.</p></div>
+      <div class="bcard reveal reveal-d-2"><div class="ico">🛡️</div><h4>Garantías y devoluciones</h4><p>Cada prenda con serial único: ¿se devolvió? ¿es nuestra? ¿cuándo se vendió? Cero fraude.</p></div>
+      <div class="bcard reveal reveal-d-3"><div class="ico">📊</div><h4>Datos premium</h4><p>Heatmaps de probador, análisis de comportamiento, predicción de demanda real.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINANCE ============ -->
+<section class="section" id="numeros">
+  <div class="deco-blob b"></div>
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>El número que importa</div>
+    <h2 class="h-section">La inversión, contra <span class="h-grad">lo que recupera</span></h2>
+    <p class="lead">Modelo conservador para una operación de 30 sucursales y CD central. Todos los valores en USD. Cifras de proyectos comparables en retail latinoamericano.</p>
+
+    <div class="invest-grid">
+      <div class="invest-card reveal"><div class="lab">Inversión inicial total</div><div class="v">USD 331K</div><p>Hardware (lectores, portales, handhelds, impresoras, sensores), software, instalación, capacitación.</p></div>
+      <div class="invest-card reveal reveal-d-1"><div class="lab">Costo recurrente / año</div><div class="v">USD 65K</div><p>Etiquetas (consumo anual estimado), soporte, hosting, mantenimiento.</p></div>
+      <div class="invest-card reveal reveal-d-2"><div class="lab">Beneficio anual proyectado</div><div class="v" style="background:linear-gradient(135deg,#10b981,#7af0e0);-webkit-background-clip:text;background-clip:text">USD 630K</div><p>Reducción de mermas + uplift de ventas + ahorro operativo.</p></div>
+    </div>
+
+    <div class="unit-cost reveal">
+      <div>
+        <div class="lab" style="font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px">Costo por etiqueta</div>
+        <div class="price">$0,07<small>/u</small></div>
+        <p style="margin-top:14px">USD por unidad. En una prenda de USD 50, representa <b style="color:#fbbf24">0,14% del precio de venta</b>.</p>
+      </div>
+      <div>
+        <h3>Una etiqueta cuesta menos que una bolsa de papel</h3>
+        <p>Y reemplaza al alarmín plástico (que ya estamos comprando) y al código de barras (que ya estamos imprimiendo). El costo neto adicional es prácticamente cero.</p>
+        <ul>
+          <li>Reemplaza el alarmín tradicional: ahorro directo</li>
+          <li>Compra al por mayor: el precio baja con escala</li>
+          <li>Etiqueta integrada en el hangtag: un solo proceso</li>
+          <li>Costo se traslada al cliente final: invisible en el ticket</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="money">
+      <div class="money-table reveal">
+        <div class="money-row head"><div>Concepto</div><div class="v">Anual</div><div class="v">5 años</div></div>
+        <div class="money-row"><div>💸 Reducción de mermas (de 2% → 0,5%)</div><div class="v pos">+ 360.000</div><div class="v pos">+ 1.800.000</div></div>
+        <div class="money-row"><div>📈 Uplift ventas (stock disponible)</div><div class="v pos">+ 180.000</div><div class="v pos">+ 900.000</div></div>
+        <div class="money-row"><div>⏱️ Ahorro horas-hombre operativas</div><div class="v pos">+ 60.000</div><div class="v pos">+ 300.000</div></div>
+        <div class="money-row"><div>🛡️ Reducción robos internos/externos</div><div class="v pos">+ 30.000</div><div class="v pos">+ 150.000</div></div>
+        <div class="money-row"><div>🏷️ Costo etiquetas + hardware soporte</div><div class="v neg">- 65.000</div><div class="v neg">- 325.000</div></div>
+        <div class="money-row"><div>💼 Inversión inicial amortizada</div><div class="v neg">- 66.000</div><div class="v neg">- 330.000</div></div>
+        <div class="money-row total"><div>🎯 BENEFICIO NETO</div><div class="v">+ 499.000</div><div class="v">+ 2.495.000</div></div>
+      </div>
+
+      <div class="payback-card reveal reveal-d-1">
+        <div class="lab">Recupero total de la inversión</div>
+        <div class="big">9</div>
+        <div class="lab">meses</div>
+        <p class="extra">A partir del mes 10, todo el flujo es <b style="color:#7af0e0">utilidad pura</b>. En 5 años, el sistema multiplica por <b style="color:#fbbf24">7,5×</b> la inversión inicial.</p>
+      </div>
+    </div>
+
+    <canvas id="chart" class="reveal" width="1115" height="251"></canvas>
+
+    <div class="bignum">
+      <div class="bn reveal"><div class="n">9</div><h4>Meses de payback</h4><p>El proyecto se paga solo dentro del primer año fiscal.</p></div>
+      <div class="bn reveal reveal-d-1"><div class="n">7,5×</div><h4>ROI a 5 años</h4><p>Por cada peso invertido, siete y medio recuperados.</p></div>
+      <div class="bn reveal reveal-d-2"><div class="n">0,14%</div><h4>Costo por etiqueta</h4><p>Sobre el precio de venta promedio. Imperceptible.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VIDEOS ============ -->
+<section class="section" id="videos">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Verlo funcionar</div>
+    <h2 class="h-section">Casos reales <span class="h-grad">en video</span></h2>
+    <p class="lead">No son maquetas ni renders. Son retailers operando con esta tecnología hoy mismo.</p>
+
+    <div class="video-grid">
+      <div class="reveal">
+        <div class="video"><iframe src="./RFID · Montagne Outdoors · Propuesta Estratégica_files/1lZ3GBMvy-w.html" title="RFID retail demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe></div>
+        <p class="video-caption">Demo en piso de venta: inventario completo en minutos.</p>
+      </div>
+      <div class="reveal reveal-d-1">
+        <div class="video"><iframe src="./RFID · Montagne Outdoors · Propuesta Estratégica_files/6tj_lOVirjY.html" title="Self-checkout RFID" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe></div>
+        <p class="video-caption">Caja con RFID: lectura del carrito completo en 1 segundo.</p>
+      </div>
+      <div class="reveal">
+        <div class="video"><iframe src="./RFID · Montagne Outdoors · Propuesta Estratégica_files/1CHBY_KJl_c.html" title="Smart fitting room" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe></div>
+        <p class="video-caption">Probador inteligente con espejo interactivo.</p>
+      </div>
+      <div class="reveal reveal-d-1">
+        <div class="video"><iframe src="./RFID · Montagne Outdoors · Propuesta Estratégica_files/y0erxYLmrkU.html" title="EAS RFID" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen=""></iframe></div>
+        <p class="video-caption">Portal antirrobo: alarma solo cuando corresponde.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CASES ============ -->
+<section class="section" id="casos">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Quiénes ya lo hacen</div>
+    <h2 class="h-section">No es futuro. <span class="h-grad">Es presente del retail global.</span></h2>
+    <p class="lead">Las cadenas más grandes del mundo —y de la región— ya operan con esta tecnología. Las que no, están perdiendo terreno.</p>
+
+    <div class="cases">
+      <div class="case reveal">
+        <span class="badge">Outdoor &amp; Sport</span>
+        <h4>Decathlon</h4>
+        <p class="quote">Uno de los pioneros mundiales: RFID en el 100% de su catálogo desde 2014. Inventarios diarios automatizados en 1.700+ tiendas.</p>
+        <div class="stat"><div><b>+9%</b><span>Ventas</span></div><div><b>-30%</b><span>Quiebres</span></div></div>
+      </div>
+      <div class="case reveal reveal-d-1">
+        <span class="badge">Fast Fashion</span>
+        <h4>Inditex (Zara)</h4>
+        <p class="quote">Despliegue global de RFID prenda por prenda. Permite reposición ultra-rápida y omnicanal real desde tienda.</p>
+        <div class="stat"><div><b>99,9%</b><span>Precisión</span></div><div><b>-80%</b><span>Tiempo inv.</span></div></div>
+      </div>
+      <div class="case reveal reveal-d-2">
+        <span class="badge">Retail LATAM</span>
+        <h4>Falabella / Liverpool</h4>
+        <p class="quote">Implementaciones masivas en Chile, Perú y México. Reducción comprobada de mermas y mejora de experiencia en sucursal.</p>
+        <div class="stat"><div><b>-60%</b><span>Mermas</span></div><div><b>+15%</b><span>Conversión</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROADMAP ============ -->
+<section class="section">
+  <div class="container">
+    <div class="eyebrow"><span class="dot"></span>Cómo arrancamos</div>
+    <h2 class="h-section">Plan de implementación <span class="h-grad">por fases</span></h2>
+    <p class="lead">Empezamos con piloto en una sucursal modelo. Validamos números reales en 60 días. Y recién ahí escalamos. Sin saltos al vacío.</p>
+
+    <div class="roadmap">
+      <div class="phase reveal"><div class="ph-num">FASE 01</div><h4>Diagnóstico</h4><p>Mapeo completo del flujo actual + benchmark interno. Definición de métricas baseline.</p></div>
+      <div class="phase reveal reveal-d-1"><div class="ph-num">FASE 02</div><h4>Piloto</h4><p>1 sucursal + CD. Hardware mínimo, software propio, capacitación intensiva. KPIs reales en 8 semanas.</p></div>
+      <div class="phase reveal reveal-d-2"><div class="ph-num">FASE 03</div><h4>Análisis</h4><p>Comparación piloto vs baseline. Ajustes finos. Decisión de escalar con datos en mano.</p></div>
+      <div class="phase reveal reveal-d-3"><div class="ph-num">FASE 04</div><h4>Roll-out</h4><p>Despliegue progresivo: 5 sucursales por mes. Etiquetado en origen ya activado con proveedores.</p></div>
+      <div class="phase reveal"><div class="ph-num">FASE 05</div><h4>Integración</h4><p>Conexión con e-commerce, omnicanal, click &amp; collect, ship-from-store activados.</p></div>
+      <div class="phase reveal reveal-d-1"><div class="ph-num">FASE 06</div><h4>Optimización</h4><p>Capa de analytics avanzada: predicción de demanda, pricing dinámico, heatmaps de probador.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="section" id="cta">
+  <div class="container">
+    <div class="cta-final">
+      <div class="eyebrow" style="background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff"><span class="dot"></span>Próximo paso</div>
+      <h2>Hagamos el piloto. <span class="h-grad">Los números los pone la realidad.</span></h2>
+      <p>Proponemos arrancar con una sucursal modelo + el centro de distribución. En 60 días tenemos métricas reales para que el comité decida si escalamos. Hardware, software, instalación y capacitación: todo lo proveemos nosotros como socios estratégicos.</p>
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+        <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#numeros" class="btn btn-primary">Ver el número final →</a>
+        <a href="file:///C:/Users/Mundo%20Outdoor/Desktop/MONTAGNE-RFID-Presentacion.html#videos" class="btn btn-ghost">▶ Volver a los videos</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Propuesta confidencial · Preparada para Montagne Outdoors · Mayo 2026
+</footer>
+
+<script>
+// ===== Particle network in hero =====
+(function(){
+  const canvas = document.getElementById('hero-canvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let w, h, particles;
+  function resize(){
+    w = canvas.width = canvas.offsetWidth * devicePixelRatio;
+    h = canvas.height = canvas.offsetHeight * devicePixelRatio;
+  }
+  function init(){
+    resize();
+    const count = Math.min(90, Math.floor(w*h/30000));
+    particles = Array.from({length:count},()=>({
+      x:Math.random()*w,y:Math.random()*h,
+      vx:(Math.random()-.5)*.4*devicePixelRatio,
+      vy:(Math.random()-.5)*.4*devicePixelRatio,
+      r:Math.random()*1.6+.6
+    }));
+  }
+  function step(){
+    ctx.clearRect(0,0,w,h);
+    for(const p of particles){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>w)p.vx*=-1;
+      if(p.y<0||p.y>h)p.vy*=-1;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r*devicePixelRatio,0,Math.PI*2);
+      ctx.fillStyle='rgba(122,240,224,.8)';
+      ctx.fill();
+    }
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const a=particles[i],b=particles[j];
+        const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+        const max=140*devicePixelRatio;
+        if(d<max){
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+          ctx.strokeStyle='rgba(59,130,246,'+(1-d/max)*.35+')';
+          ctx.lineWidth=devicePixelRatio*.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  window.addEventListener('resize',init);
+  init();step();
+})();
+
+// ===== Scroll progress =====
+const pbar = document.getElementById('pbar');
+window.addEventListener('scroll',()=>{
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = (window.scrollY / max) * 100;
+  pbar.style.width = pct + '%';
+});
+
+// ===== Reveal on scroll =====
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('show'); io.unobserve(e.target); }});
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// ===== Animated counters =====
+const countObs = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting) return;
+    const el = e.target;
+    const target = parseFloat(el.dataset.count);
+    const dur = 1600;
+    const start = performance.now();
+    function tick(t){
+      const p = Math.min(1,(t-start)/dur);
+      const eased = 1 - Math.pow(1-p,3);
+      const val = (target*eased);
+      el.textContent = (target%1!==0) ? val.toFixed(1) : Math.floor(val);
+      if(p<1) requestAnimationFrame(tick);
+      else el.textContent = target;
+    }
+    requestAnimationFrame(tick);
+    countObs.unobserve(el);
+  });
+},{threshold:.4});
+document.querySelectorAll('[data-count]').forEach(el=>countObs.observe(el));
+
+// ===== Tilt effect on cards =====
+document.querySelectorAll('.case, .invest-card, .bcard').forEach(card=>{
+  card.addEventListener('mousemove',e=>{
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left)/r.width - .5;
+    const y = (e.clientY - r.top)/r.height - .5;
+    card.style.transform = `perspective(900px) rotateY(${x*5}deg) rotateX(${-y*5}deg) translateY(-4px)`;
+  });
+  card.addEventListener('mouseleave',()=>{ card.style.transform=''; });
+});
+
+// ===== Bar chart (canvas) for benefit vs cost =====
+(function(){
+  const c = document.getElementById('chart');
+  if(!c) return;
+  function draw(){
+    const dpr = devicePixelRatio;
+    c.width = c.offsetWidth * dpr;
+    c.height = c.offsetHeight * dpr;
+    const ctx = c.getContext('2d');
+    const W = c.width, H = c.height;
+    ctx.clearRect(0,0,W,H);
+    const months = ['M1','M2','M3','M4','M5','M6','M7','M8','M9','M10','M11','M12'];
+    const cumBenefit = [52,105,158,212,267,323,380,438,498,560,623,687]; // K USD acumulado
+    const investment = 397; // K USD (inicial + costos año)
+    const pad = 50*dpr;
+    const cw = (W - pad*2)/months.length;
+    const max = 720;
+    // grid
+    ctx.strokeStyle='rgba(255,255,255,.08)';
+    ctx.lineWidth=dpr;
+    for(let i=0;i<=6;i++){
+      const y = pad + (H-pad*2)*(i/6);
+      ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();
+    }
+    // bars
+    cumBenefit.forEach((v,i)=>{
+      const bh = (v/max)*(H-pad*2);
+      const x = pad + cw*i + cw*.18;
+      const y = H - pad - bh;
+      const grad = ctx.createLinearGradient(0,y,0,H-pad);
+      if(v>=investment){ grad.addColorStop(0,'#10b981');grad.addColorStop(1,'#06b6d4'); }
+      else { grad.addColorStop(0,'#3b82f6');grad.addColorStop(1,'#1e40af'); }
+      ctx.fillStyle=grad;
+      ctx.fillRect(x,y,cw*.64,bh);
+      ctx.fillStyle='rgba(230,237,247,.7)';
+      ctx.font = (12*dpr)+'px Inter, sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(months[i], x+cw*.32, H-pad+20*dpr);
+    });
+    // payback line
+    const lineY = H - pad - (investment/max)*(H-pad*2);
+    ctx.strokeStyle='#f59e0b';
+    ctx.setLineDash([6*dpr,6*dpr]);
+    ctx.lineWidth = 2*dpr;
+    ctx.beginPath();ctx.moveTo(pad,lineY);ctx.lineTo(W-pad,lineY);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#fbbf24';
+    ctx.textAlign='left';
+    ctx.font = 'bold '+(13*dpr)+'px Inter, sans-serif';
+    ctx.fillText('Inversión total (USD 397K) — payback en mes 9', pad+8*dpr, lineY-10*dpr);
+  }
+  draw();
+  window.addEventListener('resize',draw);
+})();
+</script>
+
+
+</body></html>

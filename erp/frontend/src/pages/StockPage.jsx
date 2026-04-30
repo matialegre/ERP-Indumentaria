@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { exportCSV, exportExcel } from "../lib/exportUtils";
@@ -20,6 +20,13 @@ import {
   Truck,
   ChevronDown,
   ChevronUp,
+  Layers,
+  Settings2,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Globe,
+  RefreshCw,
 } from "lucide-react";
 
 const badge = (text, color) => (
@@ -27,6 +34,15 @@ const badge = (text, color) => (
 );
 
 const PAGE_SIZE = 100;
+
+const BASE_COLS = [
+  { key: "sku", label: "SKU", width: 130, visible: true },
+  { key: "brand", label: "Marca", width: 110, visible: true },
+  { key: "product", label: "Producto", width: 220, visible: true },
+  { key: "color", label: "Color", width: 100, visible: true },
+  { key: "size", label: "Talle", width: 80, visible: true },
+  { key: "stock", label: "Stock Propio", width: 120, visible: true },
+];
 
 export default function StockPage() {
   const qc = useQueryClient();
@@ -55,6 +71,31 @@ export default function StockPage() {
   const [repBrandQtys, setRepBrandQtys] = useState({});
   const [repItemQtys, setRepItemQtys] = useState({});
   const [repCollapsed, setRepCollapsed] = useState(new Set());
+
+  const [localStockMode, setLocalStockMode] = useState(false);
+  const [colsOpen, setColsOpen] = useState(false);
+  const [colDefs, setColDefs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stock_col_defs") || "null") || BASE_COLS; }
+    catch { return BASE_COLS; }
+  });
+  const [dragSrcIdx, setDragSrcIdx] = useState(null);
+  const resizingRef = useRef(null);
+  const resizeMoveRef = useRef(null);
+  const resizeEndRef = useRef(null);
+
+  // ── Multi-local state ──────────────────────────────────────────────────────
+  const [mlSelectedLocales, setMlSelectedLocales] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stock_ml_locales") || "[]"); } catch { return []; }
+  });
+  const [mlSearch, setMlSearch] = useState("");
+  const [mlColsOpen, setMlColsOpen] = useState(false);
+  const [mlColWidths, setMlColWidths] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("stock_ml_col_widths") || "{}"); } catch { return {}; }
+  });
+  const [mlColHidden, setMlColHidden] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("stock_ml_col_hidden") || "[]")); } catch { return new Set(); }
+  });
+  const mlResizingRef = useRef(null);
 
   const { data: stockData, isLoading } = useQuery({
     queryKey: ["stock", search, filter, filterTalle, filterColor, filterSku, filterMinPrice, filterMaxPrice, stockPage, online],
@@ -171,6 +212,81 @@ export default function StockPage() {
     enabled: view === "reposicion",
   });
   const repItems = repStockData?.items ?? [];
+
+  // ── Multi-local queries ────────────────────────────────────────────────────
+  const { data: localesDisponibles = [], isLoading: localesLoading } = useQuery({
+    queryKey: ["locales-disponibles"],
+    queryFn: () => api.get("/informes/locales-disponibles"),
+    staleTime: 5 * 60 * 1000,
+    enabled: view === "multilocal",
+  });
+
+  const { data: mlStockData, isLoading: mlLoading, refetch: mlRefetch } = useQuery({
+    queryKey: ["stock-multilocal", mlSelectedLocales, mlSearch],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (mlSelectedLocales.length) params.set("locales", mlSelectedLocales.join(","));
+      if (mlSearch) params.set("search", mlSearch);
+      return api.get(`/informes/stock-locales?${params}`);
+    },
+    enabled: view === "multilocal" && mlSelectedLocales.length > 0,
+    staleTime: 2 * 60 * 1000,
+  });
+  const mlRows = mlStockData?.rows ?? [];
+
+  function toggleMlLocale(loc) {
+    setMlSelectedLocales(prev => {
+      const next = prev.includes(loc) ? prev.filter(l => l !== loc) : [...prev, loc];
+      localStorage.setItem("stock_ml_locales", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function toggleMlColHidden(key) {
+    setMlColHidden(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      localStorage.setItem("stock_ml_col_hidden", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function startMlResize(e, colKey, currentWidth) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = currentWidth;
+    function onMove(ev) {
+      const newW = Math.max(60, startW + (ev.clientX - startX));
+      setMlColWidths(prev => {
+        const next = { ...prev, [colKey]: newW };
+        localStorage.setItem("stock_ml_col_widths", JSON.stringify(next));
+        return next;
+      });
+    }
+    function onUp() {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  // ML base columns (always shown, resizable/hideable)
+  const ML_BASE_COLS = [
+    { key: "CODIGO_ARTICULO", label: "Código", defaultWidth: 110 },
+    { key: "DESCRIPCION",     label: "Descripción", defaultWidth: 240 },
+    { key: "MARCA",           label: "Marca", defaultWidth: 110 },
+    { key: "CODIGO_COLOR",    label: "Color", defaultWidth: 90 },
+    { key: "CODIGO_TALLE",    label: "Talle", defaultWidth: 80 },
+  ];
+
+  function exportMlExcel() {
+    if (!mlRows.length) return;
+    const visibleLocales = mlSelectedLocales.filter(l => !mlColHidden.has(l));
+    const visibleBase = ML_BASE_COLS.filter(c => !mlColHidden.has(c.key));
+    const cols = [...visibleBase, ...visibleLocales.map(l => ({ key: l, label: l }))];
+    exportExcel(mlRows, `stock-locales-${new Date().toISOString().slice(0,10)}`, cols);
+  }
 
   const brandCheckedCounts = useMemo(() => {
     const counts = {};
@@ -334,6 +450,9 @@ export default function StockPage() {
           </button>
           <button onClick={() => setView("reposicion")} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === "reposicion" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
             <Truck size={16} className="inline mr-1" /> Reposición
+          </button>
+          <button onClick={() => setView("multilocal")} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${view === "multilocal" ? "bg-violet-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+            <Globe size={16} className="inline mr-1" /> Multi-local
           </button>
         </div>
       </div>
@@ -724,6 +843,217 @@ export default function StockPage() {
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* ── Multi-local view ─────────────────────────────────────────────── */}
+      {view === "multilocal" && (
+        <div className="space-y-4">
+          {/* Header row */}
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+              <Globe size={18} className="text-violet-500" /> Stock por Local
+            </h2>
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={mlSearch}
+                  onChange={e => setMlSearch(e.target.value)}
+                  placeholder="Buscar artículo…"
+                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 w-52"
+                />
+              </div>
+              <button
+                onClick={() => setMlColsOpen(v => !v)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm border transition ${mlColsOpen ? "bg-violet-50 border-violet-400 text-violet-700" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+              >
+                <Settings2 size={15} /> Columnas
+              </button>
+              <button
+                onClick={() => mlRefetch()}
+                disabled={mlLoading}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition"
+              >
+                <RefreshCw size={15} className={mlLoading ? "animate-spin" : ""} /> Actualizar
+              </button>
+              <button
+                onClick={exportMlExcel}
+                disabled={!mlRows.length}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                <Download size={15} /> Excel
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            {/* Locale selector sidebar */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 min-w-[180px] max-w-[200px] flex-shrink-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Locales / Depósitos</p>
+              {localesLoading ? (
+                <p className="text-xs text-gray-400">Cargando…</p>
+              ) : localesDisponibles.length === 0 ? (
+                <p className="text-xs text-gray-400">Sin locales disponibles</p>
+              ) : (
+                <div className="space-y-1">
+                  <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer pb-1 border-b mb-1 hover:text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={mlSelectedLocales.length === localesDisponibles.length}
+                      onChange={() => {
+                        if (mlSelectedLocales.length === localesDisponibles.length) {
+                          setMlSelectedLocales([]);
+                          localStorage.setItem("stock_ml_locales", "[]");
+                        } else {
+                          setMlSelectedLocales([...localesDisponibles]);
+                          localStorage.setItem("stock_ml_locales", JSON.stringify([...localesDisponibles]));
+                        }
+                      }}
+                      className="accent-violet-600"
+                    />
+                    Todos
+                  </label>
+                  {localesDisponibles.map(loc => (
+                    <label key={loc} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:text-violet-700">
+                      <input
+                        type="checkbox"
+                        checked={mlSelectedLocales.includes(loc)}
+                        onChange={() => toggleMlLocale(loc)}
+                        className="accent-violet-600"
+                      />
+                      {loc}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Column config panel */}
+            {mlColsOpen && (
+              <div className="bg-white rounded-xl border border-violet-200 shadow-sm p-4 min-w-[160px] max-w-[190px] flex-shrink-0">
+                <p className="text-xs font-semibold text-violet-600 uppercase mb-3">Mostrar columnas</p>
+                <div className="space-y-1">
+                  {ML_BASE_COLS.map(col => (
+                    <label key={col.key} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:text-violet-700">
+                      <input
+                        type="checkbox"
+                        checked={!mlColHidden.has(col.key)}
+                        onChange={() => toggleMlColHidden(col.key)}
+                        className="accent-violet-600"
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                  {mlSelectedLocales.length > 0 && (
+                    <>
+                      <p className="text-xs text-gray-400 mt-2 mb-1 border-t pt-1">Locales</p>
+                      {mlSelectedLocales.map(loc => (
+                        <label key={loc} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:text-violet-700">
+                          <input
+                            type="checkbox"
+                            checked={!mlColHidden.has(loc)}
+                            onChange={() => toggleMlColHidden(loc)}
+                            className="accent-violet-600"
+                          />
+                          {loc}
+                        </label>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto">
+              {mlSelectedLocales.length === 0 ? (
+                <div className="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+                  <Globe size={32} className="mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">Seleccioná al menos un local</p>
+                  <p className="text-sm">Usá el panel de la izquierda para elegir los depósitos a comparar</p>
+                </div>
+              ) : mlLoading ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
+                  <RefreshCw size={28} className="mx-auto mb-3 text-violet-400 animate-spin" />
+                  <p>Cargando stock…</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        {ML_BASE_COLS.filter(c => !mlColHidden.has(c.key)).map(col => (
+                          <th
+                            key={col.key}
+                            className="text-left px-3 py-2 text-xs font-semibold text-gray-600 select-none relative"
+                            style={{ width: mlColWidths[col.key] ?? col.defaultWidth, minWidth: 60 }}
+                          >
+                            {col.label}
+                            <div
+                              className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-violet-300/60"
+                              onMouseDown={e => startMlResize(e, col.key, mlColWidths[col.key] ?? col.defaultWidth)}
+                            />
+                          </th>
+                        ))}
+                        {mlSelectedLocales.filter(l => !mlColHidden.has(l)).map(loc => (
+                          <th
+                            key={loc}
+                            className="text-center px-3 py-2 text-xs font-semibold text-violet-700 bg-violet-50 relative select-none"
+                            style={{ width: mlColWidths[loc] ?? 90, minWidth: 60 }}
+                          >
+                            {loc}
+                            <div
+                              className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-violet-300/60"
+                              onMouseDown={e => startMlResize(e, loc, mlColWidths[loc] ?? 90)}
+                            />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mlRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={ML_BASE_COLS.length + mlSelectedLocales.length} className="text-center py-10 text-gray-400">
+                            Sin resultados
+                          </td>
+                        </tr>
+                      ) : (
+                        mlRows.map((row, i) => {
+                          const visibleLocales = mlSelectedLocales.filter(l => !mlColHidden.has(l));
+                          const total = visibleLocales.reduce((s, l) => s + (row[l] || 0), 0);
+                          return (
+                            <tr key={i} className={`border-b border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/50"} hover:bg-violet-50/40`}>
+                              {ML_BASE_COLS.filter(c => !mlColHidden.has(c.key)).map(col => (
+                                <td key={col.key} className="px-3 py-2 text-gray-700 truncate max-w-0" style={{ width: mlColWidths[col.key] ?? col.defaultWidth }}>
+                                  {row[col.key] ?? "—"}
+                                </td>
+                              ))}
+                              {visibleLocales.map(loc => {
+                                const val = row[loc] ?? 0;
+                                return (
+                                  <td key={loc} className="px-3 py-2 text-center font-semibold" style={{ width: mlColWidths[loc] ?? 90 }}>
+                                    <span className={`inline-block min-w-[32px] px-2 py-0.5 rounded text-xs font-bold ${val === 0 ? "text-gray-400 bg-gray-100" : val < 5 ? "text-amber-700 bg-amber-100" : "text-emerald-700 bg-emerald-100"}`}>
+                                      {val}
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                  {mlRows.length > 0 && (
+                    <div className="px-4 py-2 text-xs text-gray-400 border-t bg-gray-50">
+                      {mlRows.length} registros
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

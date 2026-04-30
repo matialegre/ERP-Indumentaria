@@ -5,11 +5,14 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import ImprovementNotes from "../components/ImprovementNotes";
 import UpdateReadyModal from "../components/UpdateReadyModal";
+import ProfileSetupModal from "../components/ProfileSetupModal";
+import EmailSetupModal from "../components/EmailSetupModal";
 import InstallPwa from "../components/InstallPwa";
 import OfflineBanner from "../components/OfflineBanner";
 import SyncProgressWidget from "../components/SyncProgressWidget";
 import LocalSelector from "../components/LocalSelector";
 import ImpersonationBanner from "../components/ImpersonationBanner";
+import MessageNotificationPopup from "../components/MessageNotificationPopup";
 import { startPeriodicSync, stopPeriodicSync, flushPendingOps } from "../lib/offlineSync";
 import { enableAutoSync } from "../lib/syncEngine";
 import GlobalSearch from "../components/GlobalSearch";
@@ -74,6 +77,11 @@ import {
   Globe,
   Briefcase,
   Cog,
+  Radio,
+  AlertTriangle,
+  Crosshair,
+  ExternalLink,
+  FolderOpen,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,47 +128,47 @@ const NAV_ITEMS = [
     module: null,
     children: [
       { to: "/productos",  icon: ShoppingBag, label: "Productos",  roles: ["SUPERADMIN","ADMIN","COMPRAS"],                                   module: "PRODUCTOS", moduleAlt: "CATALOGO" },
-      { to: "/stock",      icon: Warehouse,   label: "Stock",      roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],               module: "STOCK" },
-      { to: "/deposito",   icon: Boxes,       label: "Depósito",   roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                  module: "DEPOSITO",  moduleAlt: "STOCK" },
+      { to: "/stock",            icon: Warehouse,   label: "Stock",            roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","VENDEDOR"],               module: "STOCK", openInWindow: true },
+      { to: "/stock-multilocal", icon: Globe,       label: "Stock Multi-local", roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"],                      module: "STOCK_MULTILOCAL" },
+      { to: "/pdf-inventario",   icon: FileText,    label: "Reorganizador PDF", roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"],                      module: "PDF_INVENTARIO" },
+      { to: "/deposito",         icon: Boxes,       label: "Depósito",          roles: ["SUPERADMIN","ADMIN","DEPOSITO"],                                  module: "DEPOSITO",  moduleAlt: "STOCK" },
       { to: "/transporte", icon: Truck,       label: "Transporte", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL"],                module: "TRANSPORTE" },
     ],
   },
 
-  // 5) Compras & Proveedores (incluye flujo de remitos)
+  // 5) Compras & Proveedores — flujo completo de remitos, plano sin sub-grupos
   {
     icon: Briefcase, label: "Compras",
     roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"],
     module: null,
     children: [
-      {
-        icon: ClipboardList, label: "Gestión de Remitos",
-        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","DEPOSITO","LOCAL"],
-        module: null,
-        children: [
-          { to: "/pedidos-compras",    icon: ShoppingCart, label: "Notas de Pedido",    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "NOTAS_PEDIDO",       moduleAlt: "COMPRAS", badgeKey: "pedidos_pendientes" },
-          { to: "/recepcion",          icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "RECEPCION",          moduleAlt: "COMPRAS", badgeKey: "recepcion_pendiente" },
-          { to: "/ingreso",            icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS","ADMINISTRACION"],         module: "INGRESO",            moduleAlt: "COMPRAS", badgeKey: "ingresos_pendientes" },
-          { to: "/facturas-proveedor", icon: Receipt,      label: "Facturas / Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL","ADMINISTRACION"], module: "FACTURAS_PROVEEDOR", moduleAlt: "COMPRAS", badgeKey: "facturas_sin_rv" },
-          { to: "/completados",        icon: CheckCircle,  label: "Completados",        roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "COMPLETADOS" },
-        ],
-      },
-      { to: "/proveedores", icon: Truck, label: "Proveedores", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "PROVEEDORES", moduleAlt: "CATALOGO" },
+      { to: "/pedidos-compras",    icon: ShoppingCart, label: "Notas de Pedido",    roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "NOTAS_PEDIDO",       moduleAlt: "COMPRAS", badgeKey: "pedidos_pendientes" },
+      { to: "/recepcion",          icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "RECEPCION",          moduleAlt: "COMPRAS", badgeKey: "recepcion_pendiente" },
+      { to: "/ingreso",            icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS","ADMINISTRACION"],         module: "INGRESO",            moduleAlt: "COMPRAS", badgeKey: "ingresos_pendientes" },
+      { to: "/facturas-proveedor", icon: Receipt,      label: "Facturas / Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL","ADMINISTRACION"], module: "FACTURAS_PROVEEDOR", moduleAlt: "COMPRAS", badgeKey: "facturas_sin_rv" },
+      { to: "/completados",        icon: CheckCircle,  label: "Completados",        roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],           module: "COMPLETADOS" },
+      { to: "/proveedores",        icon: Truck,        label: "Proveedores",        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "PROVEEDORES",        moduleAlt: "CATALOGO" },
+      { to: "/importacion",        icon: Ship,         label: "Importación",        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                    module: "IMPORTACION" },
     ],
   },
 
-  // 6) Importación (módulo dedicado)
-  { to: "/importacion", icon: Ship, label: "Importación", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"], module: "IMPORTACION" },
-
-  // 7) Administración — tesorería, AP/AR, impuestos, informes
+  // 6) Administración — tesorería, AP/AR, impuestos, informes + accesos rápidos operativos
   {
     icon: Banknote, label: "Administración",
-    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],
+    roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","COMPRAS","DEPOSITO","LOCAL"],
     module: null,
     children: [
-      { to: "/gestion-pagos", icon: CreditCard,   label: "Gestión de Pagos", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: "PAGOS", badgeKey: "pagos_pendientes" },
-      { to: "/cash-flow",     icon: Banknote,     label: "Cash Flow",        roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: null },
-      { to: "/vencimientos",  icon: CalendarDays, label: "Vencimientos",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"], module: null },
-      { to: "/informes",      icon: FileBarChart, label: "Informes",         roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                 module: "INFORMES" },
+      { to: "/gestion-pagos",      icon: CreditCard,   label: "Gestión de Pagos",   roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                    module: "PAGOS",              badgeKey: "pagos_pendientes" },
+      { to: "/cajas",              icon: CreditCard,   label: "Control de Cajas",   roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","LOCAL"],            module: null },
+      { to: "/gastos-locales",     icon: Receipt,      label: "Gastos Locales",     roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS","LOCAL"],            module: null },
+      { to: "/clink-api",          icon: Banknote,     label: "CLINK API",          roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                    module: null },
+      { to: "/cash-flow",          icon: Banknote,     label: "Cash Flow",          roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                    module: null },
+      { to: "/vencimientos",       icon: CalendarDays, label: "Vencimientos",       roles: ["SUPERADMIN","ADMIN","ADMINISTRACION","GESTION_PAGOS"],                    module: null },
+      { to: "/ingreso",            icon: Package,      label: "Ingreso Mercadería", roles: ["SUPERADMIN","ADMIN","DEPOSITO","COMPRAS","ADMINISTRACION"],               module: "INGRESO",            moduleAlt: "COMPRAS", badgeKey: "ingresos_pendientes" },
+      { to: "/recepcion",          icon: PackageCheck, label: "Recepción",          roles: ["SUPERADMIN","ADMIN","DEPOSITO","LOCAL","ADMINISTRACION"],                 module: "RECEPCION",          moduleAlt: "COMPRAS", badgeKey: "recepcion_pendiente" },
+      { to: "/facturas-proveedor", icon: Receipt,      label: "Facturas / Remitos", roles: ["SUPERADMIN","ADMIN","COMPRAS","DEPOSITO","LOCAL","ADMINISTRACION"],       module: "FACTURAS_PROVEEDOR", moduleAlt: "COMPRAS", badgeKey: "facturas_sin_rv" },
+      { to: "/importacion",        icon: Ship,         label: "Importación",        roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],                          module: "IMPORTACION" },
+      { to: "/informes",           icon: FileBarChart, label: "Informes",           roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                                    module: "INFORMES" },
     ],
   },
 
@@ -196,6 +204,7 @@ const NAV_ITEMS = [
       { to: "/reportes",   icon: BarChart3,  label: "Estadísticas", roles: ["SUPERADMIN","ADMIN","ADMINISTRACION"],                      module: "ESTADISTICAS", moduleAlt: "REPORTES" },
       { to: "/kanban",     icon: Kanban,     label: "TrellOutdoor", roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS"], module: "KANBAN" },
       { to: "/supertrend", icon: TrendingUp, label: "SuperTrend",   roles: ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION"],            module: "SUPERTREND" },
+      { to: "/calendario-eventos", icon: CalendarDays, label: "Calendario Eventos", roles: null, module: null },
     ],
   },
 
@@ -226,10 +235,27 @@ const NAV_ITEMS = [
     ],
   },
 
+  // RFID — Gestión Inteligente de Inventarios
+  {
+    icon: Radio, label: "RFID",
+    roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"],
+    module: "RFID",
+    children: [
+      { to: "/rfid",            icon: Radio,          label: "Dashboard RFID",  roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "RFID" },
+      { to: "/rfid/etiquetas",  icon: Package,        label: "Etiquetas",       roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"], module: "RFID_ETIQUETAS" },
+      { to: "/rfid/lectores",   icon: Activity,       label: "Lectores",        roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "RFID_LECTORES" },
+      { to: "/rfid/alertas",    icon: AlertTriangle,  label: "Alertas",         roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "RFID_ALERTAS" },
+      { to: "/rfid/inventario", icon: Warehouse,      label: "Inventario",      roles: ["SUPERADMIN","ADMIN","DEPOSITO","MEGAADMIN"], module: "RFID_INVENTARIO" },
+      { to: "/rfid/propuesta",  icon: Lightbulb,      label: "Propuesta ROI",   roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "RFID_PROPUESTA" },
+      { to: "/rfid/presupuesto", icon: BadgeDollarSign, label: "Presupuesto",     roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],            module: "RFID_PROPUESTA" },
+      { to: "/rfid/contenido",  icon: FolderOpen,     label: "Contenido",       roles: ["SUPERADMIN","ADMIN","MEGAADMIN","VENDEDOR","DEPOSITO"], module: "RFID_CONTENIDO" },
+    ],
+  },
+
   // 11) Sistema & Configuración
   {
     icon: Cog, label: "Sistema",
-    roles: ["SUPERADMIN","ADMIN","MEGAADMIN"],
+    roles: null,
     module: null,
     children: [
       { to: "/mega-admin",         icon: Shield,         label: "Mega Admin",          roles: ["MEGAADMIN"],          module: null },
@@ -241,7 +267,7 @@ const NAV_ITEMS = [
       { to: "/config",             icon: Settings,       label: "Configuración",       roles: ["SUPERADMIN"],         module: null },
       { to: "/monitoreo",          icon: Activity,       label: "Monitoreo",           roles: ["SUPERADMIN","ADMIN"], module: "MONITOREO" },
       { to: "/sync-status",        icon: RefreshCw,      label: "Estado Sync",         roles: null,                   module: "SYNC" },
-      { to: "/mejoras",            icon: Lightbulb,      label: "Mejoras",             roles: ["SUPERADMIN","ADMIN"], module: "MEJORAS" },
+      { to: "/mejoras",            icon: Lightbulb,      label: "Mejoras",             roles: null,                   module: "MEJORAS" },
       { to: "/propuestas",         icon: Lightbulb,      label: "Propuestas de Menú",  roles: ["SUPERADMIN","ADMIN","MEGAADMIN"], module: "PROPUESTAS" },
       { to: "/mobile-app",         icon: Smartphone,     label: "App Celular",         roles: null,                   module: null },
     ],
@@ -257,6 +283,8 @@ export default function AppLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [navSearch, setNavSearch] = useState("");
   const [localSelectorOpen, setLocalSelectorOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [arenaCode, setArenaCode] = useState("");
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Auto-expand group if current path is inside it
     const groups = {};
@@ -283,17 +311,18 @@ export default function AppLayout() {
       if (item.children) {
         const allLeaves = item.children.flatMap(c => c.children ? c.children : [c]);
         const isInGroup = allLeaves.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
-        if (isInGroup) setExpandedGroups(prev => prev[item.label] ? prev : { ...prev, [item.label]: true });
+        if (isInGroup) setExpandedGroups(prev => prev[item.label] !== undefined ? prev : { ...prev, [item.label]: true });
         item.children.forEach(child => {
           if (child.children) {
             const isInSub = child.children.some(c => location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
-            if (isInSub) setExpandedGroups(prev => prev[child.label] ? prev : { ...prev, [child.label]: true });
+            if (isInSub) setExpandedGroups(prev => prev[child.label] !== undefined ? prev : { ...prev, [child.label]: true });
           }
         });
       }
     });
   }, [location.pathname]);
 
+  const userMenuRef = useRef(null);
   const [darkMode, setDarkMode] = useState(
     () => localStorage.getItem("erp-dark") === "true"
   );
@@ -309,7 +338,7 @@ export default function AppLayout() {
   const { data: counts } = useQuery({
     queryKey: ['sidebar-counts'],
     queryFn: () => api.get('/system/sidebar-counts'),
-    refetchInterval: 60000,
+    refetchInterval: 30000,
     staleTime: 30000,
   });
 
@@ -356,6 +385,7 @@ export default function AppLayout() {
   }, [activeModuleSlugs, modulesLoaded]);
 
   const isClientMode = localStorage.getItem('erp_client_mode') === 'true';
+  const isElectron = typeof window !== 'undefined' && !!window.__electron;
   // Rutas exclusivas del panel Admin (nunca en EXE de cliente)
   const ADMIN_ONLY_ROUTES = ['/mega-admin', '/config-modulos', '/configurador-menu'];
 
@@ -391,8 +421,24 @@ export default function AppLayout() {
     };
     const canSee = (item) => {
       if (isClientMode && ADMIN_ONLY_ROUTES.includes(item.to)) return false;
+      // Restricción por username (whitelist absoluta — bypasea incluso a MEGAADMIN si no está en la lista)
+      if (item.usernames) {
+        return item.usernames.includes((user?.username || "").toLowerCase());
+      }
       if (user?.role === 'MEGAADMIN') return true;
+      if (item.usernames) {
+        return item.usernames.includes((user?.username || "").toLowerCase());
+      }
       if (item.module && modulesLoaded && isModActive(item)) return true;
+      // Parent groups: show if ANY child has an active module (e.g. DEPOSITO with MEJORAS enabled)
+      if (item.children && modulesLoaded) {
+        const hasActiveChild = item.children.some((child) => {
+          const cm = child.module || item.module;
+          const cma = child.moduleAlt || item.module;
+          return cm && (activeModuleSlugs.has(cm) || (cma && activeModuleSlugs.has(cma)));
+        });
+        if (hasActiveChild) return true;
+      }
       if (item.roles && !item.roles.includes(user?.role)) return false;
       if (!item.module) return true;
       if (!modulesLoaded) return false;
@@ -407,13 +453,13 @@ export default function AppLayout() {
       if (item.children) {
         const visibleChildren = item.children.filter((child) => {
           if (user?.role === 'MEGAADMIN') return true;
-          if (child.roles && !child.roles.includes(user?.role)) return false;
-          if (child.children) return true; // sub-group: keep if passes role check
+          if (child.children) return true; // sub-group: keep for now
+          // Module check FIRST — active module bypasses role restriction
           const childMod = child.module || item.module;
           const childModAlt = child.moduleAlt || item.module;
-          if (childMod && modulesLoaded) {
-            return activeModuleSlugs.has(childMod) || activeModuleSlugs.has(childModAlt);
-          }
+          if (childMod && modulesLoaded && (activeModuleSlugs.has(childMod) || activeModuleSlugs.has(childModAlt))) return true;
+          // Then role check for non-module items
+          if (child.roles && !child.roles.includes(user?.role)) return false;
           return true;
         }).map((child) => {
           if (child.children) {
@@ -447,6 +493,17 @@ export default function AppLayout() {
     }
     localStorage.setItem("erp-dark", darkMode);
   }, [darkMode]);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Ctrl+K global search
   useEffect(() => {
@@ -491,7 +548,7 @@ export default function AppLayout() {
       </div>
     )}
     <ImpersonationBanner />
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Overlay mobile */}
       {mobileOpen && (
         <div
@@ -500,10 +557,10 @@ export default function AppLayout() {
         />
       )}
 
-      {/* Sidebar — mobile only; desktop navigation is in TopNav bar */}
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 text-white transition-all duration-200 ${sidebarWidth} ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed lg:static inset-y-0 left-0 z-50 flex flex-col bg-slate-900 text-white transition-all duration-200 ${sidebarWidth} ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Brand */}
@@ -561,7 +618,9 @@ export default function AppLayout() {
               const isActiveGroup = item.children.some(c => c.children
                 ? c.children.some(s => location.pathname === s.to || location.pathname.startsWith(s.to + "/"))
                 : location.pathname === c.to || location.pathname.startsWith(c.to + "/"));
-              const isExpanded = expandedGroups[item.label] || !!navSearch || isActiveGroup;
+              // Si el usuario colapsó explícitamente (false), respetar esa decisión aunque la ruta sea hija
+              const manualState = expandedGroups[item.label];
+              const isExpanded = !!navSearch || (manualState === undefined ? isActiveGroup : manualState);
               const filteredChildren = navSearch
                 ? item.children.filter(c => {
                     const q = navSearch.toLowerCase();
@@ -643,6 +702,21 @@ export default function AppLayout() {
                                 </div>
                               )}
                             </div>
+                          );
+                        }
+                        // En Electron: items con openInWindow se abren en ventana separada
+                        if (child.openInWindow && isElectron) {
+                          return (
+                            <button
+                              key={child.to}
+                              onClick={() => { window.__electron.openWindow(child.to, child.label); setMobileOpen(false); }}
+                              className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-colors text-slate-400 hover:bg-slate-800 hover:text-white w-full"
+                              title={`Abrir ${child.label} en ventana separada`}
+                            >
+                              <child.icon size={15} className="shrink-0" />
+                              <span className="truncate">{child.label}</span>
+                              <ExternalLink size={10} className="ml-auto text-slate-500 shrink-0" />
+                            </button>
                           );
                         }
                         return (
@@ -755,28 +829,104 @@ export default function AppLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Offline status banner */}
         <OfflineBanner />
+        {/* Top bar */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 lg:px-6 shrink-0 shadow-sm">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 transition mr-3"
+          >
+            <Menu size={20} />
+          </button>
+          {/* Mensajería central */}
+          <div className="flex-1 flex items-center justify-center">
+            <button
+              onClick={() => navigate("/mensajes")}
+              className={`relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition ${
+                (counts?.mensajes_unread ?? 0) > 0
+                  ? "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800"
+                  : "text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+              title="Mensajería interna — chats y notificaciones"
+            >
+              <MessageSquare size={16} className={(counts?.mensajes_unread ?? 0) > 0 ? "text-blue-600 dark:text-blue-400" : ""} />
+              <span>Mensajería</span>
+              {(counts?.mensajes_unread ?? 0) > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse">
+                  {counts.mensajes_unread > 99 ? "99+" : counts.mensajes_unread}
+                </span>
+              )}
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Dark mode toggle */}
+            <button
+              onClick={() => setDarkMode((v) => !v)}
+              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-500 dark:text-gray-400"
+              title={darkMode ? "Modo claro" : "Modo oscuro"}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
 
-        {/* Unified dark TopBar: brand + mega-nav + right-side chips */}
-        <UnifiedTopBar
-          items={visibleItems}
-          counts={counts}
-          brand={{ app_name, short_name, primary_color }}
-          user={user}
-          onLogout={logout}
-          onOpenMobileSidebar={() => setMobileOpen(true)}
-          onOpenSearch={() => setSearchOpen(true)}
-          onOpenLocalSelector={() => setLocalSelectorOpen(true)}
-          selectedLocalName={selectedLocalName}
-          hasLocal={hasLocal}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode((v) => !v)}
-        />
+            <InstallPwa />
+            <SyncIndicator />
+            {/* User chip */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition text-sm font-medium text-gray-700 max-w-[180px]"
+                title="Usuario activo"
+              >
+                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                  {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <span className="truncate hidden sm:block">{user?.full_name || "Usuario"}</span>
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{user?.full_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user?.role}</p>
+                    {user?.email && <p className="text-xs text-gray-400 truncate">{user?.email}</p>}
+                  </div>
+                  {["malegre", "admindepo"].includes((user?.username || "").toLowerCase()) && (
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <input
+                        type="text"
+                        value={arenaCode}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setArenaCode(v);
+                          if (v.toLowerCase() === "arena") {
+                            setArenaCode("");
+                            setUserMenuOpen(false);
+                            navigate("/arena");
+                          }
+                        }}
+                        placeholder="Código secreto…"
+                        className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 text-gray-600 placeholder-gray-300"
+                        autoComplete="off"
+                      />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setUserMenuOpen(false); logout(); }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition"
+                  >
+                    <LogOut size={15} />
+                    Cerrar sesión / Cambiar usuario
+                  </button>
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-gray-400 hidden sm:block">v0.1.0</span>
+          </div>
+        </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-32">
           <Breadcrumbs />
           <Outlet />
         </main>
@@ -795,6 +945,25 @@ export default function AppLayout() {
       <SyncProgressWidget />
       <ImprovementNotes />
       <UpdateReadyModal />
+      <ProfileSetupModal />
+      <EmailSetupModal />
+      <MessageNotificationPopup />
+
+      {/* Botón flotante de mensajería — bottom-left, presente en todas las páginas */}
+      <div className="fixed bottom-6 left-6 z-[9000]">
+        <button
+          onClick={() => navigate("/mensajes")}
+          className="relative flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl transition-all hover:scale-105 active:scale-95"
+          title="Mensajería interna"
+        >
+          <MessageSquare size={20} />
+          {(counts?.mensajes_unread ?? 0) > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 leading-none pointer-events-none">
+              {counts.mensajes_unread > 99 ? "99+" : counts.mensajes_unread}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
     </>
   );
@@ -829,394 +998,5 @@ function SyncIndicator() {
       )}
       <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${color}`} />
     </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UnifiedTopBar — barra superior unificada (brand + nav + right chips)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function MegaDropdown({ group, counts, onNavigate, anchorRect }) {
-  const hasSubGroups = group.children.some((c) => c.children);
-  const columns = (() => {
-    if (hasSubGroups) return null;
-    const n = group.children.length;
-    if (n <= 5) return [group.children];
-    const perCol = Math.ceil(n / (n > 10 ? 3 : 2));
-    const cols = [];
-    for (let i = 0; i < group.children.length; i += perCol) {
-      cols.push(group.children.slice(i, i + perCol));
-    }
-    return cols;
-  })();
-
-  const minW = hasSubGroups ? 640 : 260;
-  // Clamp left so it never goes off-screen right
-  const left = anchorRect
-    ? Math.min(anchorRect.left, window.innerWidth - minW - 8)
-    : 0;
-  const top = anchorRect ? anchorRect.bottom : 48;
-
-  return (
-    <div
-      className="fixed bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-b-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] z-[9999] overflow-hidden animate-fadeInDown"
-      style={{ top, left, minWidth: minW }}
-    >
-      {/* Header band */}
-      <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
-        <group.icon size={14} className="text-blue-600 dark:text-blue-400" />
-        <span className="text-[12px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">{group.label}</span>
-      </div>
-
-      {hasSubGroups ? (
-        <div className="grid grid-cols-3 gap-0 p-3">
-          {group.children.map((child) => {
-            if (child.children) {
-              return (
-                <div key={child.label} className="px-2 py-1.5">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 pb-1.5 mb-1 border-b border-slate-100 dark:border-slate-700">
-                    <child.icon size={11} />
-                    {child.label}
-                  </div>
-                  <div className="space-y-0.5">
-                    {child.children.map((sub) => (
-                      <NavLink
-                        key={sub.to}
-                        to={sub.to}
-                        onClick={onNavigate}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] transition-colors ${
-                            isActive
-                              ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
-                              : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          }`
-                        }
-                      >
-                        <sub.icon size={13} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                        <span className="flex-1 truncate">{sub.label}</span>
-                        {sub.badgeKey && counts?.[sub.badgeKey] > 0 && (
-                          <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
-                            {counts[sub.badgeKey] > 99 ? "99+" : counts[sub.badgeKey]}
-                          </span>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-              );
-            }
-            return (
-              <NavLink
-                key={child.to}
-                to={child.to}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] transition-colors m-1 self-start ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
-                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  }`
-                }
-              >
-                <child.icon size={14} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                <span className="flex-1 truncate">{child.label}</span>
-                {child.badgeKey && counts?.[child.badgeKey] > 0 && (
-                  <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
-                    {counts[child.badgeKey] > 99 ? "99+" : counts[child.badgeKey]}
-                  </span>
-                )}
-              </NavLink>
-            );
-          })}
-        </div>
-      ) : (
-        <div className={`grid gap-1 p-3 ${columns.length === 1 ? "grid-cols-1" : columns.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
-          {columns.map((col, ci) => (
-            <div key={ci} className="space-y-0.5">
-              {col.map((child) => (
-                <NavLink
-                  key={child.to}
-                  to={child.to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors ${
-                      isActive
-                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
-                        : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                    }`
-                  }
-                >
-                  <child.icon size={15} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                  <span className="flex-1 truncate">{child.label}</span>
-                  {child.badgeKey && counts?.[child.badgeKey] > 0 && (
-                    <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded shrink-0">
-                      {counts[child.badgeKey] > 99 ? "99+" : counts[child.badgeKey]}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NavGroupButton({ item, counts, openGroup, setOpenGroup }) {
-  const location = useLocation();
-  const btnRef = useRef(null);
-  const [anchorRect, setAnchorRect] = useState(null);
-  const isActive = item.to
-    ? item.to === "/"
-      ? location.pathname === "/"
-      : location.pathname === item.to || location.pathname.startsWith(item.to + "/")
-    : item.children?.some((c) => {
-        const leaves = c.children ? c.children : [c];
-        return leaves.some(
-          (l) => l.to && (location.pathname === l.to || location.pathname.startsWith(l.to + "/"))
-        );
-      });
-  const isOpen = openGroup === item.label;
-
-  if (!item.children) {
-    return (
-      <NavLink
-        to={item.to}
-        end={item.to === "/"}
-        className={({ isActive: navActive }) =>
-          `flex items-center gap-2 px-3.5 h-full text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors shrink-0 ${
-            navActive
-              ? "bg-slate-800/70 text-white border-blue-400"
-              : "text-slate-300 hover:bg-slate-800/60 hover:text-white border-transparent"
-          }`
-        }
-      >
-        <item.icon size={15} />
-        {item.label}
-      </NavLink>
-    );
-  }
-
-  return (
-    <div className="shrink-0 h-full">
-      <button
-        ref={btnRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isOpen && btnRef.current) {
-            setAnchorRect(btnRef.current.getBoundingClientRect());
-          }
-          setOpenGroup(isOpen ? null : item.label);
-        }}
-        className={`flex items-center gap-2 px-3.5 h-full text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
-          isOpen || isActive
-            ? "bg-slate-800/70 text-white border-blue-400"
-            : "text-slate-300 hover:bg-slate-800/60 hover:text-white border-transparent"
-        }`}
-      >
-        <item.icon size={15} />
-        {item.label}
-        <ChevronDown
-          size={11}
-          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-        />
-      </button>
-      {isOpen && (
-        <MegaDropdown
-          group={item}
-          counts={counts}
-          anchorRect={anchorRect}
-          onNavigate={() => setOpenGroup(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function UnifiedTopBar({
-  items,
-  counts,
-  brand,
-  user,
-  onLogout,
-  onOpenMobileSidebar,
-  onOpenSearch,
-  onOpenLocalSelector,
-  selectedLocalName,
-  hasLocal,
-  darkMode,
-  onToggleDarkMode,
-}) {
-  const [openGroup, setOpenGroup] = useState(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const location = useLocation();
-  const barRef = useRef(null);
-  const userMenuRef = useRef(null);
-
-  // Close group dropdown on route change
-  useEffect(() => {
-    setOpenGroup(null);
-    setUserMenuOpen(false);
-  }, [location.pathname]);
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (barRef.current && !barRef.current.contains(e.target)) {
-        setOpenGroup(null);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
-        setUserMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") {
-        setOpenGroup(null);
-        setUserMenuOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, []);
-
-  return (
-    <header
-      ref={barRef}
-      className="h-12 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/60 flex items-stretch shrink-0 relative z-40 shadow-lg"
-    >
-      {/* Mobile hamburger */}
-      <button
-        onClick={onOpenMobileSidebar}
-        className="lg:hidden flex items-center justify-center w-12 text-slate-300 hover:bg-slate-800 hover:text-white transition"
-        title="Menú"
-      >
-        <Menu size={20} />
-      </button>
-
-      {/* Brand */}
-      <div className="hidden lg:flex items-center gap-2.5 px-4 border-r border-slate-700/60">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[11px] text-white shadow-inner shrink-0"
-          style={{ backgroundColor: brand.primary_color }}
-        >
-          {brand.short_name}
-        </div>
-        <span className="font-semibold text-sm text-white whitespace-nowrap max-w-[140px] truncate">
-          {brand.app_name}
-        </span>
-      </div>
-
-      {/* Nav items — desktop */}
-      <nav className="hidden lg:flex items-stretch h-full flex-1 overflow-x-auto scrollbar-hide">
-        {items.map((item) => (
-          <NavGroupButton
-            key={item.label || item.to}
-            item={item}
-            counts={counts}
-            openGroup={openGroup}
-            setOpenGroup={setOpenGroup}
-          />
-        ))}
-      </nav>
-
-      {/* Mobile title (shown only on small screens) */}
-      <div className="lg:hidden flex-1 flex items-center px-2">
-        <span className="font-semibold text-sm text-white truncate">{brand.app_name}</span>
-      </div>
-
-      {/* Right side: chips & actions */}
-      <div className="flex items-center gap-1 pr-2 pl-1 border-l border-slate-700/60">
-        {/* Local chip */}
-        {hasLocal ? (
-          <button
-            onClick={onOpenLocalSelector}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 transition truncate max-w-[160px]"
-            title={`Local: ${selectedLocalName} — Click para cambiar`}
-          >
-            <MapPin size={12} className="shrink-0" />
-            <span className="truncate">{selectedLocalName}</span>
-          </button>
-        ) : (
-          <button
-            onClick={onOpenLocalSelector}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 transition"
-            title="Sin local asignado"
-          >
-            ⚠️ <span className="hidden xl:inline">Sin local</span>
-          </button>
-        )}
-
-        {/* Search */}
-        <button
-          onClick={onOpenSearch}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-slate-300 hover:bg-slate-700 hover:text-white transition"
-          title="Buscar (Ctrl+K)"
-        >
-          <Search size={14} />
-          <kbd className="hidden xl:block text-[10px] bg-slate-700/70 px-1 rounded border border-slate-600/50">
-            Ctrl+K
-          </kbd>
-        </button>
-
-        {/* Dark mode */}
-        <button
-          onClick={onToggleDarkMode}
-          className="p-1.5 rounded-lg hover:bg-slate-700 transition text-slate-300 hover:text-white"
-          title={darkMode ? "Modo claro" : "Modo oscuro"}
-        >
-          {darkMode ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
-
-        <InstallPwa />
-
-        {/* Sync indicator */}
-        <div className="px-1.5">
-          <SyncIndicator />
-        </div>
-
-        {/* User chip */}
-        <div className="relative" ref={userMenuRef}>
-          <button
-            onClick={() => setUserMenuOpen((v) => !v)}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-700 transition"
-            title="Usuario activo"
-          >
-            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-[11px] shrink-0">
-              {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
-            </div>
-            <span className="text-[12px] font-medium text-slate-200 hidden sm:block max-w-[110px] truncate">
-              {user?.full_name || "Usuario"}
-            </span>
-            <ChevronDown size={11} className="text-slate-400 hidden sm:block" />
-          </button>
-          {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeInDown">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.full_name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.role}</p>
-                {user?.email && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{user?.email}</p>}
-              </div>
-              <button
-                onClick={() => {
-                  setUserMenuOpen(false);
-                  onLogout();
-                }}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-              >
-                <LogOut size={15} />
-                Cerrar sesión
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
   );
 }

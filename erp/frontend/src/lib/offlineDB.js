@@ -276,7 +276,7 @@ export async function cacheAuthCredentials(username, passwordHash, userProfile) 
     username,
     passwordHash,
     profile: userProfile,
-    token: localStorage.getItem("token") || null,
+    token: sessionStorage.getItem("token") || null,
     cachedAt: Date.now(),
   });
 }

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe -c \"import playwright; print\\('playwright OK, version:', playwright.__version__\\)\")",
+      "Bash(cmd *)",
+      "Skill(deploy)",
+      "Bash(dir *)",
+      "Bash(node_modules/.bin/electron-packager . \"ERP Mundo Outdoor - Cliente\" --platform=win32 --arch=x64 --out=dist --overwrite)",
+      "PowerShell(Start-Process \"D:\\\\ERP MUNDO OUTDOOR\\\\DISTRIBUIBLES\\\\ERP Mundo Outdoor - Cliente\\\\ERP Mundo Outdoor - Cliente.exe\")",
+      "Bash(curl *)",
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8001 --log-level warning)",
+      "Bash(PGPASSWORD=\"MundoOutdoor2026!\" psql -h localhost -p 2048 -U erp_user -d erp_mundooutdoor -c \"SELECT username, role FROM users LIMIT 10;\")",
+      "Bash(D:/ERP MUNDO OUTDOOR/erp/backend/venv/Scripts/python.exe *)",
+      "Bash(./venv/Scripts/python.exe scripts/cleanup_seed_data.py --dry-run)",
+      "Bash(PYTHONIOENCODING=utf-8 ./venv/Scripts/python.exe scripts/cleanup_seed_data.py --dry-run)",
+      "Bash(PYTHONIOENCODING=utf-8 ./venv/Scripts/python.exe scripts/cleanup_seed_data.py --apply)"
+    ]
+  }
+}

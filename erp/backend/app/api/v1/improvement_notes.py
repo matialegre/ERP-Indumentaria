@@ -205,16 +205,81 @@ def internal_mark_all_deployed(
     return {"ok": True, "marked": marked}
 
 
+def _find_system_sender(db: Session, recipient_id: int, company_id: int) -> int:
+    """Devuelve un from_user_id diferente al recipient para evitar que el inbox filtre el mensaje.
+    Busca primero un SUPERADMIN/ADMIN activo en la empresa; si no hay, usa cualquier otro usuario activo.
+    Si no hay nadie más, devuelve el mismo recipient (el mensaje se crea igual)."""
+    from app.models.user import UserRole
+    preferred_roles = [UserRole.SUPERADMIN, UserRole.MEGAADMIN, UserRole.ADMIN]
+    for role in preferred_roles:
+        u = db.query(User).filter(
+            User.id != recipient_id,
+            User.is_active == True,
+            User.role == role,
+        ).first()
+        if u:
+            return u.id
+    # Cualquier usuario activo distinto
+    u = db.query(User).filter(
+        User.id != recipient_id,
+        User.is_active == True,
+    ).first()
+    return u.id if u else recipient_id
+
+
+def _send_approve_message(db: Session, note: ImprovementNote, approved_by_user: User):
+    """Envía un mensaje interno al autor cuando su mejora es APROBADA (antes del deploy)."""
+    if not note.author_id:
+        return
+    try:
+        from app.models.message import Message
+        author = db.query(User).filter(User.id == note.author_id).first()
+        # company_id: usar el del autor; si es MEGAADMIN sin company, buscar la del aprobador
+        company_id = (author.company_id if author and author.company_id else
+                      approved_by_user.company_id if approved_by_user.company_id else None)
+        if not company_id:
+            return
+        # Evitar self-message (inbox lo filtra) — buscar sender alternativo
+        sender_id = (approved_by_user.id
+                     if approved_by_user.id != note.author_id
+                     else _find_system_sender(db, note.author_id, company_id))
+        preview = note.text[:120] + ("..." if len(note.text) > 120 else "")
+        approver_name = approved_by_user.full_name or approved_by_user.username
+        msg = Message(
+            from_user_id=sender_id,
+            to_user_id=note.author_id,
+            is_broadcast=False,
+            subject=f"🎉 Tu mejora fue aceptada — {note.page_label or note.page}",
+            content=(
+                f"¡Buenas noticias! Tu sugerencia de mejora en \"{note.page_label or note.page}\" "
+                f"fue **aceptada** por {approver_name}.\n\n"
+                f"📝 Tu nota: \"{preview}\"\n\n"
+                f"⏳ Está en cola para ser implementada. "
+                f"Cuando esté lista vas a recibir otro mensaje."
+            ),
+            is_read=False,
+            company_id=company_id,
+        )
+        db.add(msg)
+    except Exception:
+        pass
+
+
 def _send_deploy_message(db: Session, note: ImprovementNote):
     if not note.author_id:
         return
     try:
         from app.models.message import Message
-        admin_user = db.query(User).filter(User.role.in_(["SUPERADMIN", "ADMIN"])).first()
-        from_id = admin_user.id if admin_user else note.author_id
+        from app.models.user import UserRole
+        author = db.query(User).filter(User.id == note.author_id).first()
+        company_id = author.company_id if author and author.company_id else None
+        if not company_id:
+            return
+        # Usar sender diferente al autor para no caer en el filtro self-message del inbox
+        sender_id = _find_system_sender(db, note.author_id, company_id)
         preview = note.text[:120] + ("..." if len(note.text) > 120 else "")
         msg = Message(
-            from_user_id=from_id,
+            from_user_id=sender_id,
             to_user_id=note.author_id,
             is_broadcast=False,
             subject=f"✅ Tu mejora fue implementada — {note.page_label or note.page}",
@@ -225,7 +290,7 @@ def _send_deploy_message(db: Session, note: ImprovementNote):
                 f"Recargá la app para ver los cambios."
             ),
             is_read=False,
-            company_id=admin_user.company_id if admin_user else 1,
+            company_id=company_id,
         )
         db.add(msg)
     except Exception:
@@ -582,6 +647,10 @@ def approve_note(
     db.refresh(note)
     _export_markdown(db)
 
+    # ── Notificar al autor que su mejora fue aceptada ──────────────────────
+    _send_approve_message(db, note, current_user)
+    db.commit()
+
     # ── Disparar Copilot Automator con prefijo [APROBADO] ─────────────────
     image_paths = ""
     if note.images:
@@ -593,6 +662,36 @@ def approve_note(
         text=f"[APROBADO PARA IMPLEMENTAR] {note.text}{image_paths}",
         note_id=note.id,
     )
+    return _normalize(note)
+
+
+@router.post("/{note_id}/approve-manual", response_model=NoteOut)
+def approve_note_manual(
+    note_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Admin marca una nota como APLICADA sin disparar Copilot Automator.
+    Útil cuando el admin la va a implementar manualmente.
+    """
+    if current_user.role not in ("MEGAADMIN", "SUPERADMIN", "ADMIN"):
+        raise HTTPException(403, "Solo administradores pueden aprobar mejoras")
+
+    note = db.query(ImprovementNote).filter(ImprovementNote.id == note_id).first()
+    if not note:
+        raise HTTPException(404, "Nota no encontrada")
+
+    note.is_done = True
+    note.approved_by = current_user.full_name or current_user.username
+    note.approved_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(note)
+    _export_markdown(db)
+
+    _send_approve_message(db, note, current_user)
+    db.commit()
+
     return _normalize(note)
 
 
@@ -656,7 +755,11 @@ def cancel_note(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role not in ("MEGAADMIN", "SUPERADMIN", "ADMIN"):
+    import logging
+    log = logging.getLogger(__name__)
+
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if role_val not in ("MEGAADMIN", "SUPERADMIN", "ADMIN"):
         raise HTTPException(403, "Solo administradores pueden cancelar mejoras")
 
     note = db.query(ImprovementNote).filter(ImprovementNote.id == note_id).first()
@@ -668,28 +771,75 @@ def cancel_note(
     note_text_preview = note.text[:120] + ("..." if len(note.text) > 120 else "")
 
     if note.author_id:
-        from app.models.message import Message
-        msg = Message(
-            from_user_id=current_user.id,
-            to_user_id=note.author_id,
-            is_broadcast=False,
-            subject=f"Tu mejora fue cancelada — {note.page_label or note.page}",
-            content=(
-                f"Hola {author_name},\n\n"
-                f"Tu sugerencia de mejora en \"{note.page_label or note.page}\" fue cancelada "
-                f"por {admin_name}.\n\n"
-                f"📝 Tu nota: \"{note_text_preview}\"\n\n"
-                f"❌ Motivo de cancelación: {body.reason}\n\n"
-                f"Si tenés dudas, contactá a {admin_name} por mensajería."
-            ),
-            is_read=False,
-            company_id=current_user.company_id,
-        )
-        db.add(msg)
+        try:
+            from app.models.message import Message
+            from app.models.company import Company
+            author = db.query(User).filter(User.id == note.author_id).first()
+            target_company_id = (author.company_id if author and author.company_id
+                                 else current_user.company_id)
+            # Fallback final: usar primera company si todo lo demás falla (caso SUPERADMIN sin co)
+            if not target_company_id:
+                first = db.query(Company).order_by(Company.id).first()
+                target_company_id = first.id if first else None
+            if target_company_id:
+                # Evitar self-message: si el admin es el mismo autor, buscar sender alternativo
+                sender_id = (current_user.id
+                             if current_user.id != note.author_id
+                             else _find_system_sender(db, note.author_id, target_company_id))
+                msg = Message(
+                    from_user_id=sender_id,
+                    to_user_id=note.author_id,
+                    is_broadcast=False,
+                    subject=f"❌ Tu mejora fue rechazada — {note.page_label or note.page or 'ERP'}",
+                    content=(
+                        f"Hola {author_name},\n\n"
+                        f"Tu sugerencia de mejora en \"{note.page_label or note.page or 'ERP'}\" fue **rechazada** "
+                        f"por {admin_name}.\n\n"
+                        f"📝 Tu nota: \"{note_text_preview}\"\n\n"
+                        f"❌ Motivo: {body.reason}\n\n"
+                        f"Si tenés dudas, podés hablar con {admin_name} por mensajería."
+                    ),
+                    is_read=False,
+                    company_id=target_company_id,
+                )
+                db.add(msg)
 
-    db.delete(note)
-    db.commit()
-    _export_markdown(db)
+                # Mensaje de confirmación al admin que canceló (si es distinto del autor)
+                if current_user.id != note.author_id:
+                    confirm_sender = _find_system_sender(db, current_user.id, target_company_id)
+                    confirm_co = current_user.company_id or target_company_id
+                    confirm = Message(
+                        from_user_id=confirm_sender,
+                        to_user_id=current_user.id,
+                        is_broadcast=False,
+                        subject=f"✔ Rechazo enviado a {author_name}",
+                        content=(
+                            f"Confirmación: rechazaste la mejora de {author_name} "
+                            f"en \"{note.page_label or note.page or 'ERP'}\".\n\n"
+                            f"📝 Nota: \"{note_text_preview}\"\n"
+                            f"❌ Motivo enviado: {body.reason}\n\n"
+                            f"El autor recibió la notificación."
+                        ),
+                        is_read=False,
+                        company_id=confirm_co,
+                    )
+                    db.add(confirm)
+        except Exception as e:
+            log.warning(f"cancel_note: no se pudo preparar mensaje para autor {note.author_id}: {e}")
+
+    try:
+        db.delete(note)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        log.error(f"cancel_note: fallo al eliminar nota {note_id}: {e}")
+        raise HTTPException(500, f"No se pudo eliminar la nota: {e}")
+
+    try:
+        _export_markdown(db)
+    except Exception as e:
+        log.warning(f"cancel_note: fallo export markdown: {e}")
+
     return {"ok": True}
 
 

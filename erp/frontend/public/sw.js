@@ -2,7 +2,7 @@
 // Service Worker — ERP Sistema (PWA offline-first, pro-level)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const CACHE_NAME = "mo-erp-v14";
+const CACHE_NAME = "mo-erp-v16";
 const API_CACHE_NAME = "mo-erp-api-v3";
 const VALID_CACHES = new Set([CACHE_NAME, API_CACHE_NAME]);
 
@@ -195,60 +195,50 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ── 2. Navegación (SPA): cache-first + actualización en background ──
+  // ── 2. Navegación (SPA): network-first con fallback a cache (offline) ──
   if (event.request.mode === "navigate") {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const cachedIndex = await cache.match("/");
-
-        // Actualizar index.html en background (sin bloquear respuesta)
-        const networkUpdate = fetch(event.request)
-          .then(async (response) => {
-            if (response.ok) {
-              await cache.put("/", response.clone());
-            }
-            return response;
-          })
-          .catch(() => null);
-
-        // Si hay cache, devolver inmediatamente (apertura instantánea)
-        if (cachedIndex) {
-          // Disparar actualización en background sin esperar
-          networkUpdate;
-          return cachedIndex;
+        try {
+          // Siempre intentar red primero → versión fresca
+          const networkResponse = await fetch(event.request);
+          if (networkResponse.ok) {
+            cache.put("/", networkResponse.clone());
+          }
+          return networkResponse;
+        } catch (_) {
+          // Sin red → fallback a cache (offline)
+          const cachedIndex = await cache.match("/");
+          if (cachedIndex) return cachedIndex;
+          return new Response("Offline — sin caché disponible", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          });
         }
-
-        // Sin cache → esperar red (primera visita)
-        const networkResponse = await networkUpdate;
-        if (networkResponse) return networkResponse;
-
-        // Fallback último recurso
-        return new Response("Offline — sin caché disponible", {
-          status: 503,
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-        });
       })()
     );
     return;
   }
 
-  // ── 3. Assets estáticos (/assets/*): cache-first (filenames hasheados = inmutables) ──
+  // ── 3. Assets estáticos (/assets/*): network-first con fallback a cache ──
+  // NOTA: los chunks tienen nombres estables (sin hash) — network-first garantiza
+  // que siempre se cargue la versión más reciente cuando hay conexión.
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(event.request);
-        if (cached) return cached;
-
-        // Cache miss → buscar en red y cachear
         try {
+          // Red primero → siempre fresco si hay conexión
           const networkResponse = await fetch(event.request);
           if (networkResponse.ok) {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
         } catch (_) {
+          // Sin red → fallback a cache (offline)
+          const cached = await cache.match(event.request);
+          if (cached) return cached;
           return new Response("Asset no disponible offline", {
             status: 503,
             headers: { "Content-Type": "text/plain" },

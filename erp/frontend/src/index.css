@@ -110,3 +110,26 @@ button img, a img {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Visible scrollbar for tables and content areas */
+.scrollbar-visible {
+  scrollbar-width: auto;
+}
+.scrollbar-visible::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scrollbar-visible::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+.scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+.scrollbar-visible::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}

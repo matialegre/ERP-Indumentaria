@@ -93,7 +93,7 @@ export default function Empresas() {
 
       {error && (
         <div className="bg-red-900/20 border border-red-800/50 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error} — Verificar que el backend corra en puerto 8000
+          {error} — Verificar que el backend corra en puerto 8001
         </div>
       )}
 

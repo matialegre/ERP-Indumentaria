@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -31,30 +31,169 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  Monitor,
+  ShieldCheck,
+  ShieldOff,
+  Copy,
+  Trash2,
+  RotateCcw,
+  MapPin,
+  Eye,
+  Edit3,
 } from "lucide-react";
 
-const ALL_MODULES = [
-  { slug: "COMPRAS",              label: "Compras" },
-  { slug: "PAGOS",                label: "Gestión de Pagos" },
-  { slug: "STOCK",                label: "Control de Stock" },
-  { slug: "VENTAS",               label: "Facturación & Ventas" },
-  { slug: "TRANSPORTE",           label: "Logística & Transporte" },
-  { slug: "KANBAN",               label: "TrellOutdoor" },
-  { slug: "REPORTES",             label: "Reportes & Analytics" },
-  { slug: "SOCIOS",               label: "Socios Montagne" },
-  { slug: "CATALOGO",             label: "Catálogo & Proveedores" },
-  { slug: "LOCALES",              label: "Locales & Sucursales" },
-  { slug: "USUARIOS",             label: "Usuarios" },
-  { slug: "MONITOREO",            label: "Monitoreo del Sistema" },
-  { slug: "SUPERTREND",           label: "SuperTrend" },
-  { slug: "OT",                   label: "Órdenes de Trabajo" },
-  { slug: "SYNC",                 label: "Sincronización Offline" },
-  { slug: "CRM",                  label: "CRM / Clientes" },
-  { slug: "COMPLETADOS",          label: "Completados" },
-  { slug: "PUNTUACION_EMPLEADOS", label: "Puntuación de Empleados" },
-  { slug: "MEJORAS",              label: "Mejoras del ERP" },
-  { slug: "INFORMES",             label: "Informes y Estadísticas" },
+// ── Grupos de módulos organizados por sección del sidebar ────────────────────
+const SIDEBAR_GROUPS = [
+  {
+    key: "ventas", label: "🛒 Ventas",
+    color: "bg-amber-50 border-amber-200 text-amber-700",
+    modules: [
+      { slug: "VENTAS",     label: "Facturación / POS" },
+      { slug: "CONSULTAS",  label: "Consultas ERP" },
+      { slug: "COMPARADOR", label: "Comparador Precios" },
+    ],
+  },
+  {
+    key: "ecommerce", label: "🌐 E-commerce",
+    color: "bg-yellow-50 border-yellow-200 text-yellow-700",
+    modules: [
+      { slug: "MERCADOLIBRE", label: "MercadoLibre — Depósito" },
+    ],
+  },
+  {
+    key: "catalogo", label: "📦 Catálogo & Stock",
+    color: "bg-emerald-50 border-emerald-200 text-emerald-700",
+    modules: [
+      { slug: "PRODUCTOS",      label: "Productos" },
+      { slug: "CATALOGO",       label: "Catálogo (Proveedores/Precios)" },
+      { slug: "STOCK",          label: "Stock" },
+      { slug: "DEPOSITO",       label: "Depósito" },
+      { slug: "TRANSPORTE",     label: "Transporte" },
+      { slug: "PDF_INVENTARIO", label: "Reorganizador PDF de Inventario" },
+      { slug: "STOCK_MULTILOCAL", label: "Stock Multi-local" },
+    ],
+  },
+  {
+    key: "compras", label: "🛍️ Compras & Proveedores",
+    color: "bg-sky-50 border-sky-200 text-sky-700",
+    modules: [
+      { slug: "COMPRAS",             label: "Compras (general)" },
+      { slug: "NOTAS_PEDIDO",        label: "Notas de Pedido" },
+      { slug: "RECEPCION",           label: "Recepción" },
+      { slug: "INGRESO",             label: "Ingreso Mercadería" },
+      { slug: "FACTURAS_PROVEEDOR",  label: "Facturas / Remitos" },
+      { slug: "COMPLETADOS",         label: "Completados" },
+      { slug: "PROVEEDORES",         label: "Proveedores" },
+      { slug: "IMPORTACION",         label: "Importación" },
+    ],
+  },
+  {
+    key: "admin", label: "💰 Administración",
+    color: "bg-purple-50 border-purple-200 text-purple-700",
+    modules: [
+      { slug: "PAGOS",    label: "Gestión de Pagos" },
+      { slug: "INFORMES", label: "Informes" },
+    ],
+  },
+  {
+    key: "crm", label: "💬 CRM & Marketing",
+    color: "bg-cyan-50 border-cyan-200 text-cyan-700",
+    modules: [
+      { slug: "CRM",      label: "CRM Completo (Clientes 360, Club, Campañas, etc.)" },
+      { slug: "MENSAJES",  label: "Mensajes internos" },
+    ],
+  },
+  {
+    key: "reportes", label: "📊 Reportes & BI",
+    color: "bg-orange-50 border-orange-200 text-orange-700",
+    modules: [
+      { slug: "REPORTES",     label: "Reportes / Analytics" },
+      { slug: "RESUMEN",      label: "Resumen" },
+      { slug: "ESTADISTICAS", label: "Estadísticas" },
+      { slug: "KANBAN",       label: "TrellOutdoor" },
+      { slug: "SUPERTREND",   label: "SuperTrend" },
+    ],
+  },
+  {
+    key: "rrhh", label: "👥 RRHH & Operaciones",
+    color: "bg-rose-50 border-rose-200 text-rose-700",
+    modules: [
+      { slug: "RRHH",                 label: "Recursos Humanos" },
+      { slug: "NAALOO",               label: "Portal Empleado (Naaloo)" },
+      { slug: "FICHAJE",              label: "Fichaje Entrada/Salida" },
+      { slug: "COMISIONES",           label: "Comisiones" },
+      { slug: "PUNTUACION_EMPLEADOS", label: "Puntuación Empleados" },
+      { slug: "SOCIOS",               label: "Socios Montagne" },
+      { slug: "OT",                   label: "Órdenes de Trabajo (Taller)" },
+    ],
+  },
+  {
+    key: "sistema", label: "⚙️ Sistema",
+    color: "bg-gray-50 border-gray-200 text-gray-600",
+    modules: [
+      { slug: "LOCALES",    label: "Locales / Bases" },
+      { slug: "USUARIOS",   label: "Usuarios" },
+      { slug: "MONITOREO",  label: "Monitoreo" },
+      { slug: "SYNC",       label: "Sincronización Offline" },
+      { slug: "MEJORAS",    label: "Mejoras del ERP" },
+      { slug: "PROPUESTAS", label: "Propuestas de Menú" },
+    ],
+  },
+  {
+    key: "rfid", label: "📡 RFID — Gestión Inteligente",
+    color: "bg-teal-50 border-teal-200 text-teal-700",
+    modules: [
+      { slug: "RFID",           label: "Dashboard RFID" },
+      { slug: "RFID_ETIQUETAS", label: "Etiquetas" },
+      { slug: "RFID_LECTORES",  label: "Lectores" },
+      { slug: "RFID_ALERTAS",   label: "Alertas" },
+      { slug: "RFID_INVENTARIO",label: "Inventario RFID" },
+      { slug: "RFID_PROPUESTA", label: "Propuesta ROI" },
+    ],
+  },
 ];
+
+// Derivado: lista plana para compatibilidad con paneles de usuario
+const ALL_MODULES = SIDEBAR_GROUPS.flatMap(g => g.modules);
+
+// Groups matching ERP sidebar structure — used in user permissions panel
+const MODULE_GROUPS = {
+  // Ventas
+  VENTAS: "🛒 Ventas", CONSULTAS: "🛒 Ventas", COMPARADOR: "🛒 Ventas",
+  // E-commerce
+  MERCADOLIBRE: "🌐 E-commerce", ML_INDUMENTARIA: "🌐 E-commerce", ML_NEUQUEN: "🌐 E-commerce",
+  VTEX_CANAL: "🌐 E-commerce", VTEX_INACTIVOS: "🌐 E-commerce", DRAGONFISH: "🌐 E-commerce",
+  // Catálogo & Stock
+  PRODUCTOS: "📦 Catálogo & Stock", CATALOGO: "📦 Catálogo & Stock", STOCK: "📦 Catálogo & Stock",
+  DEPOSITO: "📦 Catálogo & Stock", TRANSPORTE: "📦 Catálogo & Stock",
+  PDF_INVENTARIO: "📦 Catálogo & Stock", STOCK_MULTILOCAL: "📦 Catálogo & Stock",
+  // Compras
+  NOTAS_PEDIDO: "🛍️ Compras", RECEPCION: "🛍️ Compras", INGRESO: "🛍️ Compras",
+  FACTURAS_PROVEEDOR: "🛍️ Compras", COMPLETADOS: "🛍️ Compras", PROVEEDORES: "🛍️ Compras",
+  IMPORTACION: "🛍️ Compras", COMPRAS: "🛍️ Compras",
+  // Administración
+  PAGOS: "💰 Administración", INFORMES: "💰 Administración",
+  RESUMEN: "💰 Administración", ESTADISTICAS: "💰 Administración",
+  // CRM & Marketing
+  CRM: "💬 CRM & Marketing", CRM_DASHBOARD: "💬 CRM & Marketing", CLIENTES_360: "💬 CRM & Marketing",
+  INBOX: "💬 CRM & Marketing", MENSAJES: "💬 CRM & Marketing", MUNDO_CLUB: "💬 CRM & Marketing",
+  CAMPANAS: "💬 CRM & Marketing", PUBLICIDAD: "💬 CRM & Marketing", CONTENIDO: "💬 CRM & Marketing",
+  ANALYTICS_CRM: "💬 CRM & Marketing", INTEGRACIONES_CRM: "💬 CRM & Marketing",
+  REPORTES_CRM: "💬 CRM & Marketing", ASISTENTE_IA: "💬 CRM & Marketing",
+  // RRHH
+  RRHH: "👥 RRHH & Operaciones", FICHAJE: "👥 RRHH & Operaciones", COMISIONES: "👥 RRHH & Operaciones",
+  PUNTUACION_EMPLEADOS: "👥 RRHH & Operaciones", SOCIOS: "👥 RRHH & Operaciones", OT: "👥 RRHH & Operaciones",
+  NAALOO: "👥 RRHH & Operaciones",
+  // Reportes & BI
+  REPORTES: "📊 Reportes & BI", RESUMEN: "📊 Reportes & BI", ESTADISTICAS: "📊 Reportes & BI",
+  KANBAN: "📊 Reportes & BI", SUPERTREND: "📊 Reportes & BI",
+  // Sistema
+  LOCALES: "⚙️ Sistema", USUARIOS: "⚙️ Sistema", MONITOREO: "⚙️ Sistema",
+  SYNC: "⚙️ Sistema", MEJORAS: "⚙️ Sistema", PROPUESTAS: "⚙️ Sistema",
+  // RFID
+  RFID: "📡 RFID", RFID_ETIQUETAS: "📡 RFID", RFID_LECTORES: "📡 RFID",
+  RFID_ALERTAS: "📡 RFID", RFID_INVENTARIO: "📡 RFID", RFID_PROPUESTA: "📡 RFID",
+};
 
 const ROLE_COLORS = {
   SUPERADMIN: "bg-purple-100 text-purple-800",
@@ -150,10 +289,10 @@ export default function MegaAdminPage() {
   const impersonateMutation = useMutation({
     mutationFn: (userId) => api.post(`/mega/impersonate/${userId}`),
     onSuccess: (data, userId) => {
-      const originalToken = localStorage.getItem("token");
+      const originalToken = sessionStorage.getItem("token");
       const targetUser = companyDetail?.users?.find((u) => u.id === userId);
-      localStorage.setItem("mega_original_token", originalToken);
-      localStorage.setItem("token", data.access_token);
+      sessionStorage.setItem("mega_original_token", originalToken);
+      sessionStorage.setItem("token", data.access_token);
       setImpersonating(targetUser?.full_name || targetUser?.username || `User #${userId}`);
     },
   });
@@ -202,6 +341,17 @@ export default function MegaAdminPage() {
     );
   }, [companies, searchTerm]);
 
+  // Auto-select first company and show users tab by default
+  useEffect(() => {
+    if (companies.length > 0 && !selectedCompanyId && !companiesLoading) {
+      const first = companies[0];
+      setSelectedCompanyId(first.id);
+      setActiveTab("usuarios");
+      setEditForm({ name: first.name || "", cuit: first.cuit || "", address: first.address || "", phone: first.phone || "", email: first.email || "" });
+      setBrandingForm({ app_name: first.app_name || "", short_name: first.short_name || "", primary_color: first.primary_color || "#3B82F6", secondary_color: first.secondary_color || "#1E40AF", welcome_message: first.welcome_message || "" });
+    }
+  }, [companies, companiesLoading]); // eslint-disable-line
+
   // ── Open modal ──
   const openDetail = (company) => {
     setSelectedCompanyId(company.id);
@@ -245,10 +395,10 @@ export default function MegaAdminPage() {
   const handleSaveModules = () => updateModules.mutate(selectedModules);
 
   const handleStopImpersonating = () => {
-    const original = localStorage.getItem("mega_original_token");
+    const original = sessionStorage.getItem("mega_original_token");
     if (original) {
-      localStorage.setItem("token", original);
-      localStorage.removeItem("mega_original_token");
+      sessionStorage.setItem("token", original);
+      sessionStorage.removeItem("mega_original_token");
     }
     setImpersonating(null);
     window.location.reload();
@@ -535,6 +685,7 @@ export default function MegaAdminPage() {
                 { key: "modulos", label: "Módulos", icon: Blocks },
                 { key: "plan", label: "Plan", icon: CreditCard },
                 { key: "usuarios", label: "Usuarios", icon: Users },
+                { key: "licencias", label: "Licencias PC", icon: Monitor },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -585,6 +736,11 @@ export default function MegaAdminPage() {
                   onSubscribe={(data) => subscribeMutation.mutate(data)}
                   saving={subscribeMutation.isPending}
                   success={subscribeMutation.isSuccess}
+                />
+              ) : activeTab === "licencias" ? (
+                <TabLicencias
+                  companyId={selectedCompanyId}
+                  locals={companyDetail?.locals || []}
                 />
               ) : (
                 <TabUsers
@@ -816,30 +972,96 @@ function TabBranding({ form, setForm, onSave, saving, success, companyId, compan
 
 // ── Tab: Modules ──
 function TabModules({ selected, onToggle, onSave, saving, success }) {
+  const toggleGroup = (slugs, enable) => {
+    for (const slug of slugs) {
+      const active = selected.includes(slug);
+      if (enable && !active) onToggle(slug);
+      if (!enable && active) onToggle(slug);
+    }
+  };
+
+  const allSlugs = ALL_MODULES.map((m) => m.slug);
+  const globalAllOn = allSlugs.every((s) => selected.includes(s));
+  const globalAllOff = allSlugs.every((s) => !selected.includes(s));
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">
-        Seleccioná los módulos activos para esta empresa ({selected.length} de {ALL_MODULES.length})
-      </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {ALL_MODULES.map((m) => {
-          const active = selected.includes(m.slug);
-          return (
-            <button
-              key={m.slug}
-              onClick={() => onToggle(m.slug)}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition ${
-                active
-                  ? "bg-blue-50 border-blue-300 text-blue-700"
-                  : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
-              }`}
-            >
-              {active ? <CheckCircle size={16} /> : <XCircle size={16} className="text-gray-300" />}
-              {m.label}
-            </button>
-          );
-        })}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-sm text-gray-500">
+          Módulos activos — <strong>{selected.length}</strong> de {ALL_MODULES.length} habilitados
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => toggleGroup(allSlugs, true)}
+            disabled={globalAllOn}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-40"
+          >
+            <ShieldCheck size={13} /> Activar TODOS
+          </button>
+          <button
+            onClick={() => toggleGroup(allSlugs, false)}
+            disabled={globalAllOff}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-40"
+          >
+            <ShieldOff size={13} /> Desactivar TODOS
+          </button>
+        </div>
       </div>
+
+      {SIDEBAR_GROUPS.map((group) => {
+        const slugs = group.modules.map((m) => m.slug);
+        const activeCount = slugs.filter((s) => selected.includes(s)).length;
+        const allOn = activeCount === slugs.length;
+        const allOff = activeCount === 0;
+        const colorClasses = group.color.split(" ");
+        return (
+          <div key={group.key} className={`rounded-xl border p-4 ${colorClasses.slice(0, 2).join(" ")} ${colorClasses[2]}`}>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold">{group.label}</span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/60 border border-current/10">
+                  {activeCount}/{slugs.length}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleGroup(slugs, true)}
+                  disabled={allOn}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 transition disabled:opacity-40"
+                >
+                  <ShieldCheck size={12} /> Grupo completo
+                </button>
+                <button
+                  onClick={() => toggleGroup(slugs, false)}
+                  disabled={allOff}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 transition disabled:opacity-40"
+                >
+                  <ShieldOff size={12} /> Quitar grupo
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {group.modules.map((m) => {
+                const active = selected.includes(m.slug);
+                return (
+                  <button
+                    key={m.slug}
+                    onClick={() => onToggle(m.slug)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition ${
+                      active
+                        ? "bg-blue-50 border-blue-300 text-blue-700"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {active ? <CheckCircle size={15} /> : <XCircle size={15} className="text-gray-300" />}
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
       <SaveButton onClick={onSave} saving={saving} success={success} />
     </div>
   );
@@ -848,48 +1070,129 @@ function TabModules({ selected, onToggle, onSave, saving, success }) {
 // ── Tab: Users ──
 function TabUsers({ users, companyModules, onImpersonate, impersonating, queryClient, selectedCompanyId }) {
   const [expandedUserId, setExpandedUserId] = useState(null);
+  const [userSubTab, setUserSubTab] = useState({}); // userId -> "datos" | "permisos"
   const [userModules, setUserModules] = useState({});
+  const [userReadonly, setUserReadonly] = useState({});
+  const [userEdits, setUserEdits] = useState({});
+  const [search, setSearch] = useState("");
 
-  // Build set of active company modules for display
   const activeCompanySlugs = new Set(
     companyModules.filter((m) => m.is_active).map((m) => m.module_slug)
   );
 
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.full_name?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.role?.toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
   const setModulesMutation = useMutation({
     mutationFn: ({ userId, modules_override }) =>
       api.patch(`/mega/users/${userId}/modules`, { modules_override }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mega-company", selectedCompanyId] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mega-company", selectedCompanyId] }),
+  });
+
+  const setPermsMutation = useMutation({
+    mutationFn: ({ userId, modules_readonly }) =>
+      api.patch(`/mega/users/${userId}/module-permissions`, { modules_readonly }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mega-company", selectedCompanyId] }),
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: ({ userId, data }) => api.patch(`/mega/users/${userId}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mega-company", selectedCompanyId] }),
   });
 
   const toggleUserModule = (userId, slug) => {
     setUserModules((prev) => {
-      const current = prev[userId] ?? null;
-      // If null = sin restricción, expandir a todos los activos de la empresa
-      const base = current ?? [...activeCompanySlugs];
+      const base = prev[userId] ?? [...activeCompanySlugs];
       const set = new Set(base);
-      if (set.has(slug)) set.delete(slug);
-      else set.add(slug);
+      if (set.has(slug)) set.delete(slug); else set.add(slug);
       return { ...prev, [userId]: [...set] };
     });
   };
 
-  const initUserModules = (user) => {
-    setUserModules((prev) => {
-      if (prev[user.id] !== undefined) return prev;
-      // Use existing override, or null (unrestricted)
-      return { ...prev, [user.id]: user.modules_override ?? null };
+  const toggleReadonly = (userId, slug) => {
+    setUserReadonly((prev) => {
+      const base = prev[userId] ?? [];
+      const set = new Set(base);
+      if (set.has(slug)) set.delete(slug); else set.add(slug);
+      return { ...prev, [userId]: [...set] };
     });
   };
 
-  const saveUserModules = (userId) => {
-    const override = userModules[userId] ?? null;
-    setModulesMutation.mutate({ userId, modules_override: override });
+  // Set a specific state for one module
+  const setModuleState = (userId, slug, targetState) => {
+    const activeList = [...activeCompanySlugs];
+    const getOverride = (prev) => (prev[userId] !== undefined ? prev[userId] : null);
+    if (targetState === "hidden") {
+      setUserModules((prev) => {
+        const cur = getOverride(prev);
+        const base = cur !== null ? cur : activeList;
+        return { ...prev, [userId]: base.filter((s) => s !== slug) };
+      });
+      setUserReadonly((prev) => ({ ...prev, [userId]: (prev[userId] ?? []).filter((s) => s !== slug) }));
+    } else if (targetState === "readonly") {
+      setUserModules((prev) => {
+        const cur = getOverride(prev);
+        const base = cur !== null ? cur : activeList;
+        if (!base.includes(slug)) return { ...prev, [userId]: [...base, slug] };
+        return prev;
+      });
+      setUserReadonly((prev) => {
+        const base = prev[userId] ?? [];
+        if (!base.includes(slug)) return { ...prev, [userId]: [...base, slug] };
+        return prev;
+      });
+    } else {
+      // editable
+      setUserModules((prev) => {
+        const cur = getOverride(prev);
+        const base = cur !== null ? cur : activeList;
+        if (!base.includes(slug)) return { ...prev, [userId]: [...base, slug] };
+        return prev;
+      });
+      setUserReadonly((prev) => ({ ...prev, [userId]: (prev[userId] ?? []).filter((s) => s !== slug) }));
+    }
   };
 
-  const resetUserModules = (userId) => {
-    setUserModules((prev) => ({ ...prev, [userId]: null }));
+  // Cycles: hidden → editable → readonly → hidden
+  const cycleModuleState = (userId, slug, currentState) => {
+    const next = currentState === "editable" ? "readonly" : currentState === "readonly" ? "hidden" : "editable";
+    setModuleState(userId, slug, next);
+  };
+
+  // Apply a state to every module in a group
+  const setGroupState = (userId, slugs, targetState) => {
+    slugs.forEach((slug) => setModuleState(userId, slug, targetState));
+  };
+
+  const saveAllPerms = (userId) => {
+    const modules_override = userModules[userId] !== undefined ? userModules[userId] : null;
+    const modules_readonly = userReadonly[userId] ?? [];
+    setModulesMutation.mutate({ userId, modules_override });
+    setPermsMutation.mutate({ userId, modules_readonly });
+  };
+
+  const initUser = (user) => {
+    setUserModules((prev) => {
+      if (prev[user.id] !== undefined) return prev;
+      return { ...prev, [user.id]: user.modules_override ?? null };
+    });
+    setUserReadonly((prev) => {
+      if (prev[user.id] !== undefined) return prev;
+      return { ...prev, [user.id]: user.modules_readonly ?? [] };
+    });
+    setUserEdits((prev) => {
+      if (prev[user.id] !== undefined) return prev;
+      return { ...prev, [user.id]: { full_name: user.full_name || "", email: user.email || "", role: user.role, newPassword: "" } };
+    });
   };
 
   if (users.length === 0) {
@@ -897,23 +1200,57 @@ function TabUsers({ users, companyModules, onImpersonate, impersonating, queryCl
   }
 
   return (
-    <div className="space-y-2">
-      {users.map((u) => {
+    <div className="space-y-3">
+      {/* Search + summary */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, @usuario, email o rol..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-300"
+          />
+        </div>
+        <span className="text-xs text-gray-400 shrink-0">
+          {filteredUsers.length} de {users.length} usuarios
+        </span>
+      </div>
+
+      <div className="space-y-2">
+      {filteredUsers.map((u) => {
         const isExpanded = expandedUserId === u.id;
         const currentOverride = userModules[u.id] !== undefined ? userModules[u.id] : u.modules_override;
         const hasRestriction = currentOverride !== null && currentOverride !== undefined;
+        const currentReadonly = userReadonly[u.id] !== undefined ? userReadonly[u.id] : (u.modules_readonly ?? []);
+        const hasReadonly = currentReadonly?.length > 0;
+        const subTab = userSubTab[u.id] ?? "datos";
 
         return (
           <div key={u.id} className="border border-gray-200 rounded-xl overflow-hidden">
             {/* User row */}
             <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs shrink-0">
-                  {u.full_name?.charAt(0)?.toUpperCase() || u.username?.charAt(0)?.toUpperCase() || "?"}
+                <div className="relative shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                    {u.full_name?.charAt(0)?.toUpperCase() || u.username?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${u.is_active !== false ? "bg-green-400" : "bg-gray-300"}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{u.full_name || u.username}</p>
-                  <p className="text-xs text-gray-400 truncate">{u.email || u.username}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                      {u.full_name || <span className="italic text-gray-400">Sin nombre</span>}
+                    </p>
+                    <span className="text-xs text-gray-400 shrink-0">#{u.id}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-blue-600 font-mono truncate">@{u.username}</p>
+                    {u.email && u.email !== u.username && (
+                      <p className="text-xs text-gray-400 truncate">· {u.email}</p>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -921,20 +1258,24 @@ function TabUsers({ users, companyModules, onImpersonate, impersonating, queryCl
                   {u.role}
                 </span>
                 {hasRestriction && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
-                    {currentOverride?.length ?? 0} módulos
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                    <Eye size={10} /> {currentOverride?.length ?? 0} vis.
+                  </span>
+                )}
+                {hasReadonly && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-200">
+                    <Edit3 size={10} /> {currentReadonly.length} RO
                   </span>
                 )}
                 <button
                   onClick={() => {
-                    if (!isExpanded) initUserModules(u);
+                    if (!isExpanded) initUser(u);
                     setExpandedUserId(isExpanded ? null : u.id);
                   }}
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
-                  title="Configurar módulos"
                 >
                   <Layers size={12} />
-                  Módulos
+                  Permisos
                   {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
                 <button
@@ -949,75 +1290,380 @@ function TabUsers({ users, companyModules, onImpersonate, impersonating, queryCl
               </div>
             </div>
 
-            {/* Expanded: module config */}
             {isExpanded && (
               <div className="px-4 py-4 bg-white border-t border-gray-100">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">Módulos visibles para {u.full_name || u.username}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {!hasRestriction
-                        ? "Sin restricción — ve todos los módulos activos de la empresa"
-                        : `Restricción activa — solo ve ${currentOverride?.length ?? 0} módulo(s)`}
-                    </p>
-                  </div>
+                {/* Sub-tabs */}
+                <div className="flex gap-2 mb-4 border-b border-gray-100 pb-3">
                   <button
-                    onClick={() => resetUserModules(u.id)}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    onClick={() => setUserSubTab((p) => ({ ...p, [u.id]: "datos" }))}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      subTab === "datos" ? "bg-gray-800 text-white" : "text-gray-500 hover:bg-gray-100"
+                    }`}
                   >
-                    Sin restricción
+                    <Edit3 size={12} /> Datos del usuario
+                  </button>
+                  <button
+                    onClick={() => setUserSubTab((p) => ({ ...p, [u.id]: "permisos" }))}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      subTab === "permisos" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Layers size={12} /> Módulos y permisos
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                  {ALL_MODULES.filter((m) => activeCompanySlugs.has(m.slug)).map((m) => {
-                    const overrideList = currentOverride ?? [...activeCompanySlugs];
-                    const checked = overrideList.includes(m.slug);
-                    return (
-                      <button
-                        key={m.slug}
-                        onClick={() => {
-                          // Init to full list if currently unrestricted
-                          if (userModules[u.id] === null || userModules[u.id] === undefined) {
-                            setUserModules((prev) => ({ ...prev, [u.id]: [...activeCompanySlugs] }));
-                          }
-                          toggleUserModule(u.id, m.slug);
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-medium transition text-left ${
-                          checked
-                            ? "bg-blue-50 border-blue-300 text-blue-700"
-                            : "bg-white border-gray-200 text-gray-400 hover:border-gray-300"
-                        }`}
-                      >
-                        {checked
-                          ? <CheckCircle size={13} className="shrink-0" />
-                          : <XCircle size={13} className="shrink-0 text-gray-300" />}
-                        <span className="truncate">{m.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* ── Datos del usuario ── */}
+                {subTab === "datos" && (() => {
+                  const edits = userEdits[u.id] ?? { full_name: u.full_name || "", email: u.email || "", role: u.role, newPassword: "" };
+                  const setEdit = (field, val) => setUserEdits((p) => ({ ...p, [u.id]: { ...(p[u.id] ?? edits), [field]: val } }));
+                  return (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block font-medium">Nombre completo</label>
+                          <input
+                            value={edits.full_name}
+                            onChange={(e) => setEdit("full_name", e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block font-medium">Email</label>
+                          <input
+                            type="email"
+                            value={edits.email}
+                            onChange={(e) => setEdit("email", e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-300"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block font-medium">Usuario</label>
+                          <input value={u.username} disabled className="w-full px-3 py-2 border border-gray-100 rounded-lg text-sm bg-gray-50 text-gray-400 font-mono" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block font-medium">Rol</label>
+                          <select
+                            value={edits.role}
+                            onChange={(e) => setEdit("role", e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-300 bg-white"
+                          >
+                            {["ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS","LOCAL","VENDEDOR","DEPOSITO","SUPERVISOR","MONITOREO","TRANSPORTE"].map((r) => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1 block font-medium">Nueva contraseña <span className="text-gray-300">(opcional)</span></label>
+                          <input
+                            type="password"
+                            value={edits.newPassword}
+                            onChange={(e) => setEdit("newPassword", e.target.value)}
+                            placeholder="Dejar vacío para no cambiar"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-300"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => updateUserMutation.mutate({ userId: u.id, data: { full_name: edits.full_name, email: edits.email, role: edits.role, new_password: edits.newPassword || undefined } })}
+                          disabled={updateUserMutation.isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition disabled:opacity-50"
+                        >
+                          <Save size={13} />
+                          {updateUserMutation.isPending ? "Guardando..." : "Guardar datos"}
+                        </button>
+                        {updateUserMutation.isSuccess && (
+                          <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                            <CheckCircle size={13} /> Guardado
+                          </span>
+                        )}
+                        {updateUserMutation.isError && (
+                          <span className="text-xs text-red-500">{updateUserMutation.error?.message || "Error al guardar"}</span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => saveUserModules(u.id)}
-                    disabled={setModulesMutation.isPending}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                  >
-                    <Save size={13} />
-                    {setModulesMutation.isPending ? "Guardando..." : "Guardar módulos"}
-                  </button>
-                  {setModulesMutation.isSuccess && (
-                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                      <CheckCircle size={13} /> Guardado
-                    </span>
-                  )}
-                </div>
+                {/* ── Módulos y permisos (vista unificada 3 estados) ── */}
+                {subTab === "permisos" && (() => {
+                  const overrideList = (userModules[u.id] !== undefined ? userModules[u.id] : u.modules_override) ?? null;
+                  const roList = userReadonly[u.id] !== undefined ? userReadonly[u.id] : (u.modules_readonly ?? []);
+                  const getState = (slug) => {
+                    const visible = overrideList === null || overrideList.includes(slug);
+                    if (!visible) return "hidden";
+                    return roList.includes(slug) ? "readonly" : "editable";
+                  };
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><XCircle size={11} className="text-gray-300" /> Oculto</span>
+                          <span className="flex items-center gap-1"><Edit3 size={11} className="text-blue-500" /> Editable</span>
+                          <span className="flex items-center gap-1"><Eye size={11} className="text-yellow-500" /> Solo lectura</span>
+                          <span className="text-gray-300">— clic para ciclar</span>
+                        </div>
+                        <button
+                          onClick={() => setUserModules((p) => ({ ...p, [u.id]: null }))}
+                          className="text-xs text-gray-400 hover:text-gray-600 underline"
+                        >
+                          Sin restricción (todo activo)
+                        </button>
+                      </div>
+                      <div className="space-y-3 mb-4">
+                        {SIDEBAR_GROUPS.map((group) => {
+                          // Mostrar TODOS los módulos del catálogo (no solo activos para la empresa)
+                          // para que el MEGAADMIN pueda asignar permisos de cualquier módulo.
+                          const groupMods = group.modules;
+                          if (groupMods.length === 0) return null;
+                          const allOn = groupMods.every((m) => getState(m.slug) !== "hidden");
+                          const allOff = groupMods.every((m) => getState(m.slug) === "hidden");
+                          return (
+                            <div key={group.key} className={`rounded-lg border p-3 ${group.color}`}>
+                              <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+                                <span className="text-xs font-bold">{group.label}</span>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => setGroupState(u.id, groupMods.map((m) => m.slug), "editable")}
+                                    className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition font-medium flex items-center gap-1"
+                                    title="Activar todos con edición"
+                                  >
+                                    <Edit3 size={10} /> Todo edit
+                                  </button>
+                                  <button
+                                    onClick={() => setGroupState(u.id, groupMods.map((m) => m.slug), "readonly")}
+                                    className="text-[10px] px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition font-medium flex items-center gap-1"
+                                    title="Activar todos en solo lectura"
+                                  >
+                                    <Eye size={10} /> Todo ver
+                                  </button>
+                                  <button
+                                    onClick={() => setGroupState(u.id, groupMods.map((m) => m.slug), "hidden")}
+                                    disabled={allOff}
+                                    className="text-[10px] px-2 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-30 transition font-medium flex items-center gap-1"
+                                    title="Ocultar todos"
+                                  >
+                                    <XCircle size={10} /> Ocultar
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                {groupMods.map((m) => {
+                                  const state = getState(m.slug);
+                                  return (
+                                    <button
+                                      key={m.slug}
+                                      onClick={() => cycleModuleState(u.id, m.slug, state)}
+                                      title="Clic para ciclar: Oculto → Editable → Solo lectura"
+                                      className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-medium transition text-left ${
+                                        state === "editable"
+                                          ? "bg-blue-50 border-blue-300 text-blue-700"
+                                          : state === "readonly"
+                                          ? "bg-yellow-50 border-yellow-300 text-yellow-700"
+                                          : "bg-white/50 border-white/80 text-gray-400"
+                                      }`}
+                                    >
+                                      {state === "editable" && <Edit3 size={12} className="shrink-0 text-blue-500" />}
+                                      {state === "readonly" && <Eye size={12} className="shrink-0 text-yellow-500" />}
+                                      {state === "hidden" && <XCircle size={12} className="shrink-0 text-gray-300" />}
+                                      <span className="truncate">{m.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => saveAllPerms(u.id)}
+                          disabled={setModulesMutation.isPending || setPermsMutation.isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                          <Save size={13} />
+                          {setModulesMutation.isPending || setPermsMutation.isPending ? "Guardando..." : "Guardar permisos"}
+                        </button>
+                        {(setModulesMutation.isSuccess || setPermsMutation.isSuccess) && (
+                          <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                            <CheckCircle size={13} /> Guardado
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
+
           </div>
         );
       })}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab: Licencias PC ──
+function TabLicencias({ companyId, locals }) {
+  const queryClient = useQueryClient();
+  const [newForm, setNewForm] = useState({ device_name: "", mac_address: "", local_id: "" });
+  const [showForm, setShowForm] = useState(false);
+
+  const { data: licenses = [], isLoading } = useQuery({
+    queryKey: ["mega-licenses", companyId],
+    queryFn: () => api.get(`/mega/companies/${companyId}/pc-licenses`),
+    enabled: !!companyId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => api.post(`/mega/companies/${companyId}/pc-licenses`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mega-licenses", companyId] });
+      setNewForm({ device_name: "", mac_address: "", local_id: "" });
+      setShowForm(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/mega/pc-licenses/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mega-licenses", companyId] }),
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, is_active }) => api.patch(`/mega/pc-licenses/${id}`, { is_active }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mega-licenses", companyId] }),
+  });
+
+  // Group by local
+  const grouped = useMemo(() => {
+    const map = {};
+    for (const lic of licenses) {
+      const key = lic.local_id ?? "sin-local";
+      const label = lic.local_name || "Sin local asignado";
+      if (!map[key]) map[key] = { label, items: [] };
+      map[key].items.push(lic);
+    }
+    return Object.entries(map);
+  }, [licenses]);
+
+  if (isLoading) return <p className="text-sm text-gray-400 py-8 text-center">Cargando licencias...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">{licenses.length} licencias registradas</p>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition"
+        >
+          <Plus size={13} /> Nueva licencia
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+          <p className="text-sm font-semibold text-gray-700">Registrar nueva PC</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input
+              type="text"
+              placeholder="Nombre del equipo"
+              value={newForm.device_name}
+              onChange={(e) => setNewForm((p) => ({ ...p, device_name: e.target.value }))}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+            <input
+              type="text"
+              placeholder="MAC address (opcional)"
+              value={newForm.mac_address}
+              onChange={(e) => setNewForm((p) => ({ ...p, mac_address: e.target.value }))}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+            <select
+              value={newForm.local_id}
+              onChange={(e) => setNewForm((p) => ({ ...p, local_id: e.target.value }))}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">Sin local</option>
+              {locals.map((l) => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => createMutation.mutate({ ...newForm, local_id: newForm.local_id || null })}
+              disabled={createMutation.isPending || !newForm.device_name}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition disabled:opacity-50"
+            >
+              {createMutation.isPending ? "Guardando..." : "Registrar"}
+            </button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-xs text-gray-500 hover:text-gray-700">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {grouped.length === 0 && (
+        <p className="text-sm text-gray-400 text-center py-8">No hay licencias registradas aún</p>
+      )}
+
+      {grouped.map(([key, group]) => (
+        <div key={key} className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+            <MapPin size={14} className="text-blue-500" />
+            <span className="text-sm font-semibold text-gray-700">{group.label}</span>
+            <span className="ml-auto text-xs text-gray-400">{group.items.length} PC{group.items.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {group.items.map((lic) => {
+              const isExpired = lic.expires_at && new Date(lic.expires_at) < new Date();
+              const expDate = lic.expires_at ? new Date(lic.expires_at).toLocaleDateString("es-AR") : "—";
+              return (
+                <div key={lic.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Monitor size={16} className={`shrink-0 ${lic.is_active ? "text-green-500" : "text-gray-300"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{lic.device_name}</p>
+                      {lic.mac_address && (
+                        <p className="text-xs text-gray-400 font-mono truncate">{lic.mac_address}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      !lic.is_active ? "bg-red-100 text-red-600" :
+                      isExpired ? "bg-orange-100 text-orange-600" :
+                      "bg-green-100 text-green-700"
+                    }`}>
+                      {!lic.is_active ? "Inactiva" : isExpired ? `Vence ${expDate}` : `OK · ${expDate}`}
+                    </span>
+                    <button
+                      onClick={() => toggleActiveMutation.mutate({ id: lic.id, is_active: !lic.is_active })}
+                      disabled={toggleActiveMutation.isPending}
+                      title={lic.is_active ? "Desactivar" : "Activar"}
+                      className={`p-1.5 rounded-lg transition ${lic.is_active ? "hover:bg-red-50 text-red-400" : "hover:bg-green-50 text-green-500"}`}
+                    >
+                      {lic.is_active ? <ShieldOff size={13} /> : <ShieldCheck size={13} />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`¿Eliminar licencia de ${lic.device_name}?`)) deleteMutation.mutate(lic.id);
+                      }}
+                      disabled={deleteMutation.isPending}
+                      title="Eliminar licencia"
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

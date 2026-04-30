@@ -36,7 +36,7 @@ class MessageOut(BaseModel):
 class MessageCreate(BaseModel):
     to_user_id: Optional[int] = None
     is_broadcast: bool = False
-    subject: str
+    subject: Optional[str] = None
     content: str
     image_url: Optional[str] = None
 
@@ -63,12 +63,16 @@ def get_unread_count(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    count = db.query(Message).filter(
-        Message.company_id == current_user.company_id,
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
+    q = db.query(Message).filter(
         Message.is_read == False,
         Message.from_user_id != current_user.id,
         (Message.to_user_id == current_user.id) | (Message.is_broadcast == True),
-    ).count()
+    )
+    if not is_super:
+        q = q.filter(Message.company_id == current_user.company_id)
+    count = q.count()
     return {"unread_count": count}
 
 
@@ -77,11 +81,42 @@ def list_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    users = db.query(User).filter(
-        User.company_id == current_user.company_id,
+    """Lista usuarios disponibles para enviar mensajes.
+    Siempre incluye:
+      - Usuarios de la misma empresa (si current_user tiene company)
+      - SUPERADMIN y MEGAADMIN (acceso multi-empresa, deben ser visibles para todos)
+      - Usuarios con los que ya tuviste conversación (entran/salen mensajes)
+    """
+    from app.models.user import UserRole
+    from sqlalchemy import or_
+
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
+
+    # Ids de usuarios con los que ya hubo conversación
+    sent_ids = db.query(Message.to_user_id).filter(
+        Message.from_user_id == current_user.id,
+        Message.to_user_id.isnot(None),
+    ).distinct()
+    recv_ids = db.query(Message.from_user_id).filter(
+        Message.to_user_id == current_user.id,
+    ).distinct()
+    convo_ids = {row[0] for row in sent_ids.all()} | {row[0] for row in recv_ids.all()}
+
+    base = db.query(User).filter(
         User.is_active == True,
         User.id != current_user.id,
-    ).all()
+    )
+    if is_super:
+        users = base.all()
+    else:
+        # misma empresa OR SUPER/MEGAADMIN OR convo previa
+        cond = [User.company_id == current_user.company_id,
+                User.role.in_([UserRole.SUPERADMIN, UserRole.MEGAADMIN])]
+        if convo_ids:
+            cond.append(User.id.in_(convo_ids))
+        users = base.filter(or_(*cond)).all()
+
     return [{"id": u.id, "full_name": u.full_name, "role": u.role.value if u.role else ""} for u in users]
 
 
@@ -92,11 +127,15 @@ def get_inbox(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
     q = db.query(Message).filter(
-        Message.company_id == current_user.company_id,
         Message.from_user_id != current_user.id,
         (Message.to_user_id == current_user.id) | (Message.is_broadcast == True),
-    ).order_by(Message.created_at.desc()).offset(skip).limit(limit)
+    )
+    if not is_super:
+        q = q.filter(Message.company_id == current_user.company_id)
+    q = q.order_by(Message.created_at.desc()).offset(skip).limit(limit)
     return [_serialize(m) for m in q.all()]
 
 
@@ -107,10 +146,14 @@ def get_sent(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
     q = db.query(Message).filter(
-        Message.company_id == current_user.company_id,
         Message.from_user_id == current_user.id,
-    ).order_by(Message.created_at.desc()).offset(skip).limit(limit)
+    )
+    if not is_super:
+        q = q.filter(Message.company_id == current_user.company_id)
+    q = q.order_by(Message.created_at.desc()).offset(skip).limit(limit)
     return [_serialize(m) for m in q.all()]
 
 
@@ -122,30 +165,37 @@ def send_message(
 ):
     if not body.is_broadcast and body.to_user_id is None:
         raise HTTPException(status_code=400, detail="Debe especificar destinatario o enviar como difusión")
-    if not body.subject.strip():
-        raise HTTPException(status_code=400, detail="El asunto no puede estar vacío")
     if not body.content.strip() and not body.image_url:
         raise HTTPException(status_code=400, detail="El contenido no puede estar vacío")
 
-    company_id = current_user.company_id
+    subject = (body.subject or "").strip() or "Sin asunto"
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
+
+    def _resolve_company(*users_list):
+        for u in users_list:
+            if u and getattr(u, "company_id", None):
+                return u.company_id
+        from app.models.company import Company
+        first = db.query(Company).order_by(Company.id).first()
+        return first.id if first else None
 
     if body.is_broadcast:
-        recipients = db.query(User).filter(
-            User.company_id == company_id,
-            User.is_active == True,
-            User.id != current_user.id,
-        ).all()
+        rq = db.query(User).filter(User.is_active == True, User.id != current_user.id)
+        if not is_super:
+            rq = rq.filter(User.company_id == current_user.company_id)
+        recipients = rq.all()
         created = []
         for recipient in recipients:
             m = Message(
                 from_user_id=current_user.id,
                 to_user_id=recipient.id,
                 is_broadcast=True,
-                subject=body.subject,
+                subject=subject,
                 content=body.content,
                 image_url=body.image_url,
                 is_read=False,
-                company_id=company_id,
+                company_id=_resolve_company(recipient, current_user),
             )
             db.add(m)
             created.append(m)
@@ -154,18 +204,33 @@ def send_message(
             db.refresh(m)
         return {"sent": len(created), "message": "Difusión enviada"}
     else:
-        recipient = db.query(User).filter(User.id == body.to_user_id, User.company_id == company_id).first()
+        # Permitir enviar a cualquier user de la misma company, OR a SUPERADMIN/MEGAADMIN, OR a alguien con quien ya hablaste
+        from app.models.user import UserRole
+        from sqlalchemy import or_
+        rq = db.query(User).filter(User.id == body.to_user_id, User.is_active == True)
+        if not is_super:
+            convo = db.query(Message.from_user_id).filter(Message.to_user_id == current_user.id).distinct()
+            convo_ids = {row[0] for row in convo.all()}
+            cond = [User.company_id == current_user.company_id,
+                    User.role.in_([UserRole.SUPERADMIN, UserRole.MEGAADMIN])]
+            if convo_ids:
+                cond.append(User.id.in_(convo_ids))
+            rq = rq.filter(or_(*cond))
+        recipient = rq.first()
         if not recipient:
             raise HTTPException(status_code=404, detail="Destinatario no encontrado")
+        msg_company_id = _resolve_company(recipient, current_user)
+        if not msg_company_id:
+            raise HTTPException(status_code=400, detail="No se pudo determinar la empresa del mensaje")
         m = Message(
             from_user_id=current_user.id,
             to_user_id=body.to_user_id,
             is_broadcast=False,
-            subject=body.subject,
+            subject=subject,
             content=body.content,
             image_url=body.image_url,
             is_read=False,
-            company_id=company_id,
+            company_id=msg_company_id,
         )
         db.add(m)
         db.commit()
@@ -179,11 +244,15 @@ def mark_as_read(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    m = db.query(Message).filter(
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
+    q = db.query(Message).filter(
         Message.id == message_id,
-        Message.company_id == current_user.company_id,
         (Message.to_user_id == current_user.id) | (Message.is_broadcast == True),
-    ).first()
+    )
+    if not is_super:
+        q = q.filter(Message.company_id == current_user.company_id)
+    m = q.first()
     if not m:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
     m.is_read = True
@@ -196,12 +265,16 @@ def mark_all_as_read(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    db.query(Message).filter(
-        Message.company_id == current_user.company_id,
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_super = role_val in ("MEGAADMIN", "SUPERADMIN") and current_user.company_id is None
+    q = db.query(Message).filter(
         Message.is_read == False,
         Message.from_user_id != current_user.id,
         (Message.to_user_id == current_user.id) | (Message.is_broadcast == True),
-    ).update({"is_read": True}, synchronize_session=False)
+    )
+    if not is_super:
+        q = q.filter(Message.company_id == current_user.company_id)
+    q.update({"is_read": True}, synchronize_session=False)
     db.commit()
     return {"ok": True}
 
@@ -212,18 +285,8 @@ def delete_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    m = db.query(Message).filter(
-        Message.id == message_id,
-        Message.company_id == current_user.company_id,
-    ).filter(
-        (Message.from_user_id == current_user.id) |
-        (Message.to_user_id == current_user.id)
-    ).first()
-    if not m:
-        raise HTTPException(status_code=404, detail="Mensaje no encontrado")
-    db.delete(m)
-    db.commit()
-    return {"ok": True}
+    # Borrado de mensajes deshabilitado por política — los mensajes son permanentes para auditoría.
+    raise HTTPException(status_code=403, detail="No se permite eliminar mensajes")
 
 
 @router.post("/upload-image")

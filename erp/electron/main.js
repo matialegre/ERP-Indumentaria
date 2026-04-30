@@ -13,7 +13,7 @@ let backendProcess = null;
 let mainWindow = null;
 let splashWindow = null;
 
-const BACKEND_PORT = 8000;
+const BACKEND_PORT = 8001;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // Resolver la raíz del proyecto (funciona tanto en dev como empaquetado)
@@ -284,7 +284,7 @@ function createConfigWindow() {
 
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
-const DEFAULT_SERVER_URL = 'http://190.211.201.217:8000';
+const DEFAULT_SERVER_URL = 'http://190.211.201.217:8001';
 
 ipcMain.handle('get-server-url', () => {
   return getStore().get('serverUrl', DEFAULT_SERVER_URL);

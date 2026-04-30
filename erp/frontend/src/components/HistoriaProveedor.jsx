@@ -9,7 +9,7 @@ const fmt = (n) =>
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
 
 async function downloadExport(providerId, providerName, format, dateFrom, dateTo) {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   const params = new URLSearchParams({ format });
   if (dateFrom) params.append("date_from", dateFrom);
   if (dateTo) params.append("date_to", dateTo);
@@ -188,7 +188,7 @@ export default function HistoriaProveedor({ provider, onClose }) {
                       <td className="px-3 py-1.5">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                           row.estado === "COMPLETADO" ? "bg-green-100 text-green-700" :
-                          row.estado === "ENVIADO"    ? "bg-blue-100 text-blue-700" :
+                          (row.estado === "PENDIENTE" || row.estado === "ENVIADO") ? "bg-blue-100 text-blue-700" :
                           row.estado === "RECIBIDO"   ? "bg-amber-100 text-amber-700" :
                           row.estado === "ANULADO"    ? "bg-red-100 text-red-500" :
                           "bg-gray-100 text-gray-500"

@@ -123,6 +123,14 @@ async def lifespan(app: FastAPI):
     print("[Scheduler] Tarea diaria socios programada a las 08:00")
     app.state.scheduler = scheduler
 
+    # Snapshot Informes: sincroniza SQL Server -> Postgres local cada 15 min
+    try:
+        from app.workers.snapshot_worker import start_worker_thread
+        start_worker_thread(interval=15 * 60)
+        print("[Snapshot] Worker iniciado (intervalo 15min, sync inicial en background)")
+    except Exception as exc:
+        print(f"[Snapshot] No se pudo iniciar worker: {exc}")
+
     yield
     # Shutdown: detener WhatsApp sender y scheduler
     from app.api.v1.socios import stop_wa_server
@@ -219,11 +227,51 @@ VENCIMIENTOS_IMAGES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\vencimientos_images"
 os.makedirs(VENCIMIENTOS_IMAGES_DIR, exist_ok=True)
 app.mount("/vencimientos-img", StaticFiles(directory=VENCIMIENTOS_IMAGES_DIR), name="vencimientos-img")
 
+# ── Servir archivos adjuntos de Notas de Pedido ───────────────────────────────
+PEDIDOS_FILES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\pedidos_files"
+os.makedirs(PEDIDOS_FILES_DIR, exist_ok=True)
+app.mount("/pedidos-files", StaticFiles(directory=PEDIDOS_FILES_DIR), name="pedidos-files")
+
+# ── Servir archivos del módulo RFID Contenido ─────────────────────────────────
+RFID_CONTENIDO_DIR = r"D:\ERP MUNDO OUTDOOR\erp\rfid_contenido"
+os.makedirs(RFID_CONTENIDO_DIR, exist_ok=True)
+app.mount("/rfid-contenido-files", StaticFiles(directory=RFID_CONTENIDO_DIR), name="rfid-contenido-files")
+
+# ── Servir comprobantes del módulo Cajas ──────────────────────────────────────
+CAJAS_FILES_DIR = r"D:\ERP MUNDO OUTDOOR\erp\cajas_files"
+os.makedirs(CAJAS_FILES_DIR, exist_ok=True)
+app.mount("/cajas-files", StaticFiles(directory=CAJAS_FILES_DIR), name="cajas-files")
+
 # ── Servir frontend buildeado (producción: un solo puerto 8000) ──────────────
 # Si existe el dist/ del frontend, lo servimos como archivos estáticos.
 # Cualquier ruta no-API retorna index.html (SPA routing).
 if os.path.isdir(FRONTEND_DIST):
-    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+    # Ruta personalizada para /assets con no-cache — evita que Electron/Chrome cachee
+    # chunks JS viejos cuando hay un nuevo build con stable filenames.
+    from fastapi import Response
+    from pathlib import Path
+
+    ASSETS_DIR = Path(FRONTEND_DIST) / "assets"
+
+    @app.get("/assets/{asset_path:path}", include_in_schema=False)
+    def serve_asset(asset_path: str, response: Response):
+        file = ASSETS_DIR / asset_path
+        if not file.is_file():
+            from fastapi import HTTPException
+            raise HTTPException(404)
+        media_type = "application/javascript" if asset_path.endswith(".js") else \
+                     "text/css" if asset_path.endswith(".css") else None
+        content = file.read_bytes()
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+
     app.mount("/icons",  StaticFiles(directory=os.path.join(FRONTEND_DIST, "icons")),  name="icons")
 
     @app.get("/sw.js")
@@ -236,6 +284,10 @@ if os.path.isdir(FRONTEND_DIST):
         if full_path.startswith("api/"):
             from fastapi import HTTPException
             raise HTTPException(404)
+        # Servir archivos estáticos que existen directamente en dist/ (ej: rfid-propuesta.html)
+        requested_file = os.path.join(FRONTEND_DIST, full_path)
+        if os.path.isfile(requested_file) and not full_path == "index.html":
+            return FileResponse(requested_file)
         index = os.path.join(FRONTEND_DIST, "index.html")
         if os.path.isfile(index):
             # No-cache: fuerza al browser/Electron a buscar el index.html actualizado

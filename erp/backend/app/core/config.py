@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # ── CRM — MercadoLibre token paths ──
     CRM_ML_TOKEN_DIR: str = ""
 
+    # ── Clinkbox API (POS Mundo Outdoor) ──
+    CLINK_API_KEY: str = ""
+    CLINK_API_BASE: str = "https://api.clinkboxip.com.ar"
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(",")]

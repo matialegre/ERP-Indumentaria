@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, RefreshCw, Trash2, X,
   MessageSquare, Send, Edit3, History, Clock, User,
   Image as ImageIcon, Trophy, Medal, Star, Ban, Pencil, Save,
+  AlertTriangle, Copy, Check,
 } from "lucide-react";
 
 const PRIORITY_CONFIG = {
@@ -18,10 +19,10 @@ const PRIORITY_CONFIG = {
 
 // Backend base URL for images
 const _port = typeof window !== "undefined" ? window.location.port : "5174";
-const _apiPort = (_port === "5174" || _port === "5173") ? "8000" : _port || "8000";
+const _apiPort = (_port === "5174" || _port === "5173") ? "8001" : _port || "8001";
 const BACKEND_BASE = typeof window !== "undefined"
   ? `${window.location.protocol}//${window.location.hostname}:${_apiPort}`
-  : "http://localhost:8000";
+  : "http://localhost:8001";
 const resolveImageUrl = (img) => {
   if (img.startsWith("data:")) return img;
   if (img.startsWith("/")) return `${BACKEND_BASE}${img}`;
@@ -120,7 +121,20 @@ function AdminNoteEditor({ note, onSave }) {
   );
 }
 
-function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateText, onAdminNote }) {
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); })}
+      className={`ml-auto p-1 rounded transition ${copied ? "text-emerald-500" : "text-gray-300 hover:text-blue-500"}`}
+      title="Copiar texto para prompt"
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+}
+
+function NoteCard({ note, canAdmin, onApprove, onApproveManual, onUnapprove, onCancel, onUpdateText, onAdminNote }) {
   const [expanded, setExpanded] = useState(false);
   const [editingText, setEditingText] = useState(false);
   const [editText, setEditText] = useState(note.text);
@@ -128,7 +142,15 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [copied, setCopied] = useState(false);
   const pc = PRIORITY_CONFIG[note.priority] ?? PRIORITY_CONFIG.NORMAL;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(note.text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
 
   const handleSaveText = async () => {
     if (!editText.trim() || editText === note.text) { setEditingText(false); return; }
@@ -141,21 +163,26 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
   const handleCancel = async () => {
     if (!cancelReason.trim()) return;
     setCancelling(true);
-    await onCancel(note.id, cancelReason.trim());
-    setCancelling(false);
-    setShowCancelModal(false);
-    setCancelReason("");
+    try {
+      await onCancel(note.id, cancelReason.trim());
+      setShowCancelModal(false);
+      setCancelReason("");
+    } catch (err) {
+      alert(`No se pudo cancelar la mejora:\n${err?.message || err || 'error desconocido'}`);
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
     <div
-      className={`bg-white rounded-xl border transition-all ${
+      className={`bg-white rounded-xl border transition-all h-full flex flex-col ${
         note.is_done
           ? "border-emerald-200 opacity-80"
           : "border-gray-200 hover:border-purple-200 hover:shadow-sm"
       }`}
     >
-      <div className="p-3.5">
+      <div className="p-3.5 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full ${pc.bg} ${pc.text}`}>
@@ -204,27 +231,37 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
         ) : (
           <>
             <div className="flex items-start gap-1">
-              <p className={`text-sm text-gray-800 leading-relaxed flex-1 ${!expanded && "line-clamp-3"}`}>
+              <p
+                className={`text-sm text-gray-800 leading-relaxed flex-1 whitespace-pre-wrap break-words ${expanded ? "" : "line-clamp-3"}`}
+                style={expanded ? undefined : { minHeight: "4.2em" }}
+              >
                 {note.text}
               </p>
-              {canAdmin && (
+              <div className="flex flex-col gap-0.5 shrink-0 mt-0.5">
                 <button
-                  onClick={() => { setEditingText(true); setEditText(note.text); }}
-                  className="p-1 text-gray-300 hover:text-purple-500 rounded transition shrink-0 mt-0.5"
-                  title="Editar texto antes de enviar a IA"
+                  onClick={handleCopy}
+                  className={`p-1 rounded transition ${copied ? "text-emerald-500" : "text-gray-300 hover:text-blue-500"}`}
+                  title="Copiar texto para prompt"
                 >
-                  <Pencil size={12} />
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
                 </button>
-              )}
+                {canAdmin && (
+                  <button
+                    onClick={() => { setEditingText(true); setEditText(note.text); }}
+                    className="p-1 text-gray-300 hover:text-purple-500 rounded transition"
+                    title="Editar texto antes de enviar a IA"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
+              </div>
             </div>
-            {note.text.length > 120 && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="text-xs text-purple-500 mt-1 flex items-center gap-0.5 hover:underline"
-              >
-                {expanded ? <><ChevronUp size={12} /> Ver menos</> : <><ChevronDown size={12} /> Ver más</>}
-              </button>
-            )}
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-purple-500 mt-1 flex items-center gap-0.5 hover:underline self-start"
+            >
+              {expanded ? <><ChevronUp size={12} /> Ver menos</> : <><ChevronDown size={12} /> Ver más</>}
+            </button>
           </>
         )}
 
@@ -251,7 +288,10 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
               <Bot size={12} className="text-purple-500" />
               <span className="text-xs font-medium text-purple-600">Respuesta IA</span>
             </div>
-            <p className="text-xs text-purple-700 leading-relaxed line-clamp-3">{note.ai_reply}</p>
+            <p
+              className={`text-xs text-purple-700 leading-relaxed whitespace-pre-wrap break-words ${expanded ? "" : "line-clamp-3"}`}
+              style={expanded ? undefined : { minHeight: "3.6em" }}
+            >{note.ai_reply}</p>
           </div>
         )}
 
@@ -260,12 +300,20 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
         )}
 
         {canAdmin && (
-          <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
+          <div className="flex items-center gap-1.5 mt-auto pt-3 border-t border-gray-100">
             <button
               onClick={() => onApprove(note.id)}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-semibold hover:bg-emerald-600 transition"
+              title="Aprobar y enviar a Copilot para implementar"
             >
-              <CheckCircle2 size={13} /> OK — Aplicar
+              <CheckCircle2 size={13} /> OK — Copilot
+            </button>
+            <button
+              onClick={() => onApproveManual(note.id)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition"
+              title="Marcar como implementada sin enviar a Copilot"
+            >
+              <CheckCircle2 size={13} /> OK — Manual
             </button>
             <button
               onClick={() => setShowCancelModal(true)}
@@ -326,37 +374,48 @@ function NoteCard({ note, canAdmin, onApprove, onUnapprove, onCancel, onUpdateTe
   );
 }
 
-function ModuleColumn({ page, pageLabel, notes, canAdmin, onApprove, onCancel, onUpdateText, onAdminNote }) {
+function ModuleAccordion({ page, pageLabel, notes, canAdmin, onApprove, onApproveManual, onCancel, onUpdateText, onAdminNote, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="flex flex-col">
-      <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <Lightbulb size={15} className="text-purple-500 shrink-0" />
-            <span className="font-semibold text-gray-900 text-sm truncate">{pageLabel || page}</span>
-          </div>
-          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 ml-2">
-            {notes.length}
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Lightbulb size={16} className="text-purple-500 shrink-0" />
+          <span className="font-semibold text-gray-900 text-sm truncate text-left">{pageLabel || page}</span>
+          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
+            {notes.length} {notes.length === 1 ? "mejora" : "mejoras"}
           </span>
         </div>
-      </div>
-      <div className="flex flex-col gap-2.5 pb-4">
-        {notes.map(note => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            canAdmin={canAdmin}
-            onApprove={onApprove}
-            onUnapprove={() => {}}
-            onCancel={onCancel}
-            onUpdateText={onUpdateText}
-            onAdminNote={onAdminNote}
-          />
-        ))}
-        {notes.length === 0 && (
-          <div className="text-center py-8 text-gray-300 text-sm">Sin notas</div>
-        )}
-      </div>
+        <div className="flex items-center gap-1 text-gray-400 shrink-0">
+          <span className="text-xs">{open ? "Ocultar" : "Ver"}</span>
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 bg-gray-50/50 p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 auto-rows-fr">
+            {notes.map(note => (
+              <NoteCard
+                key={note.id}
+                note={note}
+                canAdmin={canAdmin}
+                onApprove={onApprove}
+                onApproveManual={onApproveManual}
+                onUnapprove={() => {}}
+                onCancel={onCancel}
+                onUpdateText={onUpdateText}
+                onAdminNote={onAdminNote}
+              />
+            ))}
+          </div>
+          {notes.length === 0 && (
+            <div className="text-center py-6 text-gray-300 text-sm">Sin notas</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -431,6 +490,7 @@ function HistorialView({ notes, canAdmin, onUnapprove, onDelete, search }) {
                   {(note.author_name || "?").charAt(0).toUpperCase()}
                 </div>
                 <span className="text-xs text-gray-500">{note.author_name || "Anónimo"}</span>
+                <CopyButton text={note.text} />
               </div>
 
               {note.admin_note && (
@@ -633,6 +693,11 @@ export default function MejorasPage() {
     onSuccess: invalidateAll,
   });
 
+  const approveManualMutation = useMutation({
+    mutationFn: (id) => api.post(`/improvement-notes/${id}/approve-manual`),
+    onSuccess: invalidateAll,
+  });
+
   const unapproveMutation = useMutation({
     mutationFn: (id) => api.post(`/improvement-notes/${id}/unapprove`),
     onSuccess: invalidateAll,
@@ -689,7 +754,7 @@ export default function MejorasPage() {
   }, [pendingNotes, search]);
 
   const isLoading = tab === "pending" ? loadingPending : tab === "historial" ? loadingHistorial : loadingRanking;
-  const pendingMutation = approveMutation.isPending || unapproveMutation.isPending || deleteMutation.isPending || cancelMutation.isPending;
+  const pendingMutation = approveMutation.isPending || approveManualMutation.isPending || unapproveMutation.isPending || deleteMutation.isPending || cancelMutation.isPending;
 
   return (
     <div className="flex flex-col h-full min-h-screen">
@@ -778,7 +843,7 @@ export default function MejorasPage() {
             <MessageSquare size={16} className="text-blue-500 shrink-0" />
             <p className="text-xs text-blue-700">
               <span className="font-semibold">Al aprobar una mejora se mueve al Historial.</span>{" "}
-              El agente Copilot la implementa automáticamente.
+              Usá <span className="font-semibold">OK — Copilot</span> para que el agente la implemente automáticamente, o <span className="font-semibold">OK — Manual</span> para marcarla vos mismo sin enviarla al agente.
             </p>
           </div>
         )}
@@ -798,15 +863,16 @@ export default function MejorasPage() {
               <p className="text-sm text-gray-300 mt-1">Las sugerencias aparecen cuando los usuarios usan el botón 💡 en cada página</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-2">
-              {grouped.map(col => (
-                <ModuleColumn
+            <div className="flex flex-col gap-2 pb-4 max-w-5xl mx-auto w-full">
+              {grouped.map((col) => (
+                <ModuleAccordion
                   key={col.page}
                   page={col.page}
                   pageLabel={col.pageLabel}
                   notes={col.notes}
                   canAdmin={canAdmin}
                   onApprove={(id) => approveMutation.mutate(id)}
+                  onApproveManual={(id) => approveManualMutation.mutate(id)}
                   onCancel={(id, reason) => cancelMutation.mutateAsync({ id, reason })}
                   onUpdateText={(id, text) => updateTextMutation.mutateAsync({ id, text })}
                   onAdminNote={(id, admin_note) => adminNoteMutation.mutateAsync({ id, admin_note })}

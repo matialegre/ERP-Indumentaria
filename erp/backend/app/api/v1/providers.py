@@ -29,6 +29,7 @@ class ProviderOut(BaseModel):
     notes: str | None = None
     is_active: bool
     company_id: int
+    brands: str | None = None
     model_config = {"from_attributes": True}
 
 
@@ -40,6 +41,19 @@ class ProviderCreate(BaseModel):
     email: str | None = None
     address: str | None = None
     notes: str | None = None
+    brands: str | None = None
+
+
+class ProviderUpdate(BaseModel):
+    name: str | None = None
+    cuit: str | None = None
+    contact_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+    notes: str | None = None
+    brands: str | None = None
+    is_active: bool | None = None
 
 
 class ProviderContactCreate(BaseModel):
@@ -75,6 +89,36 @@ class ProviderContactOut(BaseModel):
 router = APIRouter(prefix="/providers", tags=["Proveedores"])
 
 
+def _provider_to_dict(p: Provider) -> dict:
+    """Serialización explícita para garantizar que `brands` siempre se incluya."""
+    return {
+        "id": p.id,
+        "name": p.name,
+        "cuit": p.cuit,
+        "contact_name": p.contact_name,
+        "phone": p.phone,
+        "email": p.email,
+        "address": p.address,
+        "notes": p.notes,
+        "brands": p.brands,
+        "is_active": p.is_active,
+        "company_id": p.company_id,
+        "legal_name": p.legal_name,
+        "tax_condition": p.tax_condition,
+        "domicilio": p.domicilio,
+        "localidad": p.localidad,
+        "provincia": p.provincia,
+        "vendor_name": p.vendor_name,
+        "tango_code": p.tango_code,
+        "order_prefix": p.order_prefix,
+        "contacts": [
+            {"id": c.id, "name": c.name, "role": c.role, "phone": c.phone,
+             "email": c.email, "notes": c.notes, "is_primary": c.is_primary}
+            for c in (p.contacts or [])
+        ],
+    }
+
+
 @router.get("/")
 def list_providers(
     search: Optional[str] = None,
@@ -94,7 +138,7 @@ def list_providers(
     q = q.order_by(Provider.name)
     total = q.count()
     items = q.offset(skip).limit(limit).all()
-    return {"items": items, "total": total, "skip": skip, "limit": limit}
+    return {"items": [_provider_to_dict(p) for p in items], "total": total, "skip": skip, "limit": limit}
 
 
 @router.get("/export")
@@ -241,6 +285,57 @@ def providers_ranking(
         "por_monto": por_monto,
         "por_tiempo_entrega": por_tiempo_entrega,
     }
+
+
+@router.get("/{provider_id}", response_model=ProviderOut)
+def get_provider(
+    provider_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Provider).filter(Provider.id == provider_id)
+    if current_user.role != UserRole.SUPERADMIN and current_user.company_id:
+        q = q.filter(Provider.company_id == current_user.company_id)
+    provider = q.first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    return provider
+
+
+@router.put("/{provider_id}", response_model=ProviderOut)
+def update_provider(
+    provider_id: int,
+    body: ProviderUpdate,
+    current_user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS)),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Provider).filter(Provider.id == provider_id)
+    if current_user.role != UserRole.SUPERADMIN and current_user.company_id:
+        q = q.filter(Provider.company_id == current_user.company_id)
+    provider = q.first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    for k, v in body.model_dump(exclude_none=True).items():
+        setattr(provider, k, v)
+    db.commit()
+    db.refresh(provider)
+    return provider
+
+
+@router.delete("/{provider_id}", status_code=204)
+def delete_provider(
+    provider_id: int,
+    current_user: User = Depends(require_roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.COMPRAS)),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Provider).filter(Provider.id == provider_id)
+    if current_user.role != UserRole.SUPERADMIN and current_user.company_id:
+        q = q.filter(Provider.company_id == current_user.company_id)
+    provider = q.first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    provider.is_active = False
+    db.commit()
 
 
 @router.get("/{provider_id}/contacts", response_model=list[ProviderContactOut])

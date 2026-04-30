@@ -143,6 +143,95 @@ def list_stock(
     return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 
+@router.get("/by-locals")
+def list_stock_by_locals(
+    search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    brand: Optional[str] = Query(None),
+    low_stock: Optional[bool] = Query(None),
+    out_of_stock: Optional[bool] = Query(None),
+    size: Optional[str] = Query(None),
+    color: Optional[str] = Query(None),
+    sku: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = db.query(ProductVariant).join(Product)
+    if user.company_id:
+        q = q.filter(Product.company_id == user.company_id)
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            (Product.name.ilike(term)) |
+            (Product.code.ilike(term)) |
+            (ProductVariant.sku.ilike(term))
+        )
+    if category:
+        q = q.filter(Product.category.ilike(f"%{category}%"))
+    if brand:
+        q = q.filter(Product.brand.ilike(f"%{brand}%"))
+    if size:
+        q = q.filter(ProductVariant.size.ilike(f"%{size}%"))
+    if color:
+        q = q.filter(ProductVariant.color.ilike(f"%{color}%"))
+    if sku:
+        q = q.filter(ProductVariant.sku.ilike(f"%{sku}%"))
+    if low_stock:
+        q = q.filter(ProductVariant.stock < 5, ProductVariant.stock > 0)
+    if out_of_stock:
+        q = q.filter(ProductVariant.stock <= 0)
+    q = q.order_by(Product.name, ProductVariant.size)
+    total = q.count()
+    variants = q.offset(skip).limit(limit).all()
+
+    locals_q = db.query(Local)
+    if user.company_id:
+        locals_q = locals_q.filter(Local.company_id == user.company_id, Local.is_active == True)
+    locals_list = locals_q.order_by(Local.name).all()
+
+    variant_ids = [v.id for v in variants]
+    stock_local_map = {}
+    if variant_ids and user.company_id:
+        rows = db.query(StockLocal).filter(
+            StockLocal.variant_id.in_(variant_ids),
+            StockLocal.company_id == user.company_id,
+        ).all()
+        for row in rows:
+            if row.variant_id not in stock_local_map:
+                stock_local_map[row.variant_id] = {}
+            key = str(row.local_id) if row.local_id is not None else "deposito"
+            stock_local_map[row.variant_id][key] = row.cantidad
+
+    items = [
+        {
+            "variant_id": v.id,
+            "sku": v.sku,
+            "barcode": v.barcode,
+            "size": v.size,
+            "color": v.color,
+            "stock": v.stock,
+            "is_active": v.is_active,
+            "product_id": v.product.id,
+            "product_code": v.product.code,
+            "product_name": v.product.name,
+            "brand": v.product.brand,
+            "category": v.product.category,
+            "price": float(v.product.base_cost) if v.product.base_cost is not None else None,
+            "stock_by_local": stock_local_map.get(v.id, {}),
+        }
+        for v in variants
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "locals": [{"id": str(l.id), "name": l.name, "code": l.code} for l in locals_list],
+    }
+
+
 @router.get("/export")
 def export_stock(
     format: str = Query("xlsx", pattern="^(csv|xlsx)$"),

@@ -10,8 +10,10 @@ import {
   RefreshCw, Download, Check, AlertCircle,
   Shield, KeyRound, Pencil, X, Save, Power,
   ExternalLink, Database, Cpu, Globe,
+  Fingerprint, Trash2, Plus,
 } from "lucide-react";
 import { useBranding } from "../context/BrandingContext";
+import { isPlatformAuthenticatorAvailable, createCredential } from "../lib/webauthn";
 
 const ROLES = ["SUPERADMIN","ADMIN","COMPRAS","ADMINISTRACION","GESTION_PAGOS","LOCAL","VENDEDOR","DEPOSITO"];
 
@@ -50,6 +52,116 @@ function Alert({ ok, text }) {
   );
 }
 
+/* ═══════════════════════════════════ BIOMETRIC SECTION ══════════════════════ */
+function BiometricSection() {
+  const qc = useQueryClient();
+  const [deviceName, setDeviceName] = useState("");
+  const [msg, setMsg] = useState(null);
+  const [registering, setRegistering] = useState(false);
+  const [hasPlatformAuth, setHasPlatformAuth] = useState(null);
+
+  useState(() => {
+    isPlatformAuthenticatorAvailable().then(setHasPlatformAuth).catch(() => setHasPlatformAuth(false));
+  });
+
+  const { data: creds = [], isLoading } = useQuery({
+    queryKey: ["webauthn-creds"],
+    queryFn: () => api.get("/auth/webauthn/credentials"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => api.delete(`/auth/webauthn/credentials/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["webauthn-creds"] }); setMsg({ ok: true, text: "Credencial eliminada" }); },
+    onError: (e) => setMsg({ ok: false, text: e.message }),
+  });
+
+  const handleRegister = async () => {
+    setMsg(null);
+    setRegistering(true);
+    try {
+      const begin = await api.post("/auth/webauthn/register/begin", {});
+      const credData = await createCredential(begin);
+      await api.post("/auth/webauthn/register/complete", {
+        ...credData,
+        challenge: begin.challenge,
+        device_name: deviceName.trim() || null,
+      });
+      qc.invalidateQueries({ queryKey: ["webauthn-creds"] });
+      setMsg({ ok: true, text: "¡Huella / Windows Hello registrado correctamente! Ya podés usarlo en el login." });
+      setDeviceName("");
+    } catch (err) {
+      if (err.name === "NotAllowedError" || err.name === "AbortError") {
+        setMsg({ ok: false, text: "Registro cancelado por el usuario." });
+      } else {
+        setMsg({ ok: false, text: err.message || "Error al registrar" });
+      }
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  if (hasPlatformAuth === false) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="font-semibold text-gray-800 flex items-center gap-2 mb-3"><Fingerprint size={16} /> Windows Hello / Huella dactilar</h2>
+        <p className="text-sm text-gray-500">Este dispositivo no tiene autenticador biométrico disponible (Windows Hello, huella, etc.).</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <h2 className="font-semibold text-gray-800 flex items-center gap-2"><Fingerprint size={16} /> Windows Hello / Huella dactilar</h2>
+      <p className="text-sm text-gray-500">Registrá tu huella o Windows Hello en esta PC para entrar al sistema sin contraseña.</p>
+
+      {msg && <Alert ok={msg.ok} text={msg.text} />}
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Cargando credenciales…</p>
+      ) : creds.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-600">Dispositivos registrados:</p>
+          {creds.map(c => (
+            <div key={c.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+              <div>
+                <p className="text-sm font-medium text-gray-800">{c.device_name || "Dispositivo sin nombre"}</p>
+                <p className="text-xs text-gray-400">{c.created_at ? new Date(c.created_at).toLocaleDateString("es-AR") : ""}</p>
+              </div>
+              <button
+                onClick={() => deleteMut.mutate(c.id)}
+                disabled={deleteMut.isPending}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                title="Eliminar"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">No hay dispositivos registrados todavía.</p>
+      )}
+
+      <div className="pt-2 border-t border-gray-100 space-y-3">
+        <p className="text-xs font-medium text-gray-600">Registrar esta PC:</p>
+        <input
+          value={deviceName}
+          onChange={e => setDeviceName(e.target.value)}
+          placeholder='Nombre del dispositivo (ej: "PC Jefe")'
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        />
+        <button
+          onClick={handleRegister}
+          disabled={registering || hasPlatformAuth === null}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 text-sm font-medium transition"
+        >
+          <Fingerprint size={15} /> {registering ? "Registrando…" : "Registrar huella / Windows Hello"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════ TAB 1: PERFIL ═══════════════════════════════════ */
 function PerfilTab() {
   const { user } = useAuth();
@@ -77,6 +189,7 @@ function PerfilTab() {
   const inp = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none";
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Info card */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
@@ -140,6 +253,10 @@ function PerfilTab() {
         </form>
       </div>
     </div>
+    <div className="mt-6">
+      <BiometricSection />
+    </div>
+    </>
   );
 }
 

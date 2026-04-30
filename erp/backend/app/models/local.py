@@ -16,6 +16,9 @@ class Local(Base, TimestampMixin):
     address: Mapped[str | None] = mapped_column(String(500))
     phone: Mapped[str | None] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    empresa: Mapped[str | None] = mapped_column(String(50))
+    ciudad: Mapped[str | None] = mapped_column(String(50))
+    clink_cod_local: Mapped[str | None] = mapped_column(String(20))
 
     # Multi-tenant
     company_id: Mapped[int] = mapped_column(

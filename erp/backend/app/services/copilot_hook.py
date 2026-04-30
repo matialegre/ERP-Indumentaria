@@ -8,6 +8,7 @@ Formato del argumento:
     [Modulo: NOMBRE] [Usuario: NOMBRE] TEXTO_COMENTARIO
 """
 
+import os
 import subprocess
 import sys
 import logging
@@ -29,13 +30,24 @@ def trigger_copilot(module: str, user: str, text: str, note_id: int | None = Non
         note_id: ID de la nota para actualizar el estado en tiempo real
     """
     comentario = f"[Módulo: {module}] [Usuario: {user}] {text}"
-    args = [sys.executable, COPILOT_SCRIPT, comentario]
-    if note_id is not None:
-        args.append(str(note_id))
+    # Escapar comillas dobles dentro del comentario para cmd
+    comentario_esc = comentario.replace('"', '\\"')
+    tail = f' {note_id}' if note_id is not None else ''
+    # cmd /k deja la ventana abierta aunque el script crashee (para ver errores)
+    # python -X utf8 fuerza UTF-8 en stdio — evita UnicodeEncodeError con cp1252
+    full_cmd = (
+        f'cmd /k ""{sys.executable}" -X utf8 "{COPILOT_SCRIPT}" '
+        f'"{comentario_esc}"{tail}"'
+    )
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
     try:
         subprocess.Popen(
-            args,
+            full_cmd,
             creationflags=subprocess.CREATE_NEW_CONSOLE,
+            env=env,
+            shell=False,
         )
     except FileNotFoundError:
         logger.warning("copilot_hook: script no encontrado en %s", COPILOT_SCRIPT)

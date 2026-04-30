@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { RefreshCw, Check, WifiOff, Database, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { RefreshCw, Check, WifiOff, Database, Clock, ChevronUp, ChevronDown, X } from "lucide-react";
 import { useOnlineStatus, useSyncProgress } from "../hooks/useOffline";
 import { syncAllCatalogs, CATALOG_DEFS } from "../lib/offlineSync";
 
@@ -17,6 +17,7 @@ export default function SyncProgressWidget() {
   const { syncing, progress, lastSyncTimes, catalogCounts } = useSyncProgress();
   const [expanded, setExpanded] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
+  const [hidden, setHidden] = useState(() => sessionStorage.getItem("syncWidgetHidden") === "1");
 
   // Brief "completed" state after sync finishes
   useEffect(() => {
@@ -81,8 +82,27 @@ export default function SyncProgressWidget() {
     );
   }
 
+  if (hidden) {
+    return (
+      <button
+        onClick={() => { setHidden(false); sessionStorage.removeItem("syncWidgetHidden"); }}
+        className="fixed bottom-2 right-2 z-40 w-6 h-6 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full text-xs flex items-center justify-center shadow"
+        title="Mostrar widget de sincronización"
+      >
+        <Database size={11} />
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-40 max-w-xs">
+      <button
+        onClick={(e) => { e.stopPropagation(); setHidden(true); sessionStorage.setItem("syncWidgetHidden", "1"); }}
+        className="absolute -top-2 -right-2 w-5 h-5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full shadow flex items-center justify-center z-10"
+        title="Ocultar (volverá al recargar)"
+      >
+        <X size={11} />
+      </button>
       {/* Expanded detail panel */}
       {expanded && (
         <div className="mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 text-xs animate-in fade-in slide-in-from-bottom-2">

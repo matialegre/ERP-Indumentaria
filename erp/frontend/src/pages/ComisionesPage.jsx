@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import * as XLSX from "xlsx";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import {
@@ -70,7 +71,57 @@ function StatCard({ icon: Icon, label, value, color }) {
   );
 }
 
+function DetalleFactura({ comprobante }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["comisiones-factura", comprobante],
+    queryFn: () => api.get(`/comisiones/factura/${encodeURIComponent(comprobante)}`),
+    enabled: !!comprobante,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="py-3 flex justify-center">
+        <div className="animate-spin h-4 w-4 rounded-full border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  const items = data?.items || [];
+
+  return (
+    <div className="bg-blue-50/40 border-t border-blue-100 px-6 py-2">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-gray-400 uppercase">
+            <th className="py-1 text-left font-medium">Descripción</th>
+            <th className="py-1 text-right font-medium">Cant.</th>
+            <th className="py-1 text-right font-medium">P. Unit.</th>
+            <th className="py-1 text-right font-medium">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, i) => (
+            <tr key={i} className="border-t border-blue-100/60">
+              <td className="py-1 text-gray-700">{item.descripcion}</td>
+              <td className="py-1 text-right text-gray-600">{item.cantidad}</td>
+              <td className="py-1 text-right text-gray-600">{formatPeso(item.precio_unidad)}</td>
+              <td className="py-1 text-right font-medium text-gray-800">{formatPeso(item.cantidad * item.precio_unidad)}</td>
+            </tr>
+          ))}
+          {items.length === 0 && (
+            <tr>
+              <td colSpan={4} className="py-2 text-center text-gray-400 italic">Sin ítems</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DetalleVendedor({ vendedor, desde, hasta }) {
+  const [facturaExpandida, setFacturaExpandida] = useState(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["comisiones-detalle", vendedor, desde, hasta],
     queryFn: () => api.get(`/comisiones/detalle/${encodeURIComponent(vendedor)}?desde=${desde}&hasta=${hasta}`),
@@ -99,22 +150,39 @@ function DetalleVendedor({ vendedor, desde, hasta }) {
               <th className="px-3 py-2 text-left">Tipo</th>
               <th className="px-3 py-2 text-right">Artículos</th>
               <th className="px-3 py-2 text-right">Comisión</th>
+              <th className="w-6" />
             </tr>
           </thead>
           <tbody>
             {conComision.map((t, i) => (
-              <tr key={i} className="border-t border-gray-50 hover:bg-green-50/30">
-                <td className="px-3 py-2 font-mono text-xs">{t.comprobante_numero}</td>
-                <td className="px-3 py-2">
-                  <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{t.comprobante_tipo}</span>
-                </td>
-                <td className="px-3 py-2 text-right font-medium text-gray-800">{t.cantidad_articulos}</td>
-                <td className="px-3 py-2 text-right font-semibold text-green-600">{formatPeso(t.comision_ticket)}</td>
-              </tr>
+              <>
+                <tr
+                  key={i}
+                  onClick={() => setFacturaExpandida(facturaExpandida === t.comprobante_numero ? null : t.comprobante_numero)}
+                  className="border-t border-gray-50 hover:bg-green-50/40 cursor-pointer transition"
+                >
+                  <td className="px-3 py-2 font-mono text-xs">{t.comprobante_numero}</td>
+                  <td className="px-3 py-2">
+                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{t.comprobante_tipo}</span>
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium text-gray-800">{t.cantidad_articulos}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-green-600">{formatPeso(t.comision_ticket)}</td>
+                  <td className="px-2 py-2 text-center text-gray-400">
+                    {facturaExpandida === t.comprobante_numero ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </td>
+                </tr>
+                {facturaExpandida === t.comprobante_numero && (
+                  <tr key={`${i}-factura`}>
+                    <td colSpan={5} className="p-0">
+                      <DetalleFactura comprobante={t.comprobante_numero} />
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
             {sinComision.length > 0 && (
               <tr className="border-t border-gray-100">
-                <td colSpan={4} className="px-3 py-1.5 text-xs text-gray-400 italic text-center">
+                <td colSpan={5} className="px-3 py-1.5 text-xs text-gray-400 italic text-center">
                   + {sinComision.length} ticket{sinComision.length !== 1 ? "s" : ""} sin comisión (1 artículo)
                 </td>
               </tr>
@@ -151,9 +219,22 @@ export default function ComisionesPage() {
     Object.fromEntries(COLS.map((c) => [c.key, c.defaultWidth]))
   );
 
+  const searchRef = useRef(null);
   const resizingCol = useRef(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
+
+  useEffect(() => {
+    function onCtrlF(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    }
+    window.addEventListener("keydown", onCtrlF);
+    return () => window.removeEventListener("keydown", onCtrlF);
+  }, []);
 
   useEffect(() => {
     function onMouseMove(e) {
@@ -243,22 +324,23 @@ export default function ComisionesPage() {
     setExpandido(null);
   }
 
-  function exportarCSV() {
+  function exportarExcel() {
     if (!vendedores.length) return;
-    const header = "Vendedor,Tickets Totales,Tickets con Comisión,% Conversión,Total Artículos,Total Comisión\n";
-    const rows = vendedores
-      .map((v) => {
-        const pct = v.total_tickets > 0 ? ((v.tickets_con_comision / v.total_tickets) * 100).toFixed(1) : "0.0";
-        return `"${v.vendedor}",${v.total_tickets},${v.tickets_con_comision},${pct}%,${v.total_articulos},${v.total_comision}`;
-      })
-      .join("\n");
-    const blob = new Blob(["\ufeff" + header + rows], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `comisiones_${desde}_${hasta}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const filas = vendedores.map((v) => {
+      const pct = v.total_tickets > 0 ? ((v.tickets_con_comision / v.total_tickets) * 100).toFixed(1) + "%" : "0.0%";
+      return {
+        Vendedor: v.vendedor,
+        "Tickets Totales": v.total_tickets,
+        "Tickets con Comisión": v.tickets_con_comision,
+        "% Conversión": pct,
+        "Total Artículos": v.total_articulos,
+        "Total Comisión": v.total_comision,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(filas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Comisiones");
+    XLSX.writeFile(wb, `comisiones_${desde}_${hasta}.xlsx`);
   }
 
   const granTotal = data?.gran_total || 0;
@@ -279,12 +361,12 @@ export default function ComisionesPage() {
           </p>
         </div>
         <button
-          onClick={exportarCSV}
+          onClick={exportarExcel}
           disabled={!vendedores.length}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-40 transition"
         >
           <Download size={15} />
-          Exportar CSV
+          Exportar Excel
         </button>
       </div>
 
@@ -364,8 +446,9 @@ export default function ComisionesPage() {
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
+          ref={searchRef}
           type="text"
-          placeholder="Buscar vendedor..."
+          placeholder="Buscar vendedor... (Ctrl+F)"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

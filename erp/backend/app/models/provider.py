@@ -50,6 +50,9 @@ class Provider(Base, TimestampMixin):
     tango_code: Mapped[str | None] = mapped_column(String(50))  # Código en sistema Tango
     order_prefix: Mapped[str | None] = mapped_column(String(20))  # Prefijo para numeración
 
+    # Marcas comerciales que maneja este proveedor (separadas por coma, ej: "Nike,Adidas,Puma")
+    brands: Mapped[str | None] = mapped_column(String(1000))
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Multi-tenant

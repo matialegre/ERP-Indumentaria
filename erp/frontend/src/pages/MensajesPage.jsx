@@ -353,7 +353,7 @@ export default function MensajesPage() {
               </button>
             )}
             <button
-              onClick={() => setComposing(true)}
+              onClick={() => { setSelected(null); setNewSubject(""); setNewContent(""); setComposing(true); }}
               className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition"
               title="Nuevo mensaje"
             >
@@ -547,13 +547,6 @@ export default function MensajesPage() {
                               : <Clock className="w-3.5 h-3.5" />
                           )}
                         </div>
-                        {/* Delete button */}
-                        <button
-                          onClick={() => deleteMutation.mutate(msg.id)}
-                          className="absolute -top-2 -right-2 hidden group-hover:flex w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hover:bg-red-600 transition"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -653,7 +646,7 @@ export default function MensajesPage() {
               Seleccioná un usuario de la lista para ver su conversación, o usá <strong>Difusión</strong> para escribirle a todos a la vez.
             </p>
             <button
-              onClick={() => setComposing(true)}
+              onClick={() => { setSelected(null); setNewSubject(""); setNewContent(""); setComposing(true); }}
               className="mt-2 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
@@ -707,11 +700,11 @@ export default function MensajesPage() {
               </div>
               {/* Subject */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Asunto</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Asunto <span className="text-gray-400 font-normal">(opcional)</span></label>
                 <input
                   value={newSubject}
                   onChange={(e) => setNewSubject(e.target.value)}
-                  placeholder="Asunto (opcional)"
+                  placeholder="Ej: Consulta sobre pedido..."
                   className="w-full px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>

@@ -65,3 +65,6 @@ erp/mejoras_images/
 CONTROL REMITOS/
 Diferencias control remitos y erp/
 erp/mejoras_images/
+# Lanzador local de Crush (contiene API key)
+crush.ps1
+

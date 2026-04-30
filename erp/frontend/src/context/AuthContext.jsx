@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
   const [isOfflineSession, setIsOfflineSession] = useState(false);
 
   const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       // Sin token: intentar sesión cacheada si estamos offline
       if (!navigator.onLine) {
@@ -58,6 +58,11 @@ export function AuthProvider({ children }) {
       setUser(me);
       setBackendError(false);
       setIsOfflineSession(false);
+      // Auto-set local from user's assigned local (if not already set)
+      if (me.local_id && me.local_name && !localStorage.getItem('selectedLocalId')) {
+        localStorage.setItem('selectedLocalId', String(me.local_id));
+        localStorage.setItem('selectedLocalName', me.local_name);
+      }
       // Cachear perfil para uso offline futuro
       const cached = await getCachedSession();
       if (cached) {
@@ -77,7 +82,7 @@ export function AuthProvider({ children }) {
           setBackendError(true);
         }
       } else {
-        localStorage.removeItem("token");
+        sessionStorage.removeItem("token");
         setUser(null);
       }
     } finally {
@@ -106,7 +111,7 @@ export function AuthProvider({ children }) {
     try {
       // Intentar login online
       const data = await api.post("/auth/login", { username, password });
-      localStorage.setItem("token", data.access_token);
+      sessionStorage.setItem("token", data.access_token);
       setBackendError(false);
       setIsOfflineSession(false);
 
@@ -115,8 +120,12 @@ export function AuthProvider({ children }) {
       setUser(me);
       if (me.company_id) {
         localStorage.setItem('erp_company_id', String(me.company_id));
-        // Notificar BrandingContext para que recargue con el branding correcto
         window.dispatchEvent(new CustomEvent('erp:login', { detail: { company_id: me.company_id } }));
+      }
+      // Auto-set local from user's assigned local
+      if (me.local_id && me.local_name) {
+        localStorage.setItem('selectedLocalId', String(me.local_id));
+        localStorage.setItem('selectedLocalName', me.local_name);
       }
 
       // Cachear para login offline futuro
@@ -133,7 +142,7 @@ export function AuthProvider({ children }) {
           setUser(cached.profile);
           setIsOfflineSession(true);
           setBackendError(false);
-          if (cached.token) localStorage.setItem("token", cached.token);
+          if (cached.token) sessionStorage.setItem("token", cached.token);
           return;
         }
         throw new Error("Sin conexión y sin sesión guardada. Conectate a internet al menos una vez.");
@@ -142,10 +151,28 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const loginWithToken = async (token) => {
+    sessionStorage.setItem("token", token);
+    setBackendError(false);
+    setIsOfflineSession(false);
+    const me = await api.get("/auth/me");
+    setUser(me);
+    if (me.company_id) {
+      localStorage.setItem("erp_company_id", String(me.company_id));
+      window.dispatchEvent(new CustomEvent("erp:login", { detail: { company_id: me.company_id } }));
+    }
+    if (me.local_id && me.local_name) {
+      localStorage.setItem("selectedLocalId", String(me.local_id));
+      localStorage.setItem("selectedLocalName", me.local_name);
+    }
+    startPeriodicSync();
+    syncAllCatalogs().catch(() => {});
+  };
+
   const logout = () => {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     localStorage.removeItem("erp_company_id");
-    localStorage.removeItem("erp_original_token");
+    sessionStorage.removeItem("erp_original_token");
     setUser(null);
     setBackendError(false);
     setIsOfflineSession(false);
@@ -153,25 +180,25 @@ export function AuthProvider({ children }) {
 
   const companyId = user?.company_id || localStorage.getItem('erp_company_id');
   const isMegaAdmin = user?.role === 'MEGAADMIN';
-  const isImpersonating = !!localStorage.getItem('erp_original_token');
+  const isImpersonating = !!sessionStorage.getItem('erp_original_token');
 
   function impersonate(newToken) {
-    localStorage.setItem('erp_original_token', localStorage.getItem('token'));
-    localStorage.setItem('token', newToken);
+    sessionStorage.setItem('erp_original_token', sessionStorage.getItem('token'));
+    sessionStorage.setItem('token', newToken);
     window.location.reload();
   }
 
   function stopImpersonating() {
-    const original = localStorage.getItem('erp_original_token');
+    const original = sessionStorage.getItem('erp_original_token');
     if (original) {
-      localStorage.setItem('token', original);
-      localStorage.removeItem('erp_original_token');
+      sessionStorage.setItem('token', original);
+      sessionStorage.removeItem('erp_original_token');
       window.location.reload();
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, backendError, isOfflineSession, login, logout, retry: fetchUser, companyId, isMegaAdmin, impersonate, stopImpersonating, isImpersonating }}>
+    <AuthContext.Provider value={{ user, loading, backendError, isOfflineSession, login, loginWithToken, logout, retry: fetchUser, companyId, isMegaAdmin, impersonate, stopImpersonating, isImpersonating, modulesReadonly: user?.modules_readonly ?? null }}>
       {children}
     </AuthContext.Provider>
   );
@@ -181,4 +208,15 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth debe usarse dentro de AuthProvider");
   return ctx;
+}
+
+/** Returns { canView: true, canEdit: bool } for a given module slug.
+ *  canEdit is false when the module slug is in user.modules_readonly.
+ *  MEGAADMIN / SUPERADMIN always get canEdit=true. */
+export function useModulePermission(slug) {
+  const { user } = useAuth();
+  if (!user) return { canView: false, canEdit: false };
+  if (['MEGAADMIN', 'SUPERADMIN'].includes(user.role)) return { canView: true, canEdit: true };
+  const ro = (user.modules_readonly ?? []).map(s => s.toUpperCase());
+  return { canView: true, canEdit: !ro.includes(slug.toUpperCase()) };
 }

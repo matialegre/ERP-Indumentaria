@@ -258,7 +258,26 @@ MODULES_CATALOG = [
         "icono":       "PackageCheck",
         "color":       "#1e3a8a",
     },
+    # ── Reorganizador PDF Inventario ─────────────────────────────────────
+    {
+        "slug":        "PDF_INVENTARIO",
+        "nombre":      "Reorganizador PDF",
+        "descripcion": "Procesa PDFs de inventario (inbound MercadoLibre) y los reorganiza por Modelo → Color → Talle. Exporta Excel y PDF.",
+        "rutas":       ["/pdf-inventario"],
+        "icono":       "FileText",
+        "color":       "#0891b2",
+        "precio":      5,
+        "categoria":   "operaciones",
+    },
     # ── Stock — sub-módulos granulares ───────────────────────────────────
+    {
+        "slug":        "STOCK_MULTILOCAL",
+        "nombre":      "Stock Multi-local",
+        "descripcion": "Vista comparativa de stock entre todos los locales y depósitos. Columnas configurables, filtros por local y exportación.",
+        "rutas":       ["/stock-multilocal"],
+        "icono":       "Globe",
+        "color":       "#7c3aed",
+    },
     {
         "slug":        "DEPOSITO",
         "nombre":      "Depósito",
@@ -325,6 +344,23 @@ MODULES_CATALOG = [
         "rutas":       ["/reportes"],
         "icono":       "BarChart3",
         "color":       "#f97316",
+    },
+    # ── RFID ────────────────────────────────────────────────────────────────
+    {
+        "slug":        "RFID",
+        "nombre":      "RFID — Gestión Inteligente",
+        "descripcion": "Etiquetas RFID, lectores, alertas, inventario y propuesta ROI.",
+        "rutas":       ["/rfid", "/rfid/etiquetas", "/rfid/lectores", "/rfid/alertas", "/rfid/inventario", "/rfid/propuesta", "/rfid/contenido"],
+        "icono":       "Radio",
+        "color":       "#0ea5e9",
+    },
+    {
+        "slug":        "RFID_CONTENIDO",
+        "nombre":      "Contenido RFID",
+        "descripcion": "Repositorio de imágenes, videos, PDFs y presentaciones relacionadas al sistema RFID.",
+        "rutas":       ["/rfid/contenido"],
+        "icono":       "FolderOpen",
+        "color":       "#0d9488",
     },
 ]
 

@@ -59,5 +59,8 @@ class User(Base, TimestampMixin):
     # None = sin restricción (puede editar todo lo que puede ver)
     modules_readonly: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
 
+    # True cuando el usuario ya completó el setup de perfil (nombre/apellido/username)
+    profile_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+
     # Configuración personalizada del dashboard (lista de widget IDs + posición)
     dashboard_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)

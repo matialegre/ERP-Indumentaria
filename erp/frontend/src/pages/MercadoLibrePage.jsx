@@ -811,10 +811,20 @@ function PreguntasTab() {
   const [replyText, setReplyText] = useState("");
   const qc = useQueryClient();
 
+  // seller_id para el webhook según cuenta seleccionada
+  const SELLER_IDS = { valen: "209611492", neuquen: "756086955" };
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["ml-questions", account],
     queryFn: () => api.get(`/ml/questions?status=UNANSWERED&limit=50&account=${account}`),
     refetchInterval: 30_000,
+  });
+
+  // Consultas recibidas en tiempo real via webhook (últimas 72h)
+  const { data: webhookQs = [], refetch: refetchWh } = useQuery({
+    queryKey: ["ml-webhook-questions", account],
+    queryFn: () => api.get(`/ml/webhook/questions?seller_id=${SELLER_IDS[account]}&limit=15&hours=72`),
+    refetchInterval: 15_000,
   });
 
   const replyMut = useMutation({
@@ -822,6 +832,7 @@ function PreguntasTab() {
       api.post(`/ml/questions/${id}/answer`, { text, account }),
     onSuccess: () => {
       qc.invalidateQueries(["ml-questions"]);
+      qc.invalidateQueries(["ml-webhook-questions"]);
       setReplyModal(null);
       setReplyText("");
     },
@@ -829,6 +840,15 @@ function PreguntasTab() {
 
   const questions = data?.questions || [];
   const total = data?.total ?? 0;
+
+  function fmtRelative(iso) {
+    if (!iso) return "—";
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return "hace <1 min";
+    if (diff < 3600) return `hace ${Math.round(diff / 60)} min`;
+    if (diff < 86400) return `hace ${Math.round(diff / 3600)} h`;
+    return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+  }
 
   return (
     <div className="space-y-4">
@@ -849,14 +869,51 @@ function PreguntasTab() {
         <div className="flex items-center gap-2">
           <select value={account} onChange={e => setAccount(e.target.value)}
             className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-300">
-            <option value="valen">Valen</option>
+            <option value="valen">Valen (Indumentaria)</option>
             <option value="neuquen">Neuquén</option>
           </select>
-          <button onClick={() => refetch()} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition">
+          <button onClick={() => { refetch(); refetchWh(); }} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-600 transition">
             <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
           </button>
         </div>
       </div>
+
+      {/* ── Consultas en tiempo real (webhook) ── */}
+      {webhookQs.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-amber-200 bg-amber-100">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-xs font-bold text-amber-800">CONSULTAS EN TIEMPO REAL (webhook) — últimas 72h</span>
+            <span className="ml-auto text-xs text-amber-600">{webhookQs.length} recibida{webhookQs.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {webhookQs.map(q => (
+              <div key={q.event_id} className="p-3 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  {q.item_title && (
+                    <p className="text-xs font-semibold text-blue-600 mb-0.5 truncate">📦 {q.item_title}</p>
+                  )}
+                  <p className="text-sm text-gray-800">
+                    {q.enriched ? q.question_text : <span className="italic text-gray-400">Pregunta recibida (pendiente de procesar)</span>}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] text-amber-600 font-medium">{fmtRelative(q.received_at)}</span>
+                    {q.question_id && <span className="text-[11px] text-gray-400 font-mono">#{q.question_id}</span>}
+                  </div>
+                </div>
+                {q.enriched && q.question_id && (
+                  <button
+                    onClick={() => { setReplyModal({ id: q.question_id, text: q.question_text, item_title: q.item_title }); setReplyText(""); }}
+                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition"
+                  >
+                    <Send size={11} /> Responder
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Questions list */}
       {isLoading ? (
@@ -1036,10 +1093,15 @@ function WebhooksTab() {
 
       {/* Config hint */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-        <strong>📌 URL para configurar en {source === "ml" ? "MercadoLibre → Apps → Notificaciones" : "VTex → Configuración → Hooks"}:</strong>
+        <strong>📌 URL a configurar en {source === "ml" ? "ML → Mis aplicaciones → Notificaciones" : "VTex → Configuración → Hooks"}:</strong>
         <code className="ml-2 bg-blue-100 px-2 py-0.5 rounded font-mono">
-          {source === "ml" ? "https://TU_SERVIDOR/api/v1/ml/webhook" : "https://TU_SERVIDOR/api/v1/vtex/webhook"}
+          {source === "ml" ? "http://190.211.201.217:8001/api/v1/ml/webhook" : "https://TU_SERVIDOR/api/v1/vtex/webhook"}
         </code>
+        {source === "ml" && (
+          <div className="mt-1 text-blue-600">
+            Topics recomendados: <span className="font-mono">questions</span>, <span className="font-mono">orders_v2</span>
+          </div>
+        )}
       </div>
 
       {/* Events table */}

@@ -7,7 +7,7 @@ import {
   PackageCheck, Ban, X, ArrowLeft, ChevronDown, ChevronRight,
   FileSpreadsheet, AlertTriangle, CheckCircle2, Clock, Package,
   Filter, RotateCcw, Hash, Calendar, Truck, User, DollarSign,
-  RefreshCw, FileText, Check, Copy, GitCompare,
+  RefreshCw, FileText, Check, Copy, GitCompare, Upload, Paperclip,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════ */
@@ -1095,20 +1095,34 @@ function FinalizarModal({ nota, receiveMut, onClose }) {
 /*  CREATE VIEW                                            */
 /* ═══════════════════════════════════════════════════════ */
 function PedidoCreate({ providers, createMut, onBack }) {
+  const qc = useQueryClient();
   const [form, setForm] = useState({
     number: "", date: new Date().toISOString().slice(0, 10),
     expected_date: "", notes: "", provider_id: "", tipo: "PRECOMPRA",
   });
+  const [excelFile, setExcelFile] = useState(null);
 
   function handleCreate(e) {
     e.preventDefault();
     const notesLines = [];
     if (form.tipo) notesLines.push(`Tipo: ${form.tipo}`);
     if (form.notes) notesLines.push(form.notes);
-    createMut.mutate({
-      number: form.number, date: form.date, provider_id: parseInt(form.provider_id),
-      expected_date: form.expected_date || null, notes: notesLines.join('\n') || null,
-    });
+    createMut.mutate(
+      {
+        number: form.number, date: form.date, provider_id: parseInt(form.provider_id),
+        expected_date: form.expected_date || null, notes: notesLines.join('\n') || null,
+      },
+      {
+        onSuccess: async (newPedido) => {
+          if (excelFile && newPedido?.id) {
+            const fd = new FormData();
+            fd.append("file", excelFile);
+            try { await api.uploadFile(`/pedidos/${newPedido.id}/upload-excel`, fd); } catch (_) {}
+            qc.invalidateQueries({ queryKey: ["pedido", newPedido.id] });
+          }
+        },
+      }
+    );
   }
 
   return (
@@ -1163,6 +1177,17 @@ function PedidoCreate({ providers, createMut, onBack }) {
             placeholder="Notas internas del pedido..."
             className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:outline-none resize-none" />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Archivo Excel / PDF <span className="text-gray-400 font-normal">(opcional)</span></label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition text-sm text-gray-600">
+              <Upload className="w-4 h-4 text-violet-500" />
+              {excelFile ? excelFile.name : "Seleccionar archivo..."}
+              <input type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden" onChange={e => setExcelFile(e.target.files?.[0] || null)} />
+            </label>
+            {excelFile && <button type="button" onClick={() => setExcelFile(null)} className="p-1.5 hover:bg-red-50 rounded-lg transition"><X className="w-4 h-4 text-red-500" /></button>}
+          </div>
+        </div>
         {createMut.error && <p className="text-sm text-red-600">{createMut.error.message}</p>}
         <div className="flex gap-3 justify-end">
           <button type="button" onClick={onBack} className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg text-sm transition">Cancelar</button>
@@ -1194,6 +1219,14 @@ function PedidoDetail({ id, sendMut, receiveMut, cancelMut, deleteMut, onBack })
   });
   const addItemMut = useMutation({ mutationFn: (data) => api.post(`/pedidos/${id}/items`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ["pedido", id] }) });
   const removeItemMut = useMutation({ mutationFn: (itemId) => api.delete(`/pedidos/${id}/items/${itemId}`), onSuccess: () => qc.invalidateQueries({ queryKey: ["pedido", id] }) });
+  const uploadExcelMut = useMutation({
+    mutationFn: (file) => { const fd = new FormData(); fd.append("file", file); return api.uploadFile(`/pedidos/${id}/upload-excel`, fd); },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pedido", id] }),
+  });
+  const deleteExcelMut = useMutation({
+    mutationFn: () => api.delete(`/pedidos/${id}/upload-excel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pedido", id] }),
+  });
   const [itemModal, setItemModal] = useState(false);
 
   if (isLoading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div></div>;
@@ -1310,6 +1343,37 @@ function PedidoDetail({ id, sendMut, receiveMut, cancelMut, deleteMut, onBack })
           <strong>Observaciones:</strong> {detail.notes}
         </div>
       )}
+
+      {/* Excel/PDF attachment */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-sm text-gray-700 flex items-center gap-2"><Paperclip className="w-4 h-4" /> Archivo adjunto</h3>
+        </div>
+        {detail.excel_file ? (
+          <div className="flex items-center gap-3">
+            <a href={`/pedidos-files/${detail.excel_file}`} target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm hover:bg-green-100 transition font-medium">
+              <FileSpreadsheet className="w-4 h-4" /> {detail.excel_file}
+            </a>
+            <label className="flex items-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-sm cursor-pointer hover:bg-gray-100 transition">
+              <Upload className="w-3.5 h-3.5" /> Reemplazar
+              <input type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadExcelMut.mutate(e.target.files[0]); }} />
+            </label>
+            <button onClick={() => { if (confirm("¿Eliminar archivo?")) deleteExcelMut.mutate(); }}
+              disabled={deleteExcelMut.isPending}
+              className="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm hover:bg-red-100 transition">
+              <X className="w-3.5 h-3.5" /> Quitar
+            </button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 px-4 py-2.5 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition text-sm text-gray-500 w-fit">
+            <Upload className="w-4 h-4 text-violet-500" />
+            {uploadExcelMut.isPending ? "Subiendo..." : "Adjuntar Excel / PDF..."}
+            <input type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden" disabled={uploadExcelMut.isPending} onChange={e => { if (e.target.files?.[0]) uploadExcelMut.mutate(e.target.files[0]); }} />
+          </label>
+        )}
+        {uploadExcelMut.isError && <p className="text-xs text-red-500 mt-2">{uploadExcelMut.error?.message}</p>}
+      </div>
 
       {/* Items table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">

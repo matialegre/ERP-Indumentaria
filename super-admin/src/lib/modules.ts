@@ -1,4 +1,4 @@
-export type Categoria = 'core' | 'operaciones' | 'integraciones' | 'reportes' | 'crm'
+export type Categoria = 'core' | 'operaciones' | 'integraciones' | 'reportes' | 'crm' | 'rfid'
 
 export type Rubro =
   | 'todas'
@@ -149,6 +149,10 @@ export const MODULOS: Modulo[] = [
     categoria: 'operaciones', precioUsd: 30, icono: 'Wrench', color: '#f97316', dependencias: ['CATALOGO', 'CRM'], rubros: ['mecanico'], esCore: false, orden: 71,
   },
   {
+    slug: 'PDF_INVENTARIO', nombre: 'Reorganizador PDF', descripcion: 'Procesamiento y reorganización de PDF de inventario: tablas, exportación a Excel y PDF ordenado.',
+    categoria: 'operaciones', precioUsd: 10, icono: 'FileSearch', color: '#0891b2', dependencias: ['STOCK'], rubros: ['todas'], esCore: false, orden: 74,
+  },
+  {
     slug: 'MEJORAS', nombre: 'Mejoras del ERP', descripcion: 'Tablero de sugerencias de mejora. Aprobación vía Copilot.',
     categoria: 'operaciones', precioUsd: 0, icono: 'Lightbulb', color: '#8b5cf6', dependencias: [], rubros: ['todas'], esCore: false, orden: 72,
   },
@@ -207,6 +211,36 @@ export const MODULOS: Modulo[] = [
   {
     slug: 'SUPERTREND', nombre: 'SuperTrend', descripcion: 'Seguimiento competitivo, tendencias y dashboard de señales.',
     categoria: 'reportes', precioUsd: 25, icono: 'TrendingUp', color: '#d946ef', dependencias: [], rubros: ['todas'], esCore: false, orden: 94,
+  },
+
+  // ── RFID ─────────────────────────────────────────────────────────────────────
+  {
+    slug: 'RFID', nombre: 'Dashboard RFID', descripcion: 'Panel principal de RFID: métricas, lectores activos y estado del sistema.',
+    categoria: 'rfid', precioUsd: 0, icono: 'Radio', color: '#0d9488', dependencias: [], rubros: ['todas'], esCore: false, orden: 120,
+  },
+  {
+    slug: 'RFID_ETIQUETAS', nombre: 'Etiquetas RFID', descripcion: 'CRUD de etiquetas RFID por local, estado y producto vinculado.',
+    categoria: 'rfid', precioUsd: 0, icono: 'Package', color: '#0f766e', dependencias: ['RFID'], rubros: ['todas'], esCore: false, orden: 121,
+  },
+  {
+    slug: 'RFID_LECTORES', nombre: 'Lectores RFID', descripcion: 'Gestión de dispositivos lectores: handhelds, portales, túnel CD.',
+    categoria: 'rfid', precioUsd: 0, icono: 'Activity', color: '#115e59', dependencias: ['RFID'], rubros: ['todas'], esCore: false, orden: 122,
+  },
+  {
+    slug: 'RFID_ALERTAS', nombre: 'Alertas RFID', descripcion: 'Alertas por anomalías: productos faltantes, lecturas inusuales, robos.',
+    categoria: 'rfid', precioUsd: 0, icono: 'AlertTriangle', color: '#134e4a', dependencias: ['RFID'], rubros: ['todas'], esCore: false, orden: 123,
+  },
+  {
+    slug: 'RFID_INVENTARIO', nombre: 'Inventario RFID', descripcion: 'Snapshots de inventario RFID y comparación contra stock ERP.',
+    categoria: 'rfid', precioUsd: 0, icono: 'Warehouse', color: '#14b8a6', dependencias: ['RFID'], rubros: ['todas'], esCore: false, orden: 124,
+  },
+  {
+    slug: 'RFID_PROPUESTA', nombre: 'Propuesta ROI RFID', descripcion: 'Calculadora de ROI y propuesta comercial del sistema RFID.',
+    categoria: 'rfid', precioUsd: 0, icono: 'Lightbulb', color: '#2dd4bf', dependencias: [], rubros: ['todas'], esCore: false, orden: 125,
+  },
+  {
+    slug: 'RFID_CONTENIDO', nombre: 'Contenido RFID', descripcion: 'Repositorio de imágenes, videos, PDFs y presentaciones del sistema RFID.',
+    categoria: 'rfid', precioUsd: 0, icono: 'FolderOpen', color: '#0d9488', dependencias: ['RFID'], rubros: ['todas'], esCore: false, orden: 126,
   },
 
   // ── CRM ──────────────────────────────────────────────────────────────────────
@@ -270,6 +304,7 @@ export const MODULOS_POR_CATEGORIA = {
   integraciones: MODULOS.filter(m => m.categoria === 'integraciones'),
   reportes: MODULOS.filter(m => m.categoria === 'reportes'),
   crm: MODULOS.filter(m => m.categoria === 'crm'),
+  rfid: MODULOS.filter(m => m.categoria === 'rfid'),
 }
 
 export const MODULOS_VISIBLES = MODULOS.filter(m => !m.esCore).sort((a, b) => a.orden - b.orden)
@@ -290,6 +325,7 @@ export const LABEL_CATEGORIA: Record<Categoria, string> = {
   integraciones: 'Integraciones',
   reportes: 'Reportes',
   crm: 'CRM',
+  rfid: '📡 RFID',
 }
 
 export const LABEL_RUBRO: Record<string, string> = {

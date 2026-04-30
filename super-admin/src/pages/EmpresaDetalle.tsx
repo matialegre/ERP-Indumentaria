@@ -6,6 +6,7 @@ import {
   Users, RefreshCw, ChevronDown, ChevronUp, Layers,
   Monitor, Plus, Copy, Trash2, RotateCcw, ShieldCheck, ShieldOff,
   MapPin, Eye, Edit3, Lock, Unlock,
+  UserCog, Mail, KeyRound, UserCheck,
 } from 'lucide-react'
 import * as LucideIcons from 'lucide-react'
 import {
@@ -14,9 +15,14 @@ import {
 } from '../lib/modules'
 import {
   getEmpresa, getUser, saveModules, saveUserModules, saveUserModulePermissions, toggleCompanyActive,
-  getPCLicenses, getLocals, createPCLicense, updatePCLicense, deletePCLicense,
-  type EmpresaDetailAPI, type UserBriefAPI, type PCLicenseAPI, type LocalAPI,
+  getPCLicenses, getLocals, createPCLicense, updatePCLicense, deletePCLicense, updateUser,
+  type EmpresaDetailAPI, type UserBriefAPI, type PCLicenseAPI, type LocalAPI, type UpdateUserPayload,
 } from '../lib/api'
+
+const AVAILABLE_ROLES = [
+  'ADMIN', 'COMPRAS', 'ADMINISTRACION', 'GESTION_PAGOS',
+  'VENDEDOR', 'DEPOSITO', 'SUPERVISOR', 'MONITOREO', 'TRANSPORTE',
+]
 
 const CAT_COLORS: Record<Categoria, string> = {
   core:          'text-indigo-400  bg-indigo-500/10  border-indigo-500/20',
@@ -24,6 +30,7 @@ const CAT_COLORS: Record<Categoria, string> = {
   integraciones: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   reportes:      'text-amber-400   bg-amber-500/10   border-amber-500/20',
   crm:           'text-pink-400    bg-pink-500/10    border-pink-500/20',
+  rfid:          'text-teal-400    bg-teal-500/10    border-teal-500/20',
 }
 
 const CORE_SLUGS = MODULOS.filter(m => m.esCore).map(m => m.slug)
@@ -46,10 +53,22 @@ function getDependants(slug: string, activeModulos: string[]): string[] {
 }
 
 type SaveStep = 'idle' | 'sending' | 'verifying' | 'done' | 'error'
+type ModuleState = 'hidden' | 'editable' | 'readonly'
+
+interface UserDataEdits {
+  full_name: string
+  email: string
+  role: string
+  new_password: string
+}
 
 function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModulos: Set<string> }) {
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [permTab, setPermTab] = useState<Record<number, 'datos' | 'permisos'>>({})
   const [overrides, setOverrides] = useState<Record<number, string[] | null>>({})
+  const [readonlyOverrides, setReadonlyOverrides] = useState<Record<number, string[] | null>>({})
+  const [userEdits, setUserEdits] = useState<Record<number, UserDataEdits>>({})
+  const [dataSaveStep, setDataSaveStep] = useState<Record<number, SaveStep>>({})
   const [saveStep, setSaveStep] = useState<Record<number, SaveStep>>({})
   const [saveLog, setSaveLog] = useState<Record<number, string[]>>({})
   const [confirmedUser, setConfirmedUser] = useState<Record<number, UserBriefAPI>>({})
@@ -68,6 +87,13 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
         : null
       return { ...prev, [u.id]: normalized }
     })
+    setReadonlyOverrides(prev => {
+      if (prev[u.id] !== undefined) return prev
+      const normalized = u.modules_readonly !== null && u.modules_readonly !== undefined
+        ? u.modules_readonly.map(s => s.toUpperCase())
+        : null
+      return { ...prev, [u.id]: normalized }
+    })
   }
 
   function toggle(userId: number, slug: string) {
@@ -80,23 +106,105 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
     })
   }
 
+  function toggleReadonly(userId: number, slug: string) {
+    setReadonlyOverrides(prev => {
+      const current = prev[userId] ?? []
+      const set = new Set(current)
+      if (set.has(slug)) set.delete(slug); else set.add(slug)
+      return { ...prev, [userId]: [...set] }
+    })
+  }
+
+  function initUserEdits(u: UserBriefAPI) {
+    setUserEdits(prev => {
+      if (prev[u.id] !== undefined) return prev
+      return { ...prev, [u.id]: {
+        full_name: u.full_name ?? '',
+        email: u.email ?? '',
+        role: u.role,
+        new_password: '',
+      } }
+    })
+  }
+
+  function getModuleState(userId: number, slug: string): ModuleState {
+    const override = overrides[userId] !== undefined ? overrides[userId] : null
+    const readonly = readonlyOverrides[userId] !== undefined ? readonlyOverrides[userId] : null
+    const visibleList = override !== null && override !== undefined ? override : activeList
+    const visible = visibleList.includes(slug)
+    if (!visible) return 'hidden'
+    return (readonly ?? []).includes(slug) ? 'readonly' : 'editable'
+  }
+
+  function setModuleState(userId: number, slug: string, target: ModuleState) {
+    setOverrides(prev => {
+      const cur = prev[userId] !== undefined ? prev[userId] : null
+      const base = cur !== null ? cur : activeList
+      const set = new Set(base)
+      if (target === 'hidden') set.delete(slug); else set.add(slug)
+      return { ...prev, [userId]: [...set] }
+    })
+    setReadonlyOverrides(prev => {
+      const cur = prev[userId] ?? []
+      const set = new Set(cur)
+      if (target === 'readonly') set.add(slug); else set.delete(slug)
+      return { ...prev, [userId]: [...set] }
+    })
+  }
+
+  function cycleModuleState(userId: number, slug: string) {
+    const s = getModuleState(userId, slug)
+    const next: ModuleState = s === 'editable' ? 'readonly' : s === 'readonly' ? 'hidden' : 'editable'
+    setModuleState(userId, slug, next)
+  }
+
+  function setGroupState(userId: number, slugs: string[], target: ModuleState) {
+    slugs.forEach(s => setModuleState(userId, s, target))
+  }
+
+  async function saveUserData(userId: number, username: string) {
+    const edits = userEdits[userId]
+    if (!edits) return
+    setDataSaveStep(p => ({ ...p, [userId]: 'sending' }))
+    try {
+      const payload: UpdateUserPayload = {
+        full_name: edits.full_name.trim(),
+        email: edits.email.trim() || null,
+        role: edits.role,
+      }
+      if (edits.new_password.trim()) payload.new_password = edits.new_password.trim()
+      const updated = await updateUser(userId, payload)
+      setConfirmedUser(p => ({ ...p, [userId]: updated }))
+      addLog(userId, `✅ Datos de @${username} actualizados`)
+      setUserEdits(p => ({ ...p, [userId]: { ...edits, new_password: '' } }))
+      setDataSaveStep(p => ({ ...p, [userId]: 'done' }))
+      setTimeout(() => setDataSaveStep(p => ({ ...p, [userId]: 'idle' })), 4000)
+    } catch (e: unknown) {
+      addLog(userId, `❌ Error datos: ${e instanceof Error ? e.message : 'Error'}`)
+      setDataSaveStep(p => ({ ...p, [userId]: 'error' }))
+    }
+  }
+
   async function save(userId: number, username: string) {
     const override = overrides[userId] ?? null
+    const readonly = readonlyOverrides[userId] ?? null
     setSaveStep(p => ({ ...p, [userId]: 'sending' }))
     setSaveLog(p => ({ ...p, [userId]: [] }))
     addLog(userId, `⏳ Enviando cambios para @${username}...`)
     try {
-      const updated = await saveUserModules(userId, override)
+      await saveUserModules(userId, override)
+      await saveUserModulePermissions(userId, readonly)
       addLog(userId, `✅ Servidor confirmó — guardado OK`)
       setSaveStep(p => ({ ...p, [userId]: 'verifying' }))
       addLog(userId, `🔍 Verificando en ERP...`)
       await new Promise(r => setTimeout(r, 600))
       const verified = await getUser(userId)
       const count = verified.modules_override?.length ?? null
+      const roCount = verified.modules_readonly?.length ?? 0
       if (count !== null) {
-        addLog(userId, `✅ ERP confirmado — ${count} módulo(s) activos para @${username}`)
+        addLog(userId, `✅ ERP confirmado — ${count} módulo(s) activos, ${roCount} solo lectura`)
       } else {
-        addLog(userId, `✅ ERP confirmado — sin restricción (ve todos los módulos de la empresa)`)
+        addLog(userId, `✅ ERP confirmado — sin restricción${roCount > 0 ? `, ${roCount} módulos en lectura` : ''}`)
       }
       setConfirmedUser(p => ({ ...p, [userId]: verified }))
       setSaveStep(p => ({ ...p, [userId]: 'done' }))
@@ -116,8 +224,12 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
       <div className="space-y-1">
         {users.map(u => {
           const isOpen = expandedId === u.id
+          const tab = permTab[u.id] ?? 'datos'
+          const edits = userEdits[u.id]
           const currentOverride = overrides[u.id] !== undefined ? overrides[u.id] : u.modules_override
+          const currentReadonly = readonlyOverrides[u.id] !== undefined ? readonlyOverrides[u.id] : (u.modules_readonly ?? [])
           const hasRestriction = currentOverride !== null && currentOverride !== undefined
+          const hasReadonly = (currentReadonly?.length ?? 0) > 0
 
           return (
             <div key={u.id} className="border border-slate-800 rounded-lg overflow-hidden">
@@ -132,15 +244,20 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
                       {currentOverride?.length ?? 0} mód.
                     </span>
                   )}
+                  {hasReadonly && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1">
+                      <Eye size={9} /> {currentReadonly?.length}
+                    </span>
+                  )}
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     u.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-400'
                   }`}>{u.role}</span>
                   <button
-                    onClick={() => { if (!isOpen) initOverride(u); setExpandedId(isOpen ? null : u.id) }}
+                    onClick={() => { if (!isOpen) { initOverride(u); initUserEdits(u) } setExpandedId(isOpen ? null : u.id) }}
                     className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition"
                   >
                     <Layers size={11} />
-                    Módulos
+                    Permisos
                     {isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                   </button>
                 </div>
@@ -148,44 +265,185 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
 
               {isOpen && (
                 <div className="px-3 pb-4 pt-2 border-t border-slate-800 bg-slate-950/40">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-slate-400">
-                      {!hasRestriction
-                        ? 'Sin restricción — ve todos los módulos activos'
-                        : `Restricción activa — ${currentOverride?.length ?? 0} módulo(s)`}
-                    </p>
+                  {/* Tab selector */}
+                  <div className="flex gap-1 mb-3 bg-slate-900 rounded-lg p-1">
                     <button
-                      onClick={() => setOverrides(p => ({ ...p, [u.id]: null }))}
-                      className="text-xs text-slate-500 hover:text-slate-300 underline"
+                      onClick={() => setPermTab(p => ({ ...p, [u.id]: 'datos' }))}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-medium transition ${
+                        tab === 'datos' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
+                      }`}
                     >
-                      Sin restricción
+                      <UserCog size={11} /> Datos del usuario
+                    </button>
+                    <button
+                      onClick={() => setPermTab(p => ({ ...p, [u.id]: 'permisos' }))}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-medium transition ${
+                        tab === 'permisos' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-300'
+                      }`}
+                    >
+                      <Layers size={11} /> Módulos y permisos
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
-                    {activeList.map(slug => {
-                      const mod = MODULOS.find(m => m.slug === slug)
-                      if (!mod) return null
-                      const list = currentOverride !== null && currentOverride !== undefined ? currentOverride : activeList
-                      const checked = list.includes(slug)
-                      return (
+                  {tab === 'datos' && edits && (
+                    <div className="space-y-3 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs text-slate-400 mb-1 flex items-center gap-1.5"><UserCheck size={11} /> Nombre completo</label>
+                          <input
+                            type="text"
+                            value={edits.full_name}
+                            onChange={(e) => setUserEdits(p => ({ ...p, [u.id]: { ...edits, full_name: e.target.value } }))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 mb-1 flex items-center gap-1.5"><Mail size={11} /> Email</label>
+                          <input
+                            type="email"
+                            value={edits.email}
+                            onChange={(e) => setUserEdits(p => ({ ...p, [u.id]: { ...edits, email: e.target.value } }))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 mb-1 flex items-center gap-1.5"><Users size={11} /> Usuario</label>
+                          <input type="text" value={u.username} disabled className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-500 font-mono" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 mb-1 flex items-center gap-1.5"><ShieldCheck size={11} /> Rol</label>
+                          <select
+                            value={edits.role}
+                            onChange={(e) => setUserEdits(p => ({ ...p, [u.id]: { ...edits, role: e.target.value } }))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                          >
+                            {AVAILABLE_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-xs text-slate-400 mb-1 flex items-center gap-1.5">
+                            <KeyRound size={11} /> Nueva contraseña <span className="text-slate-600">(dejar vacío para no cambiar)</span>
+                          </label>
+                          <input
+                            type="password"
+                            value={edits.new_password}
+                            onChange={(e) => setUserEdits(p => ({ ...p, [u.id]: { ...edits, new_password: e.target.value } }))}
+                            placeholder="••••••••"
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
                         <button
-                          key={slug}
-                          onClick={() => toggle(u.id, slug)}
-                          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-medium transition text-left ${
-                            checked
-                              ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
-                              : 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-600'
-                          }`}
+                          onClick={() => saveUserData(u.id, u.username)}
+                          disabled={dataSaveStep[u.id] === 'sending'}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
                         >
-                          {checked
-                            ? <CheckCircle2 size={11} className="shrink-0 text-indigo-400" />
-                            : <XCircle size={11} className="shrink-0 text-slate-600" />}
-                          <span className="truncate">{mod.nombre}</span>
+                          <Save size={11} />
+                          {dataSaveStep[u.id] === 'sending' ? 'Guardando...' : 'Guardar datos'}
                         </button>
-                      )
-                    })}
-                  </div>
+                        {dataSaveStep[u.id] === 'done' && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-400">
+                            <CheckCircle2 size={11} /> Guardado
+                          </span>
+                        )}
+                        {dataSaveStep[u.id] === 'error' && (
+                          <span className="flex items-center gap-1 text-xs text-red-400">
+                            <XCircle size={11} /> Error al guardar
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {tab === 'permisos' && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span className="flex items-center gap-1"><XCircle size={11} className="text-slate-600" /> Oculto</span>
+                          <span className="flex items-center gap-1"><Edit3 size={11} className="text-emerald-400" /> Editable</span>
+                          <span className="flex items-center gap-1"><Eye size={11} className="text-yellow-400" /> Solo lectura</span>
+                          <span className="text-slate-600">— clic para ciclar</span>
+                        </div>
+                        <button
+                          onClick={() => { setOverrides(p => ({ ...p, [u.id]: null })); setReadonlyOverrides(p => ({ ...p, [u.id]: null })) }}
+                          className="text-xs text-slate-500 hover:text-slate-300 underline"
+                        >
+                          Sin restricción (todo editable)
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(Object.keys(MODULOS_POR_CATEGORIA) as Categoria[])
+                          .filter(cat => cat !== 'core')
+                          .map(cat => {
+                            const catMods = MODULOS_POR_CATEGORIA[cat].filter(m => activeModulos.has(m.slug))
+                            if (catMods.length === 0) return null
+                            const catSlugs = catMods.map(m => m.slug)
+                            const allHidden = catSlugs.every(s => getModuleState(u.id, s) === 'hidden')
+                            return (
+                              <div key={cat} className={`rounded-lg border p-3 ${CAT_COLORS[cat]} bg-slate-900/40`}>
+                                <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold uppercase tracking-wide">{LABEL_CATEGORIA[cat]}</span>
+                                    <span className="text-[10px] text-slate-500">{catSlugs.length} módulos</span>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => setGroupState(u.id, catSlugs, 'editable')}
+                                      className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition font-medium flex items-center gap-1"
+                                      title="Todos editables"
+                                    >
+                                      <Edit3 size={9} /> Todo edit
+                                    </button>
+                                    <button
+                                      onClick={() => setGroupState(u.id, catSlugs, 'readonly')}
+                                      className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition font-medium flex items-center gap-1"
+                                      title="Todos en solo lectura"
+                                    >
+                                      <Eye size={9} /> Todo ver
+                                    </button>
+                                    <button
+                                      onClick={() => setGroupState(u.id, catSlugs, 'hidden')}
+                                      disabled={allHidden}
+                                      className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-30 transition font-medium flex items-center gap-1"
+                                      title="Ocultar todos"
+                                    >
+                                      <XCircle size={9} /> Ocultar
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                                  {catMods.map(mod => {
+                                    const state = getModuleState(u.id, mod.slug)
+                                    return (
+                                      <button
+                                        key={mod.slug}
+                                        onClick={() => cycleModuleState(u.id, mod.slug)}
+                                        title="Clic para ciclar: Editable → Solo lectura → Oculto"
+                                        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-xs font-medium transition text-left ${
+                                          state === 'editable'
+                                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                                            : state === 'readonly'
+                                            ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+                                            : 'bg-slate-800/50 border-slate-700 text-slate-500'
+                                        }`}
+                                      >
+                                        {state === 'editable' && <Edit3 size={11} className="shrink-0 text-emerald-400" />}
+                                        {state === 'readonly' && <Eye size={11} className="shrink-0 text-yellow-400" />}
+                                        {state === 'hidden' && <XCircle size={11} className="shrink-0 text-slate-600" />}
+                                        <span className="truncate">{mod.nombre}</span>
+                                        {state === 'readonly' && <Lock size={9} className="shrink-0 text-yellow-600 ml-auto" />}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Log de pasos */}
                   {(saveLog[u.id]?.length > 0) && (
@@ -203,7 +461,7 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
                     >
                       <Save size={11} />
-                      {saveStep[u.id] === 'sending' ? 'Enviando...' : saveStep[u.id] === 'verifying' ? 'Verificando...' : 'Guardar'}
+                      {saveStep[u.id] === 'sending' ? 'Enviando...' : saveStep[u.id] === 'verifying' ? 'Verificando...' : 'Guardar cambios'}
                     </button>
                     {saveStep[u.id] === 'done' && (
                       <span className="flex items-center gap-1 text-xs text-emerald-400">
@@ -221,14 +479,16 @@ function UsersList({ users, activeModulos }: { users: UserBriefAPI[], activeModu
   )
 }
 
-function PCLicenses({ companyId }: { companyId: number }) {
+function PCLicenses({ companyId, locals }: { companyId: number, locals: LocalAPI[] }) {
   const [licenses, setLicenses] = useState<PCLicenseAPI[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [newLocalId, setNewLocalId] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const [expandedLocal, setExpandedLocal] = useState<number | 'sin_local' | null>(null)
 
   async function load() {
     setLoading(true)
@@ -248,9 +508,10 @@ function PCLicenses({ companyId }: { companyId: number }) {
     if (!newDesc.trim()) return
     setCreating(true)
     try {
-      const lic = await createPCLicense(companyId, newDesc.trim())
+      const lic = await createPCLicense(companyId, newDesc.trim(), newLocalId)
       setLicenses(prev => [lic, ...prev])
       setNewDesc('')
+      setNewLocalId(null)
       setShowForm(false)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al crear')
@@ -297,6 +558,34 @@ function PCLicenses({ companyId }: { companyId: number }) {
     return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
   }
 
+  // Group licenses by local
+  const licensesByLocal = useMemo(() => {
+    const grouped: Record<string, { label: string; localId: number | null; lics: PCLicenseAPI[] }> = {}
+    for (const lic of licenses) {
+      const key = lic.local_id != null ? String(lic.local_id) : 'sin_local'
+      if (!grouped[key]) {
+        grouped[key] = {
+          label: lic.local_name ?? (lic.local_id ? `Local #${lic.local_id}` : 'Sin local asignado'),
+          localId: lic.local_id ?? null,
+          lics: [],
+        }
+      }
+      grouped[key].lics.push(lic)
+    }
+    // Add locals with no licenses too
+    for (const loc of locals) {
+      const key = String(loc.id)
+      if (!grouped[key]) {
+        grouped[key] = { label: loc.name, localId: loc.id, lics: [] }
+      }
+    }
+    return Object.values(grouped).sort((a, b) => {
+      if (a.localId === null) return 1
+      if (b.localId === null) return -1
+      return a.label.localeCompare(b.label)
+    })
+  }, [licenses, locals])
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
@@ -304,6 +593,7 @@ function PCLicenses({ companyId }: { companyId: number }) {
           <Monitor size={16} className="text-violet-400" />
           <span className="text-sm font-semibold text-white">Licencias por PC</span>
           <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{licenses.length}</span>
+          <span className="text-xs text-slate-600">· {locals.length} locales</span>
         </div>
         <button
           onClick={() => setShowForm(v => !v)}
@@ -314,28 +604,42 @@ function PCLicenses({ companyId }: { companyId: number }) {
       </div>
 
       {showForm && (
-        <div className="px-5 py-4 border-b border-slate-800 bg-slate-800/30 flex gap-3">
-          <input
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
-            placeholder="Descripción (ej: Local Norte - PC Caja)"
-            value={newDesc}
-            onChange={e => setNewDesc(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            autoFocus
-          />
-          <button
-            onClick={handleCreate}
-            disabled={creating || !newDesc.trim()}
-            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
-          >
-            {creating ? 'Creando...' : 'Crear'}
-          </button>
-          <button
-            onClick={() => { setShowForm(false); setNewDesc('') }}
-            className="px-3 py-2 text-slate-400 hover:text-white text-sm rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
+        <div className="px-5 py-4 border-b border-slate-800 bg-slate-800/30 space-y-3">
+          <div className="flex gap-3">
+            <input
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
+              placeholder="Descripción (ej: PC Caja)"
+              value={newDesc}
+              onChange={e => setNewDesc(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              autoFocus
+            />
+            <select
+              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500"
+              value={newLocalId ?? ''}
+              onChange={e => setNewLocalId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">— Sin local —</option>
+              {locals.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreate}
+              disabled={creating || !newDesc.trim()}
+              className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+            >
+              {creating ? 'Creando...' : 'Crear licencia'}
+            </button>
+            <button
+              onClick={() => { setShowForm(false); setNewDesc(''); setNewLocalId(null) }}
+              className="px-3 py-2 text-slate-400 hover:text-white text-sm rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
 
@@ -347,73 +651,101 @@ function PCLicenses({ companyId }: { companyId: number }) {
         <div className="px-5 py-8 flex justify-center">
           <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : licenses.length === 0 ? (
+      ) : licensesByLocal.length === 0 ? (
         <div className="px-5 py-8 text-center text-slate-500 text-sm">
           No hay licencias creadas para esta empresa
         </div>
       ) : (
-        <div className="divide-y divide-slate-800/50">
-          {licenses.map(lic => (
-            <div key={lic.id} className="px-5 py-3.5 flex items-start gap-4">
-              <div className="mt-0.5 shrink-0">
-                {lic.is_active
-                  ? <ShieldCheck size={16} className="text-emerald-400" />
-                  : <ShieldOff size={16} className="text-slate-500" />
-                }
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-white">{lic.description || '(sin descripción)'}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
-                    {lic.is_active ? 'Activa' : 'Inactiva'}
-                  </span>
-                  {lic.machine_id && (
-                    <span className="text-xs bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Vinculada</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <code className="text-xs font-mono text-violet-300 bg-slate-800 px-2 py-0.5 rounded">{lic.key}</code>
-                  <button onClick={() => copyKey(lic)} className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
-                    <Copy size={11} />
-                    {copiedId === lic.id ? 'Copiado!' : 'Copiar'}
-                  </button>
-                </div>
-                <div className="flex gap-4 mt-1 text-xs text-slate-500">
-                  <span>Creada: {fmt(lic.created_at)}</span>
-                  {lic.activated_at && <span>Vinculada: {fmt(lic.activated_at)}</span>}
-                  {lic.last_seen_at && <span>Última vez: {fmt(lic.last_seen_at)}</span>}
-                </div>
-                {lic.machine_id && (
-                  <div className="text-xs text-slate-600 mt-0.5 truncate max-w-sm">Equipo: {lic.machine_id}</div>
+        <div className="divide-y divide-slate-800/30">
+          {licensesByLocal.map(group => {
+            const key = group.localId != null ? group.localId : 'sin_local'
+            const isExpanded = expandedLocal === key || expandedLocal === null
+            return (
+              <div key={String(key)}>
+                {/* Local header */}
+                <button
+                  onClick={() => setExpandedLocal(isExpanded && expandedLocal !== null ? null : key)}
+                  className="w-full px-5 py-2.5 flex items-center gap-2 bg-slate-800/30 hover:bg-slate-800/50 transition-colors text-left"
+                >
+                  <MapPin size={13} className="text-violet-400 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-300">{group.label}</span>
+                  <span className="text-xs text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-full ml-1">{group.lics.length}</span>
+                  <div className="ml-auto">
+                    {isExpanded ? <ChevronUp size={13} className="text-slate-500" /> : <ChevronDown size={13} className="text-slate-500" />}
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="divide-y divide-slate-800/30">
+                    {group.lics.length === 0 && (
+                      <div className="px-5 py-3 text-xs text-slate-600 italic">Sin licencias en este local</div>
+                    )}
+                    {group.lics.map(lic => (
+                      <div key={lic.id} className="px-5 py-3 flex items-start gap-4">
+                        <div className="mt-0.5 shrink-0">
+                          {lic.is_active
+                            ? <ShieldCheck size={16} className="text-emerald-400" />
+                            : <ShieldOff size={16} className="text-slate-500" />
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-white">{lic.description || '(sin descripción)'}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                              {lic.is_active ? 'Activa' : 'Inactiva'}
+                            </span>
+                            {lic.machine_id && (
+                              <span className="text-xs bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Vinculada</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <code className="text-xs font-mono text-violet-300 bg-slate-800 px-2 py-0.5 rounded">{lic.key}</code>
+                            <button onClick={() => copyKey(lic)} className="text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
+                              <Copy size={11} />
+                              {copiedId === lic.id ? 'Copiado!' : 'Copiar'}
+                            </button>
+                          </div>
+                          <div className="flex gap-4 mt-1 text-xs text-slate-500">
+                            <span>Creada: {fmt(lic.created_at)}</span>
+                            {lic.activated_at && <span>Vinculada: {fmt(lic.activated_at)}</span>}
+                            {lic.last_seen_at && <span>Última vez: {fmt(lic.last_seen_at)}</span>}
+                          </div>
+                          {lic.machine_id && (
+                            <div className="text-xs text-slate-600 mt-0.5 truncate max-w-sm">Equipo: {lic.machine_id}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleToggle(lic)}
+                            title={lic.is_active ? 'Desactivar' : 'Activar'}
+                            className={`p-1.5 rounded-lg text-xs transition-colors ${lic.is_active ? 'text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400'}`}
+                          >
+                            {lic.is_active ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
+                          </button>
+                          {lic.machine_id && (
+                            <button
+                              onClick={() => handleResetMachine(lic)}
+                              title="Resetear equipo vinculado"
+                              className="p-1.5 rounded-lg text-slate-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(lic)}
+                            title="Eliminar"
+                            className="p-1.5 rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => handleToggle(lic)}
-                  title={lic.is_active ? 'Desactivar' : 'Activar'}
-                  className={`p-1.5 rounded-lg text-xs transition-colors ${lic.is_active ? 'text-emerald-400 hover:bg-red-500/10 hover:text-red-400' : 'text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400'}`}
-                >
-                  {lic.is_active ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
-                </button>
-                {lic.machine_id && (
-                  <button
-                    onClick={() => handleResetMachine(lic)}
-                    title="Resetear equipo vinculado"
-                    className="p-1.5 rounded-lg text-slate-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                )}
-                <button
-                  onClick={() => handleDelete(lic)}
-                  title="Eliminar"
-                  className="p-1.5 rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
@@ -428,6 +760,7 @@ export default function EmpresaDetalle() {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
   const [modulos, setModulos]     = useState<string[]>([])
+  const [locals, setLocals]       = useState<LocalAPI[]>([])
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado]   = useState(false)
   const [tooltip, setTooltip]     = useState<string | null>(null)
@@ -438,8 +771,12 @@ export default function EmpresaDetalle() {
     setLoading(true)
     setError('')
     try {
-      const data = await getEmpresa(Number(id))
+      const [data, locData] = await Promise.all([
+        getEmpresa(Number(id)),
+        getLocals(Number(id)),
+      ])
       setEmpresa(data)
+      setLocals(locData)
       // Backend stores slugs in UPPERCASE — keep as-is to match modules.ts catalog
       const active = data.modules.filter(m => m.is_active).map(m => m.module_slug.toUpperCase())
       setModulos(active)
@@ -544,7 +881,7 @@ export default function EmpresaDetalle() {
     )
   }
 
-  const categorias: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm']
+  const categorias: Categoria[] = ['core', 'operaciones', 'integraciones', 'reportes', 'crm', 'rfid']
 
   return (
     <div className="p-8 space-y-6 max-w-6xl">
@@ -622,7 +959,7 @@ export default function EmpresaDetalle() {
       )}
 
       {/* Licencias PC */}
-      <PCLicenses companyId={empresa.id} />
+      <PCLicenses companyId={empresa.id} locals={locals} />
 
       {/* Módulos */}
       <div className="space-y-4">
@@ -659,7 +996,37 @@ export default function EmpresaDetalle() {
           </div>
         )}
 
-        {categorias.map(cat => (
+        {categorias.map(cat => {
+          const catMods = MODULOS_POR_CATEGORIA[cat].filter(m => !m.esCore)
+          const allOn = catMods.length > 0 && catMods.every(m => modulos.includes(m.slug))
+          const allOff = catMods.length === 0 || catMods.every(m => !modulos.includes(m.slug))
+
+          function activateAll() {
+            const toAdd = catMods.filter(m => !modulos.includes(m.slug))
+            let next = [...modulos]
+            for (const mod of toAdd) {
+              const missing = getMissingDeps(mod.slug, next)
+              if (missing.length === 0) next = [...next, mod.slug]
+            }
+            setModulos(next)
+            if (empresa) {
+              saveModules(empresa.id, next)
+                .then(() => { setGuardado(true); setTimeout(() => setGuardado(false), 2000) })
+                .catch((e: unknown) => { setTooltip(e instanceof Error ? e.message : 'Error'); setTimeout(() => setTooltip(null), 4000) })
+            }
+          }
+
+          function deactivateAll() {
+            const next = modulos.filter(s => !catMods.find(m => m.slug === s))
+            setModulos(next)
+            if (empresa) {
+              saveModules(empresa.id, next)
+                .then(() => { setGuardado(true); setTimeout(() => setGuardado(false), 2000) })
+                .catch((e: unknown) => { setTooltip(e instanceof Error ? e.message : 'Error'); setTimeout(() => setTooltip(null), 4000) })
+            }
+          }
+
+          return (
           <div key={cat} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
             <div className={`px-5 py-3 border-b border-slate-800 flex items-center gap-2`}>
               <span className={`text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${CAT_COLORS[cat]}`}>
@@ -668,6 +1035,24 @@ export default function EmpresaDetalle() {
               <span className="text-xs text-slate-500">
                 {MODULOS_POR_CATEGORIA[cat].filter(m => modulosActivos.has(m.slug)).length} / {MODULOS_POR_CATEGORIA[cat].length} activos
               </span>
+              {catMods.length > 0 && (
+                <div className="ml-auto flex gap-1">
+                  <button
+                    onClick={activateAll}
+                    disabled={allOn}
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 disabled:opacity-30 transition"
+                  >
+                    <CheckCircle2 size={10} /> Activar todos
+                  </button>
+                  <button
+                    onClick={deactivateAll}
+                    disabled={allOff}
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 disabled:opacity-30 transition"
+                  >
+                    <XCircle size={10} /> Desactivar todos
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="divide-y divide-slate-800/50">
@@ -720,7 +1105,8 @@ export default function EmpresaDetalle() {
               })}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -7,9 +7,18 @@ import { BrandingProvider } from "./context/BrandingContext";
 import App from "./App";
 import "./index.css";
 
-// Registrar Service Worker para PWA
+// Al arrancar, limpiar caches y SW viejos para garantizar assets frescos
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
+    try {
+      // Limpiar caches viejos (chunks con nombres estables pueden estar stale)
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((k) => caches.delete(k)));
+      // Desregistrar SW existentes para que el nuevo instale limpio
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch (_) {}
+    // Registrar SW fresco
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }

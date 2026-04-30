@@ -25,6 +25,7 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.price_lists import router as price_lists_router
 from app.api.v1.sql_server import router as sql_server_router
 from app.api.v1.pdf_parser import router as pdf_parser_router
+from app.api.v1.excel_parser import router as excel_parser_router
 from app.api.v1.legacy import router as legacy_router
 from app.api.v1.improvement_notes import router as improvement_notes_router
 from app.api.v1.socios import router as socios_router
@@ -55,6 +56,15 @@ from app.api.v1.asistente import router as asistente_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.fichaje import router as fichaje_router
 from app.api.v1.mobile_app import router as mobile_app_router
+from app.api.v1.rfid import router as rfid_router
+from app.api.v1.rfid_contenido import router as rfid_contenido_router
+from app.api.v1.arena import router as arena_router
+from app.api.v1.arena_lol import router as arena_lol_router
+from app.api.v1.calendar_events import router as calendar_events_router
+from app.api.v1.webauthn import router as webauthn_router
+from app.api.v1.pdf_inventario import router as pdf_inventario_router
+from app.api.v1.cajas import router as cajas_router
+from app.api.v1.clink import router as clink_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -96,6 +106,7 @@ api_router.include_router(notifications_router)
 api_router.include_router(price_lists_router)
 api_router.include_router(sql_server_router)
 api_router.include_router(pdf_parser_router)
+api_router.include_router(excel_parser_router)
 api_router.include_router(legacy_router)
 api_router.include_router(improvement_notes_router)
 api_router.include_router(socios_router)
@@ -144,3 +155,19 @@ api_router.include_router(dashboard_router)
 api_router.include_router(fichaje_router)
 # Módulo App Móvil (mejoras Android/iOS)
 api_router.include_router(mobile_app_router)
+# Módulo RFID (Gestión de Inventarios con Tecnología RFID)
+api_router.include_router(rfid_router)
+api_router.include_router(rfid_contenido_router)
+# Módulo ARENA 1v1 (acceso restringido — easter egg)
+api_router.include_router(arena_router)
+api_router.include_router(arena_lol_router)
+# Calendario de Eventos
+api_router.include_router(calendar_events_router)
+# WebAuthn / Windows Hello
+api_router.include_router(webauthn_router)
+# Módulo Reorganizador de PDF de Inventario
+api_router.include_router(pdf_inventario_router)
+# Módulo Control de Cajas + Gastos Locales
+api_router.include_router(cajas_router)
+# Módulo CLINK API (proxy a Clinkbox POS)
+api_router.include_router(clink_router)

@@ -195,6 +195,35 @@ def _company_or_404(db: Session, company_id: int) -> Company:
 # ── Endpoints ────────────────────────────────────────────────
 
 
+class ModuleCatalogItem(BaseModel):
+    slug: str
+    nombre: str
+    descripcion: str
+    rutas: list[str]
+    icono: str
+    color: str
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/modules", response_model=list[ModuleCatalogItem])
+def list_mega_modules(
+    _=Depends(require_mega_admin),
+):
+    """Devuelve el catálogo completo de módulos disponibles en la plataforma (solo MEGAADMIN)."""
+    return [
+        ModuleCatalogItem(
+            slug=m["slug"],
+            nombre=m["nombre"],
+            descripcion=m["descripcion"],
+            rutas=m["rutas"],
+            icono=m["icono"],
+            color=m["color"],
+        )
+        for m in MODULES_CATALOG
+    ]
+
+
 @router.get("/stats", response_model=PlatformStats)
 def get_platform_stats(
     db: Session = Depends(get_db),
@@ -260,7 +289,7 @@ def get_company_detail(
     _ensure_modules_seeded(db, company_id)
     users = db.query(User).filter(User.company_id == company_id).all()
     modules = db.query(CompanyModule).filter(CompanyModule.company_id == company_id).all()
-    locals_ = db.query(Local).filter(Local.company_id == company_id).all()
+    locals_ = db.query(Local).filter(Local.company_id == company_id, Local.is_active == True).all()
 
     return CompanyDetail(
         id=company.id, name=company.name, cuit=company.cuit,
@@ -322,7 +351,7 @@ def create_company_full(
 
     users = db.query(User).filter(User.company_id == company.id).all()
     modules = db.query(CompanyModule).filter(CompanyModule.company_id == company.id).all()
-    locals_ = db.query(Local).filter(Local.company_id == company.id).all()
+    locals_ = db.query(Local).filter(Local.company_id == company.id, Local.is_active == True).all()
 
     return CompanyDetail(
         id=company.id, name=company.name, cuit=company.cuit,
@@ -360,7 +389,7 @@ def update_company(
 
     users = db.query(User).filter(User.company_id == company_id).all()
     modules = db.query(CompanyModule).filter(CompanyModule.company_id == company_id).all()
-    locals_ = db.query(Local).filter(Local.company_id == company_id).all()
+    locals_ = db.query(Local).filter(Local.company_id == company_id, Local.is_active == True).all()
 
     return CompanyDetail(
         id=company.id, name=company.name, cuit=company.cuit,
@@ -429,6 +458,36 @@ def get_user_mega(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return UserBrief.model_validate(user)
+
+
+@router.patch("/users/{user_id}", response_model=UserBrief)
+def update_user_mega(
+    user_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    _=Depends(require_mega_admin),
+):
+    """Actualiza datos básicos del usuario: full_name, email, role, is_active, new_password."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if "full_name" in body and body["full_name"]:
+        user.full_name = body["full_name"]
+    if "email" in body:
+        user.email = body["email"] or None
+    if "role" in body and body["role"]:
+        try:
+            user.role = UserRole(body["role"])
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Rol inválido: {body['role']}")
+    if "is_active" in body and body["is_active"] is not None:
+        user.is_active = bool(body["is_active"])
+    if body.get("new_password"):
+        from app.core.security import get_password_hash
+        user.hashed_password = get_password_hash(body["new_password"])
+    db.commit()
+    db.refresh(user)
     return UserBrief.model_validate(user)
 
 

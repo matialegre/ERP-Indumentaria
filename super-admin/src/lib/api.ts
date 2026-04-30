@@ -3,7 +3,7 @@
  * Guarda el token en localStorage bajo la clave 'sa_token'.
  */
 
-const API_BASE = 'http://localhost:8001/api/v1'
+const API_BASE = 'http://localhost:8000/api/v1'
 const TOKEN_KEY = 'sa_token'
 
 export function getToken(): string | null {
@@ -164,6 +164,21 @@ export function saveUserModules(userId: number, modulesOverride: string[] | null
 
 export function getUser(userId: number): Promise<UserBriefAPI> {
   return request<UserBriefAPI>(`/mega/users/${userId}`)
+}
+
+export interface UpdateUserPayload {
+  full_name?: string
+  email?: string | null
+  role?: string
+  is_active?: boolean
+  new_password?: string
+}
+
+export function updateUser(userId: number, data: UpdateUserPayload): Promise<UserBriefAPI> {
+  return request<UserBriefAPI>(`/mega/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
 }
 
 // ── PC Licenses ─────────────────────────────────────────────────────────────

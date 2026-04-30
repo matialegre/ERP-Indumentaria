@@ -1,15 +1,15 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import ComparadorCruzado from "../components/ComparadorCruzado";
 import ExcelConPreciosViewer from "../components/ExcelConPreciosViewer";
 import ComparadorOmbak from "../components/ComparadorOmbak";
 import {
-  Plus, Eye, Send, Package, CheckCircle2, XCircle,
+  Plus, Eye, Send, Package, CheckCircle2, XCircle, ClipboardCheck,
   ArrowLeft, Calendar, Truck, FileText, Search,
   Hash, ChevronDown, ChevronRight, ChevronUp, Check, RefreshCw, Pencil, Save,
   X, AlertTriangle, ShoppingCart, GitCompare, FileSpreadsheet,
-  MapPin, Layers,
+  MapPin, Layers, Tag, Paperclip, Download, Trash2, Upload,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════ */
@@ -17,7 +17,8 @@ import {
 /* ═══════════════════════════════════════════════════════ */
 const STATUS_CONFIG = {
   BORRADOR:   { label: "Borrador",   color: "bg-gray-100 text-gray-700",   dot: "bg-gray-400",   border: "border-l-gray-400"  },
-  ENVIADO:    { label: "Enviado",    color: "bg-blue-100 text-blue-700",   dot: "bg-blue-500",   border: "border-l-blue-500"  },
+  PENDIENTE:  { label: "Pendiente",  color: "bg-blue-100 text-blue-700",   dot: "bg-blue-500",   border: "border-l-blue-500"  },
+  ENVIADO:    { label: "Pendiente",  color: "bg-blue-100 text-blue-700",   dot: "bg-blue-500",   border: "border-l-blue-500"  },
   RECIBIDO:   { label: "Recibido",   color: "bg-amber-100 text-amber-700", dot: "bg-amber-500",  border: "border-l-amber-500" },
   COMPLETADO: { label: "Completado", color: "bg-green-100 text-green-700", dot: "bg-green-500",  border: "border-l-green-500" },
   ANULADO:    { label: "Anulado",    color: "bg-red-100 text-red-700",     dot: "bg-red-400",    border: "border-l-red-400"   },
@@ -105,14 +106,14 @@ function EstadoCell({ order }) {
   if (order.status === "COMPLETADO") return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700">COMPLETADO</span>;
   if (order.status === "ANULADO") return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">ANULADO</span>;
   if (order.status === "BORRADOR") return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">BORRADOR</span>;
-  if (order.status === "ENVIADO") {
+  if (order.status === "PENDIENTE" || order.status === "ENVIADO") {
     const invoiced = order.total_invoiced || 0;
     if (invoiced > 0) {
       const falta = (order.total_ordered || 0) - invoiced;
       if (falta > 0) return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-700">FALTA {falta.toLocaleString("es-AR")}</span>;
       return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">FACTURADO</span>;
     }
-    return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">PENDIENTE</span>;
+    return <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">PENDIENTE</span>;
   }
   return <StatusBadge status={order.status} />;
 }
@@ -208,23 +209,30 @@ function GroupSection({ title, orders, renderTable, count }) {
 export default function PedidosComprasPage() {
   const [view, setView] = useState("list");
   const [selectedId, setSelectedId] = useState(null);
+  const [toast, setToast] = useState("");
 
   const goDetail = (id) => { setSelectedId(id); setView("detail"); };
   const goList   = () => { setView("list"); setSelectedId(null); };
   const goCreate = () => setView("create");
 
-  if (view === "create") return <CreateForm onBack={goList} onCreated={(id) => goDetail(id)} />;
+  const handleCreated = () => {
+    goList();
+    setToast("Nota creada");
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  if (view === "create") return <CreateForm onBack={goList} onCreated={handleCreated} />;
   if (view === "detail" && selectedId) return <DetailView id={selectedId} onBack={goList} />;
-  return <ListView onView={goDetail} onCreate={goCreate} />;
+  return <ListView onView={goDetail} onCreate={goCreate} toast={toast} />;
 }
 
 /* ═══════════════════════════════════════════════════════ */
 /*  LIST VIEW                                              */
 /* ═══════════════════════════════════════════════════════ */
-function ListView({ onView, onCreate }) {
+function ListView({ onView, onCreate, toast }) {
   const qc = useQueryClient();
   const [search, setSearch]     = useState("");
-  const [statusFilter, setStatusFilter] = useState("ENVIADO");
+  const [statusFilter, setStatusFilter] = useState("PENDIENTE");
   const [alertFilter, setAlertFilter] = useState("ALL");
   const [comparadorCruzadoPoId, setComparadorCruzadoPoId] = useState(null);
   const [excelPreciosPoId, setExcelPreciosPoId] = useState(null);
@@ -248,8 +256,8 @@ function ListView({ onView, onCreate }) {
     queryFn: () => api.get("/purchase-orders/alertas-reposicion").catch(() => ({ alertas: [], total: 0 })),
   });
 
-  const sendMut = useMutation({
-    mutationFn: (id) => api.post(`/purchase-orders/${id}/send`),
+  const confirmMut = useMutation({
+    mutationFn: (id) => api.post(`/purchase-orders/${id}/confirm`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders"] }),
   });
   const receiveMut = useMutation({
@@ -267,7 +275,12 @@ function ListView({ onView, onCreate }) {
 
   const counts = useMemo(() => {
     const c = { ALL: data.length };
-    Object.keys(STATUS_CONFIG).forEach(s => { c[s] = data.filter(o => o.status === s).length; });
+    Object.keys(STATUS_CONFIG).forEach(s => { c[s] = 0; });
+    data.forEach(o => {
+      // Group legacy ENVIADO under PENDIENTE
+      const key = o.status === "ENVIADO" ? "PENDIENTE" : o.status;
+      c[key] = (c[key] || 0) + 1;
+    });
     return c;
   }, [data]);
 
@@ -279,7 +292,13 @@ function ListView({ onView, onCreate }) {
 
   const filtered = useMemo(() => {
     let items = data;
-    if (statusFilter !== "ALL") items = items.filter(o => o.status === statusFilter);
+    if (statusFilter !== "ALL") {
+      if (statusFilter === "PENDIENTE") {
+        items = items.filter(o => o.status === "PENDIENTE" || o.status === "ENVIADO");
+      } else {
+        items = items.filter(o => o.status === statusFilter);
+      }
+    }
     if (alertFilter !== "ALL") items = items.filter(o => o.alert_state === alertFilter);
     if (search) {
       const q = search.toLowerCase();
@@ -318,11 +337,11 @@ function ListView({ onView, onCreate }) {
     });
   };
 
-  const TAB_ORDER = ["ALL", "BORRADOR", "ENVIADO", "RECIBIDO", "COMPLETADO", "ANULADO"];
+  const TAB_ORDER = ["ALL", "BORRADOR", "PENDIENTE", "RECIBIDO", "COMPLETADO", "ANULADO"];
   const SUB_TABS = [
-    { key: "pedidos", label: "Pedidos", icon: ShoppingCart },
-    { key: "locales", label: "Locales", icon: MapPin },
-    { key: "proveedores", label: "Proveedores", icon: Truck },
+    { key: "pedidos",    label: "Pedidos",    icon: ShoppingCart },
+    { key: "locales",    label: "Locales",    icon: MapPin },
+    { key: "proveedores",label: "Proveedores",icon: Truck },
   ];
 
   const alertas = alertasData?.alertas || [];
@@ -354,9 +373,11 @@ function ListView({ onView, onCreate }) {
         <tbody className="divide-y divide-gray-100">
           {orders.map(order => {
             const isExpanded = expandedRows.has(order.id);
-            const falta = (order.total_ordered || 0) - (order.total_received || 0);
+            const cantPedida = order.items_count || 0;
+            const cantRecibida = order.total_qty_received || 0;
+            const falta = cantPedida - cantRecibida;
             const days = daysSince(order.date || order.created_at);
-            const isSending   = sendMut.isPending    && sendMut.variables === order.id;
+            const isConfirming = confirmMut.isPending  && confirmMut.variables === order.id;
             const isReceiving = receiveMut.isPending  && receiveMut.variables === order.id;
             const isCompleting = completeMut.isPending && completeMut.variables === order.id;
             const isCancelling = cancelMut.isPending  && cancelMut.variables === order.id;
@@ -383,7 +404,7 @@ function ListView({ onView, onCreate }) {
                     <span className="block truncate" title={localName(order)}>{localName(order)}</span>
                   </td>
                   <td className="px-2 py-1.5 text-right font-medium text-gray-800">
-                    {(order.total_ordered || order.items_count || 0).toLocaleString("es-AR")}
+                    {cantPedida.toLocaleString("es-AR")}
                   </td>
                   <td className="px-2 py-1.5 text-center"><TypeBadge type={order.type} /></td>
                   <td className="px-2 py-1.5 text-center"><EstadoCell order={order} /></td>
@@ -398,7 +419,7 @@ function ListView({ onView, onCreate }) {
                   <td className="px-2 py-1.5 text-center"><DaysBadge days={days} /></td>
                   <td className="px-2 py-1.5">
                     <div className="flex items-center justify-end gap-0.5 flex-nowrap">
-                      {["ENVIADO", "RECIBIDO", "COMPLETADO"].includes(order.status) && (
+                      {["PENDIENTE", "ENVIADO", "RECIBIDO", "COMPLETADO"].includes(order.status) && (
                         <button onClick={() => setComparadorCruzadoPoId(order.id)}
                           className="p-1 text-purple-600 hover:bg-purple-50 rounded transition" title="Cruce de documentos">
                           <GitCompare className="w-3.5 h-3.5" />
@@ -419,12 +440,12 @@ function ListView({ onView, onCreate }) {
                         </button>
                       )}
                       {order.status === "BORRADOR" && (
-                        <button disabled={isSending} onClick={() => sendMut.mutate(order.id)}
-                          className="p-1 text-blue-600 hover:bg-blue-50 rounded transition disabled:opacity-50" title="Enviar">
-                          <Send className="w-3.5 h-3.5" />
+                        <button disabled={isConfirming} onClick={() => confirmMut.mutate(order.id)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded transition disabled:opacity-50" title="Confirmar">
+                          <ClipboardCheck className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {order.status === "ENVIADO" && (
+                      {(order.status === "PENDIENTE" || order.status === "ENVIADO") && (
                         <button disabled={isReceiving} onClick={() => receiveMut.mutate(order.id)}
                           className="p-1 text-amber-600 hover:bg-amber-50 rounded transition disabled:opacity-50" title="Recibir">
                           <Package className="w-3.5 h-3.5" />
@@ -436,7 +457,7 @@ function ListView({ onView, onCreate }) {
                           <CheckCircle2 className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {["BORRADOR", "ENVIADO"].includes(order.status) && (
+                      {["BORRADOR", "PENDIENTE", "ENVIADO"].includes(order.status) && (
                         <button disabled={isCancelling}
                           onClick={() => { if (window.confirm(`¿Anular la nota ${order.number || order.id}?`)) cancelMut.mutate(order.id); }}
                           className="p-1 text-red-500 hover:bg-red-50 rounded transition disabled:opacity-50" title="Anular">
@@ -469,6 +490,11 @@ function ListView({ onView, onCreate }) {
 
   return (
     <div className="space-y-3">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="w-4 h-4" /> {toast}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -617,6 +643,7 @@ function ListView({ onView, onCreate }) {
         </div>
       )}
 
+      {/* Status tabs + filters + search */}
       {/* Status tabs */}
       <div className="flex items-center gap-1 flex-wrap border-b border-gray-200 pb-0">
         {TAB_ORDER.map(tab => {
@@ -709,8 +736,8 @@ function ListView({ onView, onCreate }) {
         <div className="flex items-center justify-between text-xs text-gray-500 px-1">
           <span>
             {filtered.length} pedido{filtered.length !== 1 ? "s" : ""}
-            {" · "}Total pedido: {filtered.reduce((s, o) => s + (o.total_ordered || 0), 0).toLocaleString("es-AR")}
-            {" · "}Total recibido: {filtered.reduce((s, o) => s + (o.total_received || 0), 0).toLocaleString("es-AR")}
+            {" · "}Total pedido: {filtered.reduce((s, o) => s + (o.items_count || 0), 0).toLocaleString("es-AR")}
+            {" · "}Total recibido: {filtered.reduce((s, o) => s + (o.total_qty_received || 0), 0).toLocaleString("es-AR")}
           </span>
         </div>
       )}
@@ -729,6 +756,7 @@ function ListView({ onView, onCreate }) {
   );
 }
 
+
 /* ═══════════════════════════════════════════════════════ */
 /*  CREATE FORM                                            */
 /* ═══════════════════════════════════════════════════════ */
@@ -737,29 +765,114 @@ function CreateForm({ onBack, onCreated }) {
 
   const [form, setForm] = useState({
     provider_id: "",
+    local_id: "",
     type: "REPOSICION",
     date: new Date().toISOString().slice(0, 10),
     expected_date: "",
     prefix: "",
     notes: "",
+    selected_brands: [],
   });
   const [errors, setErrors] = useState({});
+  const [excelFile, setExcelFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [parsePreview, setParsePreview] = useState(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState("");
 
   const { data: providers = [] } = useQuery({
-    queryKey: ["providers"],
-    queryFn: () => api.get("/providers/"),
-    select: (d) => d?.items ?? [],
+    queryKey: ["providers", "with-brands"],
+    queryFn: () => api.get("/providers/?limit=500"),
+    select: (d) => {
+      const items = d?.items ?? d ?? [];
+      return items.filter(p => p.brands && p.is_active !== false);
+    },
   });
 
+  const { data: locales = [] } = useQuery({
+    queryKey: ["locales", "active"],
+    queryFn: () => api.get("/locals/"),
+    select: (d) => (d?.items ?? d ?? []).filter(l => l.is_active !== false),
+  });
+
+  const selectedProvider = providers.find(p => String(p.id) === String(form.provider_id));
+  const providerBrands = selectedProvider?.brands
+    ? selectedProvider.brands.split(",").map(b => b.trim()).filter(Boolean)
+    : [];
+
+  const toggleBrand = (brand) => {
+    setForm(f => {
+      const cur = f.selected_brands || [];
+      return { ...f, selected_brands: cur.includes(brand) ? cur.filter(b => b !== brand) : [...cur, brand] };
+    });
+  };
+
   const createMut = useMutation({
-    mutationFn: (payload) => api.post("/purchase-orders/", payload),
+    mutationFn: (fd) => api.uploadFile("/purchase-orders/", fd),
     onSuccess: (data) => {
+      console.log("[createMut] OK", data);
       qc.invalidateQueries({ queryKey: ["purchase-orders"] });
-      onCreated(data.id);
+      onCreated();
+    },
+    onError: (err) => {
+      console.error("[createMut] ERROR", err);
+      alert("Error al crear la nota: " + (err?.message || String(err)));
     },
   });
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: null })); };
+
+  const onProviderChange = (provId) => {
+    setForm(f => {
+      const prov = providers.find(p => String(p.id) === String(provId));
+      const autoPrefix = prov?.order_prefix || (prov?.name ? prov.name.trim().toUpperCase().replace(/\s+/g, "-") : "");
+      return { ...f, provider_id: provId, prefix: autoPrefix, selected_brands: [] };
+    });
+    setErrors(e => ({ ...e, provider_id: null }));
+  };
+
+  // Marca efectiva: si el proveedor tiene una sola marca se usa esa;
+  // si tiene varias, el usuario debe haber seleccionado exactamente una en selected_brands.
+  const effectiveBrand =
+    providerBrands.length === 1
+      ? providerBrands[0]
+      : (form.selected_brands?.length === 1 ? form.selected_brands[0] : "");
+
+  const excelBlockReason = (() => {
+    if (!form.provider_id) return "Seleccioná primero el proveedor.";
+    if (!form.local_id) return "Seleccioná el local destino.";
+    if (!form.type) return "Indicá si es PRECOMPRA o REPOSICIÓN.";
+    if (providerBrands.length > 1 && form.selected_brands.length !== 1)
+      return "El proveedor tiene varias marcas — seleccioná exactamente UNA para parsear el Excel.";
+    return "";
+  })();
+
+  const handleExcelSelected = async (file) => {
+    setExcelFile(file);
+    setParsePreview(null);
+    setParseError("");
+    if (!file) return;
+    if (excelBlockReason) {
+      setParseError(excelBlockReason);
+      setExcelFile(null);
+      return;
+    }
+    setParsing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const prov = providers.find(p => String(p.id) === String(form.provider_id));
+      fd.append("proveedor", prov?.name || "");
+      fd.append("marca", effectiveBrand || "");
+      fd.append("es_reposicion", form.type === "REPOSICION" ? "true" : "false");
+      const res = await api.uploadFile(`/excel-parser/parse`, fd);
+      setParsePreview(res);
+    } catch (err) {
+      setParseError(err?.message || "No se pudo parsear el Excel");
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const validate = () => {
     const e = {};
@@ -770,21 +883,30 @@ function CreateForm({ onBack, onCreated }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log("[handleSubmit] click, excelFile=", excelFile?.name, "pdfFile=", pdfFile?.name, "form=", form);
     const e_ = validate();
-    if (Object.keys(e_).length) { setErrors(e_); return; }
-    const payload = {
-      provider_id: Number(form.provider_id),
-      type: form.type,
-      date: form.date,
-      expected_date: form.expected_date || null,
-      prefix: form.prefix || null,
-      notes: form.notes || null,
-    };
-    createMut.mutate(payload);
+    if (Object.keys(e_).length) {
+      console.warn("[handleSubmit] validation failed", e_);
+      setErrors(e_);
+      return;
+    }
+    const fd = new FormData();
+    fd.append("provider_id", String(form.provider_id));
+    if (form.local_id) fd.append("local_id", String(form.local_id));
+    fd.append("type", form.type);
+    fd.append("date", form.date);
+    if (form.expected_date) fd.append("expected_date", form.expected_date);
+    if (form.prefix) fd.append("prefix", form.prefix);
+    if (form.notes) fd.append("notes", form.notes);
+    if (form.selected_brands?.length) fd.append("selected_brands", form.selected_brands.join(","));
+    if (excelFile) fd.append("excel_file", excelFile);
+    if (pdfFile) fd.append("pdf_file", pdfFile);
+    console.log("[handleSubmit] firing POST with", Array.from(fd.keys()));
+    createMut.mutate(fd);
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-4">
+    <div className="max-w-5xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition">
@@ -811,18 +933,74 @@ function CreateForm({ onBack, onCreated }) {
           </label>
           <select
             value={form.provider_id}
-            onChange={e => set("provider_id", e.target.value)}
+            onChange={e => onProviderChange(e.target.value)}
             className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.provider_id ? "border-red-400" : "border-gray-200"}`}
           >
             <option value="">— Seleccioná proveedor —</option>
-            {providers.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+            {Object.entries(providers.reduce((acc, p) => {
+              const k = p.brands || "Sin marca";
+              (acc[k] = acc[k] || []).push(p);
+              return acc;
+            }, {})).map(([brand, list]) => (
+              <optgroup key={brand} label={`▸ ${brand}`}>
+                {list.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </optgroup>
             ))}
           </select>
+          {providers.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              ⚠ No hay proveedores marcados con marca. Asigná marcas en ABM Proveedores (Gestión de Pagos).
+            </p>
+          )}
           {errors.provider_id && <p className="text-xs text-red-500 mt-1">{errors.provider_id}</p>}
         </div>
 
-        {/* Type */}
+        {/* Brand selector — shows when provider has brands configured */}
+        {providerBrands.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Tag className="inline w-3.5 h-3.5 mr-1 text-indigo-500" />
+              Marcas que ingresan en este pedido
+            </label>
+            <div className="flex flex-wrap gap-2 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+              {providerBrands.map(brand => {
+                const selected = (form.selected_brands || []).includes(brand);
+                return (
+                  <button
+                    key={brand} type="button"
+                    onClick={() => toggleBrand(brand)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                      selected
+                        ? "bg-indigo-600 text-white border-indigo-700"
+                        : "bg-white text-indigo-700 border-indigo-200 hover:border-indigo-500"
+                    }`}
+                  >
+                    <Tag className="w-3 h-3" />{brand}
+                  </button>
+                );
+              })}
+            </div>
+            {(form.selected_brands || []).length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">Seleccioná las marcas que van a ingresar (opcional)</p>
+            )}
+          </div>
+        )}
+
+        {/* Local destino */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            <MapPin className="inline w-3.5 h-3.5 mr-1 text-gray-500" />
+            Local destino (opcional)
+          </label>
+          <select
+            value={form.local_id}
+            onChange={e => set("local_id", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— Sin local específico —</option>
+            {locales.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
           <div className="flex gap-2">
@@ -881,6 +1059,177 @@ function CreateForm({ onBack, onCreated }) {
           />
         </div>
 
+        {/* Archivos adjuntos (opcional) */}
+        <div className="border-t border-gray-100 pt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Archivos adjuntos <span className="text-gray-400 font-normal">(opcional)</span></label>
+
+          {/* Banner de contexto para el parser */}
+          {excelBlockReason ? (
+            <div className="mb-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold">No podés subir el Excel todavía</div>
+                <div>{excelBlockReason}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900">
+              <div className="font-semibold mb-1">✅ Contexto declarado — el parser usará estas reglas:</div>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                <span><b>Proveedor:</b> {selectedProvider?.name}</span>
+                <span><b>Marca:</b> {effectiveBrand || "—"}</span>
+                <span><b>Local:</b> {locales.find(l => String(l.id) === String(form.local_id))?.name || "—"}</span>
+                <span><b>Tipo:</b> {form.type}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Excel</p>
+              <label className={`flex items-center justify-center gap-2 px-3 py-2 border border-dashed rounded-lg transition text-xs truncate ${
+                excelBlockReason
+                  ? "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                  : "border-gray-300 text-gray-600 hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer"
+              }`}>
+                <Upload className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="truncate">{excelFile ? excelFile.name : "Seleccionar Excel…"}</span>
+                <input
+                  type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                  disabled={!!excelBlockReason}
+                  onChange={e => handleExcelSelected(e.target.files?.[0] || null)}
+                />
+              </label>
+              {excelFile && (
+                <button type="button" onClick={() => { setExcelFile(null); setParsePreview(null); setParseError(""); }} className="text-xs text-red-500 hover:underline mt-1">Quitar</button>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-rose-600" /> PDF</p>
+              <label className="flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-rose-400 hover:bg-rose-50 transition text-xs text-gray-600 truncate">
+                <Upload className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                <span className="truncate">{pdfFile ? pdfFile.name : "Seleccionar PDF…"}</span>
+                <input type="file" accept=".pdf" className="hidden" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
+              </label>
+              {pdfFile && (
+                <button type="button" onClick={() => setPdfFile(null)} className="text-xs text-red-500 hover:underline mt-1">Quitar</button>
+              )}
+            </div>
+          </div>
+          {parsing && <p className="text-xs text-blue-600 mt-2">Analizando Excel…</p>}
+          {parseError && <p className="text-xs text-red-600 mt-2">{parseError}</p>}
+          {parsePreview && (
+            <div className="mt-3 border-2 border-emerald-300 bg-emerald-50/40 rounded-xl p-4 shadow-sm">
+              {/* Header con totales destacados */}
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-3 pb-3 border-b border-emerald-200">
+                <div>
+                  <div className="text-base font-bold text-emerald-900 flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5" /> Vista previa del Excel
+                  </div>
+                  {parsePreview.filename && (
+                    <div className="text-xs text-emerald-700 mt-0.5 truncate max-w-md">{parsePreview.filename}</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {parsePreview.proveedor_detectado && (
+                    <span className="px-3 py-1 bg-emerald-200 text-emerald-900 rounded-full text-xs font-semibold">
+                      🏷️ {parsePreview.proveedor_detectado}{parsePreview.es_reposicion ? " · Reposición" : ""}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-4 text-sm bg-white px-4 py-2 rounded-lg border border-emerald-200">
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-emerald-800 tabular-nums">{parsePreview.total_items}</div>
+                      <div className="text-[10px] text-emerald-600 uppercase tracking-wide">ítems</div>
+                    </div>
+                    <div className="w-px h-8 bg-emerald-200" />
+                    <div className="text-center">
+                      <div className="text-xl font-bold text-emerald-800 tabular-nums">{parsePreview.total_unidades}</div>
+                      <div className="text-[10px] text-emerald-600 uppercase tracking-wide">unidades</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reglas aplicadas */}
+              {parsePreview.rules_applied?.length > 0 && (
+                <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                  <div className="text-xs font-semibold text-blue-900 mb-1">📋 Reglas de parsing aplicadas:</div>
+                  <ul className="text-xs text-blue-800 space-y-0.5 ml-4 list-disc">
+                    {parsePreview.rules_applied.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Solapas expandibles */}
+              <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+                {(parsePreview.solapas || []).map((s, idx) => {
+                  const curvas = (s.items || []).filter(it => it.es_curva).length;
+                  return (
+                    <details
+                      key={idx}
+                      className="bg-white rounded-lg border border-emerald-200 overflow-hidden"
+                      open={s.items?.length > 0}
+                    >
+                      <summary className="cursor-pointer text-sm px-3 py-2 flex items-center justify-between gap-2 hover:bg-emerald-50 transition">
+                        <span className="font-semibold text-gray-800">📄 {s.nombre}</span>
+                        <span className="flex items-center gap-2 text-xs">
+                          {curvas > 0 && (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-medium">
+                              {curvas} curva{curvas === 1 ? "" : "s"} ×10
+                            </span>
+                          )}
+                          <span className="text-gray-600">
+                            <b>{s.total_items}</b> items · <b>{s.total_unidades}</b> u.
+                            {s.sin_datos ? " (sin datos)" : ""}
+                          </span>
+                        </span>
+                      </summary>
+                      {s.items?.length > 0 && (
+                        <div className="overflow-x-auto border-t border-emerald-100">
+                          <table className="w-full text-xs">
+                            <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                              <tr>
+                                <th className="text-left px-3 py-2 font-semibold">Código</th>
+                                <th className="text-left px-3 py-2 font-semibold">Descripción</th>
+                                <th className="text-left px-3 py-2 font-semibold">Color</th>
+                                <th className="text-right px-3 py-2 font-semibold">Cantidad</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {s.items.map((it, i) => (
+                                <tr key={i} className={`border-t border-gray-100 hover:bg-emerald-50/30 ${it.es_curva ? "bg-amber-50/50" : ""}`}>
+                                  <td className="px-3 py-1.5 font-mono whitespace-nowrap">
+                                    {it.codigo}
+                                    {it.es_curva && (
+                                      <span className="ml-1.5 text-[9px] px-1 py-0.5 bg-amber-200 text-amber-900 rounded font-bold">×10</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-gray-700">{it.modelo || ""}</td>
+                                  <td className="px-3 py-1.5 text-gray-500">{it.color || ""}</td>
+                                  <td className="px-3 py-1.5 text-right tabular-nums font-semibold">
+                                    {it.es_curva ? (
+                                      <span>
+                                        <span className="text-gray-400 line-through mr-1">{it.cantidad_original}</span>
+                                        <span className="text-amber-800">{it.cantidad}</span>
+                                      </span>
+                                    ) : (
+                                      it.cantidad
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </details>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Actions */}
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onBack}
@@ -906,6 +1255,13 @@ function DetailView({ id, onBack }) {
   const [notesValue, setNotesValue]     = useState("");
   const [addingItem, setAddingItem]     = useState(false);
   const [itemForm, setItemForm] = useState({ variant_id: "", code: "", description: "", size: "", color: "", qty_ordered: 1, unit_cost: "" });
+  const [uploadError, setUploadError] = useState("");
+  const [applyExcelMsg, setApplyExcelMsg] = useState(null); // { type: "success"|"error", text }
+  const [excelPreview, setExcelPreview] = useState(null);
+  const [excelPreviewLoading, setExcelPreviewLoading] = useState(false);
+  const [excelPreviewError, setExcelPreviewError] = useState("");
+  const excelInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ["purchase-orders", id],
@@ -921,8 +1277,8 @@ function DetailView({ id, onBack }) {
     },
   });
 
-  const sendMut = useMutation({
-    mutationFn: () => api.post(`/purchase-orders/${id}/send`),
+  const confirmMut = useMutation({
+    mutationFn: () => api.post(`/purchase-orders/${id}/confirm`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders", id] }),
   });
   const receiveMut = useMutation({
@@ -950,6 +1306,56 @@ function DetailView({ id, onBack }) {
   const removeItemMut = useMutation({
     mutationFn: (itemId) => api.delete(`/purchase-orders/${id}/items/${itemId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders", id] }),
+  });
+
+  const uploadFileMut = useMutation({
+    mutationFn: ({ fileType, file }) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return api.uploadFile(`/purchase-orders/${id}/upload-file?file_type=${fileType}`, fd);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["purchase-orders", id] });
+      setUploadError("");
+    },
+    onError: (err) => setUploadError(err.message || "Error al subir archivo"),
+  });
+
+  const deleteFileMut = useMutation({
+    mutationFn: (fileType) => api.delete(`/purchase-orders/${id}/upload-file?file_type=${fileType}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["purchase-orders", id] }),
+  });
+
+  const handleFileChange = (fileType, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError("");
+    uploadFileMut.mutate({ fileType, file });
+    e.target.value = "";
+  };
+
+  const handleParseExcel = async () => {
+    setExcelPreviewLoading(true);
+    setExcelPreviewError("");
+    setExcelPreview(null);
+    try {
+      const res = await api.get(`/purchase-orders/${id}/parse-excel`);
+      setExcelPreview(res);
+    } catch (err) {
+      setExcelPreviewError(err?.message || "No se pudo parsear el Excel");
+    } finally {
+      setExcelPreviewLoading(false);
+    }
+  };
+
+  const applyExcelMut = useMutation({
+    mutationFn: () => api.post(`/purchase-orders/${id}/apply-excel`),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["purchase-orders", id] });
+      setExcelPreview(null);
+      setApplyExcelMsg({ type: "success", text: `✅ ${data.items_created} ítems importados del Excel al pedido.` });
+    },
+    onError: (err) => setApplyExcelMsg({ type: "error", text: err?.message || "Error al aplicar Excel" }),
   });
 
   if (isLoading) return <div className="flex justify-center py-16"><Spinner /></div>;
@@ -1012,12 +1418,12 @@ function DetailView({ id, onBack }) {
         {/* Workflow buttons */}
         <div className="flex items-center gap-2 flex-wrap shrink-0">
           {order.status === "BORRADOR" && (
-            <button disabled={sendMut.isPending} onClick={() => sendMut.mutate()}
+            <button disabled={confirmMut.isPending} onClick={() => confirmMut.mutate()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50">
-              <Send className="w-3.5 h-3.5" /> {sendMut.isPending ? "Enviando…" : "Marcar Enviado"}
+              <ClipboardCheck className="w-3.5 h-3.5" /> {confirmMut.isPending ? "Confirmando…" : "Marcar Confirmado"}
             </button>
           )}
-          {order.status === "ENVIADO" && (
+          {(order.status === "PENDIENTE" || order.status === "ENVIADO") && (
             <button disabled={receiveMut.isPending} onClick={() => receiveMut.mutate()}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition disabled:opacity-50">
               <Package className="w-3.5 h-3.5" /> {receiveMut.isPending ? "…" : "Marcar Recibido"}
@@ -1029,7 +1435,7 @@ function DetailView({ id, onBack }) {
               <CheckCircle2 className="w-3.5 h-3.5" /> {completeMut.isPending ? "…" : "Completar"}
             </button>
           )}
-          {["BORRADOR", "ENVIADO"].includes(order.status) && (
+          {["BORRADOR", "PENDIENTE", "ENVIADO"].includes(order.status) && (
             <button
               disabled={cancelMut.isPending}
               onClick={() => { if (window.confirm("¿Anular este pedido?")) cancelMut.mutate(); }}
@@ -1091,6 +1497,213 @@ function DetailView({ id, onBack }) {
           )}
         </div>
       </div>
+
+      {/* Adjuntos */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+            <Paperclip className="w-4 h-4 text-gray-500" /> Archivos adjuntos
+          </h2>
+        </div>
+        {uploadError && (
+          <p className="text-xs text-red-600 mb-3 flex items-center gap-1">
+            <AlertTriangle className="w-3.5 h-3.5" /> {uploadError}
+          </p>
+        )}
+        {applyExcelMsg && (
+          <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 text-xs font-medium ${applyExcelMsg.type === "success" ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+            {applyExcelMsg.text}
+            <button onClick={() => setApplyExcelMsg(null)} className="ml-auto opacity-60 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Excel */}
+          <div className="border border-dashed border-gray-200 rounded-lg p-3 flex items-center gap-3">
+            <FileSpreadsheet className="w-8 h-8 text-emerald-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-0.5">Excel / Planilla</p>
+              {order.excel_file ? (
+                <div className="flex items-center gap-2">
+                  <a href={order.excel_file} target="_blank" rel="noreferrer"
+                    className="text-xs text-blue-600 hover:underline truncate max-w-[120px]" title={order.excel_file}>
+                    {order.excel_file.split("/").pop()}
+                  </a>
+                  <a href={order.excel_file} download className="p-0.5 text-gray-400 hover:text-blue-600 transition" title="Descargar">
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                  <button onClick={() => deleteFileMut.mutate("excel")} disabled={deleteFileMut.isPending}
+                    className="p-0.5 text-gray-400 hover:text-red-500 transition disabled:opacity-50" title="Eliminar">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">Sin archivo</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <input ref={excelInputRef} type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => handleFileChange("excel", e)} />
+              <button onClick={() => excelInputRef.current?.click()}
+                disabled={uploadFileMut.isPending}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition disabled:opacity-50 whitespace-nowrap">
+                <Upload className="w-3 h-3" />
+                {uploadFileMut.isPending && uploadFileMut.variables?.fileType === "excel" ? "Subiendo…" : "Subir"}
+              </button>
+              {order.excel_file && (
+                <button onClick={handleParseExcel}
+                  disabled={excelPreviewLoading}
+                  className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition disabled:opacity-50 whitespace-nowrap">
+                  <Eye className="w-3 h-3" />
+                  {excelPreviewLoading ? "Parseando…" : "Vista previa"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* PDF */}
+          <div className="border border-dashed border-gray-200 rounded-lg p-3 flex items-center gap-3">
+            <FileText className="w-8 h-8 text-red-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-600 mb-0.5">PDF / Documento</p>
+              {order.pdf_file ? (
+                <div className="flex items-center gap-2">
+                  <a href={order.pdf_file} target="_blank" rel="noreferrer"
+                    className="text-xs text-blue-600 hover:underline truncate max-w-[120px]" title={order.pdf_file}>
+                    {order.pdf_file.split("/").pop()}
+                  </a>
+                  <a href={order.pdf_file} download className="p-0.5 text-gray-400 hover:text-blue-600 transition" title="Descargar">
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                  <button onClick={() => deleteFileMut.mutate("pdf")} disabled={deleteFileMut.isPending}
+                    className="p-0.5 text-gray-400 hover:text-red-500 transition disabled:opacity-50" title="Eliminar">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 italic">Sin archivo</p>
+              )}
+            </div>
+            <div>
+              <input ref={pdfInputRef} type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={(e) => handleFileChange("pdf", e)} />
+              <button onClick={() => pdfInputRef.current?.click()}
+                disabled={uploadFileMut.isPending}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition disabled:opacity-50 whitespace-nowrap">
+                <Upload className="w-3 h-3" />
+                {uploadFileMut.isPending && uploadFileMut.variables?.fileType === "pdf" ? "Subiendo…" : "Subir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Excel Preview */}
+      {excelPreviewError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Error al parsear Excel</p>
+            <p className="text-xs text-red-600 mt-0.5">{excelPreviewError}</p>
+          </div>
+          <button onClick={() => setExcelPreviewError("")} className="ml-auto text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {excelPreview && (
+        <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 bg-blue-50 border-b border-blue-200">
+            <h2 className="font-semibold text-blue-900 flex items-center gap-2 text-sm">
+              <FileSpreadsheet className="w-4 h-4 text-blue-600" /> Vista previa del Excel parseado
+              <span className="text-xs text-blue-500 font-normal">
+                — {excelPreview.total_items} ítems · {excelPreview.total_unidades?.toLocaleString("es-AR")} unidades
+              </span>
+            </h2>
+            <div className="flex items-center gap-2">
+              {order?.status === "BORRADOR" && (
+                <button
+                  onClick={() => { if (window.confirm(`¿Aplicar ${excelPreview.total_items} ítems del Excel al pedido? Esto reemplazará los ítems actuales.`)) applyExcelMut.mutate(); }}
+                  disabled={applyExcelMut.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg transition">
+                  <Check className="w-3.5 h-3.5" />
+                  {applyExcelMut.isPending ? "Aplicando…" : "Aplicar al pedido"}
+                </button>
+              )}
+              <button onClick={() => setExcelPreview(null)} className="text-blue-400 hover:text-blue-700 transition" title="Cerrar">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Rules applied */}
+          {excelPreview.rules_applied?.length > 0 && (
+            <div className="px-5 py-2 bg-blue-50/50 border-b border-blue-100">
+              <div className="flex flex-wrap gap-2">
+                {excelPreview.rules_applied.map((r, i) => (
+                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">{r}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Solapas */}
+          <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
+            {(excelPreview.solapas || []).map((s, idx) => {
+              const curvas = (s.items || []).filter(it => it.es_curva).length;
+              return (
+                <details key={idx} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden" open={s.items?.length > 0}>
+                  <summary className="px-4 py-2 cursor-pointer hover:bg-gray-100 transition text-sm font-medium text-gray-800 flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-gray-500" />
+                    {s.nombre || `Hoja ${idx + 1}`}
+                    <span className="text-xs text-gray-500 font-normal ml-auto">
+                      {s.items?.length || 0} ítems · {(s.items || []).reduce((a, it) => a + (it.cantidad || 0), 0).toLocaleString("es-AR")} u.
+                      {curvas > 0 && <span className="ml-1 text-amber-700 font-medium">{curvas} curvas ×10</span>}
+                    </span>
+                  </summary>
+                  {s.items?.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr className="bg-gray-100 text-gray-500 font-medium">
+                            <th className="text-left px-3 py-1.5">Código</th>
+                            <th className="text-left px-2 py-1.5">Descripción</th>
+                            <th className="text-center px-2 py-1.5">Talle</th>
+                            <th className="text-center px-2 py-1.5">Color</th>
+                            <th className="text-right px-3 py-1.5">Cantidad</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {s.items.map((it, j) => (
+                            <tr key={j} className={it.es_curva ? "bg-amber-50" : ""}>
+                              <td className="px-3 py-1 font-mono text-gray-700">{it.codigo || "—"}</td>
+                              <td className="px-2 py-1 text-gray-600 truncate max-w-[200px]">{it.descripcion || "—"}</td>
+                              <td className="px-2 py-1 text-center text-gray-500">{it.talle || "—"}</td>
+                              <td className="px-2 py-1 text-center text-gray-500">{it.color || "—"}</td>
+                              <td className="px-3 py-1 text-right font-medium">
+                                {it.es_curva ? (
+                                  <span className="text-amber-800">
+                                    <span className="line-through text-gray-400 mr-1">{it.cantidad_original}</span>
+                                    {it.cantidad} <span className="text-[9px] bg-amber-200 text-amber-900 px-1 rounded">×10</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-800">{it.cantidad}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </details>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Items section */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">

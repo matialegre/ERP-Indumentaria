@@ -16,7 +16,11 @@ import {
   CheckCircle,
   AlertTriangle,
   Download,
+  Lightbulb,
 } from "lucide-react";
+
+const GENDER_OPTIONS = ["Masculino", "Femenino", "Unisex", "Niño", "Niña", "Infantil"];
+const SEASON_OPTIONS = ["Primavera-Verano", "Otoño-Invierno", "Todo el año"];
 
 /* ── Helpers ──────────────────────────────────────────── */
 const badge = (text, color) => (
@@ -52,10 +56,12 @@ const toProductExportRow = (product) => ({
   status: product.is_active ? "Activo" : "Inactivo",
 });
 
-const buildProductsParams = ({ search = "", providerId = "", skip = 0, limit = PAGE_SIZE }) => {
+const buildProductsParams = ({ search = "", providerId = "", gender = "", season = "", skip = 0, limit = PAGE_SIZE }) => {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (providerId) params.set("provider_id", providerId);
+  if (gender) params.set("gender", gender);
+  if (season) params.set("season", season);
   params.set("skip", skip);
   params.set("limit", limit);
   return params;
@@ -65,6 +71,8 @@ export default function ProductosPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [providerId, setProviderId] = useState("");
+  const [genderFilter, setGenderFilter] = useState("");
+  const [seasonFilter, setSeasonFilter] = useState("");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -73,7 +81,7 @@ export default function ProductosPage() {
   const [importResult, setImportResult] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useEffect(() => { setPage(1); }, [search, providerId]);
+  useEffect(() => { setPage(1); }, [search, providerId, genderFilter, seasonFilter]);
 
   /* ── Excel import ─────────────────────────────────── */
   const importMut = useMutation({
@@ -104,12 +112,14 @@ export default function ProductosPage() {
   const providers = providersData?.items ?? [];
 
   const { data: pageData, isLoading } = useQuery({
-    queryKey: ["products", search, providerId, page],
+    queryKey: ["products", search, providerId, genderFilter, seasonFilter, page],
     queryFn: () =>
       api.get(
         `/products/?${buildProductsParams({
           search,
           providerId,
+          gender: genderFilter,
+          season: seasonFilter,
           skip: (page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
         })}`
@@ -165,6 +175,8 @@ export default function ProductosPage() {
           `/products/?${buildProductsParams({
             search,
             providerId,
+            gender: genderFilter,
+            season: seasonFilter,
             skip,
             limit: EXPORT_BATCH_SIZE,
           })}`
@@ -261,7 +273,7 @@ export default function ProductosPage() {
       )}
 
       {/* Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-wrap gap-3">
         <div className="relative max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -275,12 +287,28 @@ export default function ProductosPage() {
         <select
           value={providerId}
           onChange={(e) => setProviderId(e.target.value)}
-          className="py-2.5 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 min-w-[200px]"
+          className="py-2.5 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 min-w-[180px]"
         >
           <option value="">Todos los proveedores</option>
           {providers.map((prov) => (
             <option key={prov.id} value={prov.id}>{prov.name}</option>
           ))}
+        </select>
+        <select
+          value={genderFilter}
+          onChange={(e) => setGenderFilter(e.target.value)}
+          className="py-2.5 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 min-w-[150px]"
+        >
+          <option value="">Todos los géneros</option>
+          {GENDER_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <select
+          value={seasonFilter}
+          onChange={(e) => setSeasonFilter(e.target.value)}
+          className="py-2.5 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 min-w-[180px]"
+        >
+          <option value="">Todas las temporadas</option>
+          {SEASON_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
@@ -301,6 +329,8 @@ export default function ProductosPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Nombre</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden md:table-cell">Marca</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600 hidden lg:table-cell">Categoría</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden xl:table-cell">Género</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 hidden xl:table-cell">Temporada</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600 hidden sm:table-cell">Costo Base</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Variantes</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-600">Estado</th>
@@ -373,6 +403,15 @@ export default function ProductosPage() {
 /* ── Product Row (expandable) ─────────────────────────── */
 function ProductRow({ product: p, expanded, onToggleExpand, onEdit, onDelete, onToggleActive, onAddVariant, onEditVariant, onDeleteVariant }) {
   const totalStock = getProductTotalStock(p);
+  const isOutOfStock = totalStock === 0 && p.variants.length > 0;
+
+  const { data: alternatives, isLoading: altLoading } = useQuery({
+    queryKey: ["product-alternatives", p.id],
+    queryFn: () => api.get(`/products/${p.id}/alternatives`),
+    enabled: expanded && isOutOfStock,
+    staleTime: 60 * 1000,
+  });
+
   return (
     <>
       <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition">
@@ -387,6 +426,8 @@ function ProductRow({ product: p, expanded, onToggleExpand, onEdit, onDelete, on
         <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
         <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{p.brand || "—"}</td>
         <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{p.category || "—"}</td>
+        <td className="px-4 py-3 text-gray-600 hidden xl:table-cell">{p.gender || "—"}</td>
+        <td className="px-4 py-3 text-gray-600 hidden xl:table-cell">{p.season || "—"}</td>
         <td className="px-4 py-3 text-right text-gray-600 hidden sm:table-cell">
           {p.base_cost ? `$${Number(p.base_cost).toLocaleString("es-AR", { minimumFractionDigits: 2 })}` : "—"}
         </td>
@@ -416,7 +457,7 @@ function ProductRow({ product: p, expanded, onToggleExpand, onEdit, onDelete, on
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={9} className="bg-slate-50 px-4 py-4">
+          <td colSpan={11} className="bg-slate-50 px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-sm text-gray-700">Variantes de "{p.name}"</h4>
               <button
@@ -447,7 +488,7 @@ function ProductRow({ product: p, expanded, onToggleExpand, onEdit, onDelete, on
                       <td className="py-2 px-3">{v.size}</td>
                       <td className="py-2 px-3">{v.color}</td>
                       <td className="py-2 px-3 text-gray-500">{v.barcode || "—"}</td>
-                      <td className="py-2 px-3 text-right font-semibold">{v.stock}</td>
+                      <td className={`py-2 px-3 text-right font-semibold ${v.stock === 0 ? "text-red-500" : ""}`}>{v.stock}</td>
                       <td className="py-2 px-3 text-right">
                         <button onClick={() => onEditVariant(v)} className="p-1 hover:bg-gray-200 rounded" title="Editar">
                           <Pencil className="w-3 h-3 text-gray-500" />
@@ -460,6 +501,38 @@ function ProductRow({ product: p, expanded, onToggleExpand, onEdit, onDelete, on
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {isOutOfStock && (
+              <div className="mt-4 border-t border-amber-200 pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm font-semibold text-amber-700">Producto sin stock — alternativas disponibles</span>
+                </div>
+                {altLoading ? (
+                  <p className="text-xs text-gray-400">Buscando alternativas...</p>
+                ) : !alternatives || alternatives.length === 0 ? (
+                  <p className="text-xs text-gray-500">No se encontraron alternativas con stock para ofrecer al cliente.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {alternatives.map((alt) => {
+                      const altStock = getProductTotalStock(alt);
+                      return (
+                        <div key={alt.id} className="bg-white border border-amber-100 rounded-lg px-3 py-2 text-xs">
+                          <p className="font-semibold text-gray-800 truncate">{alt.name}</p>
+                          <p className="text-gray-500 font-mono">{alt.code}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {alt.category && <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{alt.category}</span>}
+                            {alt.gender && <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{alt.gender}</span>}
+                            {alt.season && <span className="bg-green-50 text-green-600 px-1.5 py-0.5 rounded">{alt.season}</span>}
+                          </div>
+                          <p className="mt-1 text-green-700 font-medium">Stock: {altStock}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </td>
         </tr>
@@ -476,6 +549,8 @@ function ProductModal({ product, onClose, onSave, loading }) {
     description: product?.description || "",
     brand: product?.brand || "",
     category: product?.category || "",
+    gender: product?.gender || "",
+    season: product?.season || "",
     base_cost: product?.base_cost || "",
   });
 
@@ -483,6 +558,8 @@ function ProductModal({ product, onClose, onSave, loading }) {
     e.preventDefault();
     onSave({
       ...form,
+      gender: form.gender || null,
+      season: form.season || null,
       base_cost: form.base_cost ? Number(form.base_cost) : null,
     });
   };
@@ -524,6 +601,24 @@ function ProductModal({ product, onClose, onSave, loading }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
               <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
+              <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none text-gray-700">
+                <option value="">Sin especificar</option>
+                {GENDER_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Temporada</label>
+              <select value={form.season} onChange={(e) => setForm({ ...form, season: e.target.value })}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none text-gray-700">
+                <option value="">Sin especificar</option>
+                {SEASON_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
           </div>
           <div>

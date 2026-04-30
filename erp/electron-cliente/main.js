@@ -8,6 +8,12 @@ const { spawn } = require('child_process');
 
 const APP_VERSION = '1.0.0';
 
+// ─── Tokens para ventanas secundarias ────────────────────────────────────────
+// Mapa temporal: webContents.id → token JWT del usuario
+// Lo usa preload.js de la nueva ventana vía IPC sincrónico antes de que React monte
+const pendingWindowTokens = new Map();
+let activeServerUrl = null; // URL del servidor resuelto, para abrir sub-ventanas
+
 // ─── Error global handlers ───────────────────────────────────────────────────
 let startupComplete = false;
 const LOG_FILE = path.join(app.getPath('userData'), 'erp-debug.log');
@@ -39,12 +45,39 @@ function saveConfig(data) {
 }
 
 // ─── Machine ID ────────────────────────────────────────────────────────────────
+// Uses Windows Registry MachineGuid for hardware-bound fingerprinting.
+// Falls back to a persistent random UUID if registry is unavailable.
 function getMachineId() {
   const cfg = loadConfig();
+
+  // Always try to get MachineGuid from registry (Windows only)
+  if (process.platform === 'win32') {
+    try {
+      const { execSync } = require('child_process');
+      const regOut = execSync(
+        'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid 2>nul',
+        { encoding: 'utf8', timeout: 3000 }
+      );
+      const match = regOut.match(/MachineGuid\s+REG_SZ\s+([A-Za-z0-9\-]+)/);
+      if (match && match[1]) {
+        const hwId = 'HW-' + match[1].trim();
+        if (cfg.machineId !== hwId) {
+          cfg.machineId = hwId;
+          saveConfig(cfg);
+          log(`MachineId from registry: ${cfg.machineId}`);
+        }
+        return cfg.machineId;
+      }
+    } catch (e) {
+      log(`Registry MachineGuid failed: ${e.message}`);
+    }
+  }
+
+  // Fallback: persistent random UUID
   if (!cfg.machineId) {
-    cfg.machineId = crypto.randomBytes(16).toString('hex');
+    cfg.machineId = 'RND-' + crypto.randomBytes(16).toString('hex');
     saveConfig(cfg);
-    log(`Generated new machineId: ${cfg.machineId}`);
+    log(`Generated fallback machineId: ${cfg.machineId}`);
   }
   return cfg.machineId;
 }
@@ -89,10 +122,58 @@ function validateLicense(serverUrl, key, machineId) {
   });
 }
 
+// Request a license from admin (public endpoint)
+function requestLicense(serverUrl, machineId, hostname) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ machine_id: machineId, hostname, os_info: process.platform + ' ' + process.arch });
+    const urlObj = new URL(`${serverUrl}/api/v1/pc-licenses/request`);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 80,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    };
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { resolve({ status: 'error', message: 'Respuesta inválida' }); }
+      });
+    });
+    req.on('error', () => resolve({ status: 'error', message: 'Sin conexión al servidor' }));
+    req.setTimeout(8000, () => { req.destroy(); resolve({ status: 'error', message: 'Timeout' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
+// Poll for license approval
+function pollLicenseApproval(serverUrl, machineId) {
+  return new Promise((resolve) => {
+    const urlObj = new URL(`${serverUrl}/api/v1/pc-licenses/poll/${encodeURIComponent(machineId)}`);
+    const options = { hostname: urlObj.hostname, port: urlObj.port || 80, path: urlObj.pathname, method: 'GET' };
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { resolve({ status: 'error' }); }
+      });
+    });
+    req.on('error', () => resolve({ status: 'error' }));
+    req.setTimeout(6000, () => { req.destroy(); resolve({ status: 'error' }); });
+    req.end();
+  });
+}
+
 function showLicenseEntry() {
   if (splashWin && !splashWin.isDestroyed()) splashWin.close();
+  const machineId = getMachineId();
+  const shortId = machineId.substring(0, 26) + '...';
   const licWin = new BrowserWindow({
-    width: 500, height: 420, frame: true, resizable: false, center: true,
+    width: 520, height: 540, frame: true, resizable: false, center: true,
     autoHideMenuBar: true, title: APP_NAME,
     webPreferences: { nodeIntegration: false, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
@@ -102,41 +183,104 @@ function showLicenseEntry() {
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f1f5f9;
            display:flex;flex-direction:column;align-items:center;justify-content:center;
-           height:100vh;gap:20px;padding:40px}
-      .icon{font-size:52px;line-height:1}
-      h2{font-size:20px;font-weight:700;color:#fff;text-align:center}
-      p{font-size:13px;color:#94a3b8;text-align:center;max-width:360px;line-height:1.6}
-      textarea{width:100%;padding:12px 14px;background:#1e293b;border:1.5px solid #334155;
-               border-radius:10px;font-size:13px;font-family:monospace;color:#e2e8f0;
-               resize:none;height:72px;outline:none;letter-spacing:.05em}
+           height:100vh;gap:16px;padding:32px}
+      .icon{font-size:48px;line-height:1}
+      h2{font-size:19px;font-weight:700;color:#fff;text-align:center}
+      p{font-size:12.5px;color:#94a3b8;text-align:center;max-width:380px;line-height:1.6}
+      textarea{width:100%;padding:11px 13px;background:#1e293b;border:1.5px solid #334155;
+               border-radius:10px;font-size:12.5px;font-family:monospace;color:#e2e8f0;
+               resize:none;height:68px;outline:none;letter-spacing:.05em}
       textarea:focus{border-color:#7c3aed}
-      .btn{background:#7c3aed;color:white;border:none;padding:12px 32px;border-radius:10px;
-           font-size:15px;cursor:pointer;font-weight:600;width:100%}
+      .btn{background:#7c3aed;color:white;border:none;padding:11px 28px;border-radius:10px;
+           font-size:14px;cursor:pointer;font-weight:600;width:100%}
       .btn:hover{background:#6d28d9}
       .btn:disabled{opacity:.5;cursor:not-allowed}
+      .btn-sec{background:#1e293b;color:#94a3b8;border:1.5px solid #334155;padding:10px 28px;
+               border-radius:10px;font-size:13px;cursor:pointer;font-weight:500;width:100%}
+      .btn-sec:hover{color:#fff;border-color:#7c3aed}
       .err{color:#f87171;font-size:12px;text-align:center}
+      .ok{color:#4ade80;font-size:12px;text-align:center}
+      .mid-id{background:#1e293b;border:1px solid #334155;border-radius:8px;
+              padding:8px 12px;font-family:monospace;font-size:11px;color:#64748b;
+              width:100%;text-align:center;word-break:break-all}
+      .sep{width:100%;height:1px;background:#1e293b;margin:4px 0}
+      #waiting{display:none;flex-direction:column;align-items:center;gap:12px;width:100%}
+      .spinner{width:32px;height:32px;border:3px solid #334155;border-top:3px solid #7c3aed;
+               border-radius:50%;animation:spin 1s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
     </style></head>
     <body>
       <div class=icon>🔑</div>
-      <h2>Activar ERP</h2>
-      <p>Esta instalación requiere una licencia. Ingresá la clave que te proporcionó tu administrador:</p>
-      <textarea id=key placeholder="PC-XXXX-XXXX-XXXX-XXXX" spellcheck="false"></textarea>
-      <div class=err id=err></div>
-      <button class=btn id=btn onclick=activate()>Activar</button>
+      <h2>Activar ERP Mundo Outdoor</h2>
+      <div id=main style="display:flex;flex-direction:column;gap:12px;width:100%">
+        <p>Ingresá la clave que te dio tu administrador, o solicitá una nueva:</p>
+        <textarea id=key placeholder="PC-XXXX-XXXX-XXXX-XXXX" spellcheck="false"></textarea>
+        <div class=err id=err></div>
+        <button class=btn id=btnActivar onclick=activate()>✓ Activar con clave</button>
+        <div class=sep></div>
+        <p style="font-size:11.5px">¿No tenés clave? Solicitá una al administrador. Tu ID de PC:</p>
+        <div class=mid-id id=midDisplay>${shortId}</div>
+        <button class=btn-sec id=btnSolicitar onclick=solicitar()>📨 Solicitar licencia al administrador</button>
+      </div>
+      <div id=waiting>
+        <div class=spinner></div>
+        <p>Solicitud enviada. Esperando aprobación del administrador...</p>
+        <div class=ok id=waitMsg></div>
+        <div class=err id=waitErr></div>
+        <button class=btn-sec onclick=cancelarEspera()>← Volver</button>
+      </div>
       <script>
+        let pollInterval = null;
         async function activate(){
           const key = document.getElementById('key').value.trim();
           if(!key){document.getElementById('err').textContent='Ingresá una clave';return;}
-          document.getElementById('btn').disabled=true;
-          document.getElementById('btn').textContent='Activando...';
+          document.getElementById('btnActivar').disabled=true;
+          document.getElementById('btnActivar').textContent='Activando...';
           document.getElementById('err').textContent='';
-          try{
-            await window.__electron?.saveLicenseKey(key);
-          }catch(e){
+          try{ await window.__electron?.saveLicenseKey(key); }
+          catch(e){
             document.getElementById('err').textContent=e?.message||'Error';
-            document.getElementById('btn').disabled=false;
-            document.getElementById('btn').textContent='Activar';
+            document.getElementById('btnActivar').disabled=false;
+            document.getElementById('btnActivar').textContent='✓ Activar con clave';
           }
+        }
+        async function solicitar(){
+          document.getElementById('btnSolicitar').disabled=true;
+          document.getElementById('btnSolicitar').textContent='Enviando...';
+          const res = await window.__electron?.requestLicense?.();
+          if(!res){document.getElementById('btnSolicitar').disabled=false;document.getElementById('btnSolicitar').textContent='📨 Solicitar licencia al administrador';return;}
+          if(res.status==='approved'&&res.key){
+            await window.__electron?.saveLicenseKey(res.key);
+            return;
+          }
+          if(res.status==='rejected'){
+            document.getElementById('err').textContent='Solicitud rechazada por el administrador.';
+            document.getElementById('btnSolicitar').disabled=false;document.getElementById('btnSolicitar').textContent='📨 Solicitar licencia al administrador';
+            return;
+          }
+          // pending or sent — show waiting screen
+          document.getElementById('main').style.display='none';
+          document.getElementById('waiting').style.display='flex';
+          pollInterval = setInterval(async()=>{
+            const r = await window.__electron?.pollLicense?.();
+            if(!r) return;
+            if(r.status==='approved'&&r.key){
+              clearInterval(pollInterval);
+              await window.__electron?.saveLicenseKey(r.key);
+            } else if(r.status==='rejected'){
+              clearInterval(pollInterval);
+              document.getElementById('waitErr').textContent='Rechazado por el administrador.';
+            } else {
+              document.getElementById('waitMsg').textContent='Aún pendiente... revisando cada 10s';
+            }
+          }, 10000);
+        }
+        function cancelarEspera(){
+          if(pollInterval) clearInterval(pollInterval);
+          document.getElementById('main').style.display='flex';
+          document.getElementById('waiting').style.display='none';
+          document.getElementById('btnSolicitar').disabled=false;
+          document.getElementById('btnSolicitar').textContent='📨 Solicitar licencia al administrador';
         }
         document.getElementById('key').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey)activate();});
       </script>
@@ -295,18 +439,27 @@ function createMainWindow(url) {
   });
   mainWin.webContents.on('did-finish-load', () => {
     // Set client mode and company id, then verify the stored session belongs to this company
+    const localCfg = loadConfig();
+    const localIdJs = localCfg.localId ? String(localCfg.localId) : '';
+    const localNameJs = (localCfg.localName || '').replace(/'/g, "\\'");
     mainWin.webContents.executeJavaScript(`
       (function() {
         localStorage.setItem('erp_client_mode', 'true');
         localStorage.setItem('erp_company_id', '3');
-        const token = localStorage.getItem('token');
+        localStorage.setItem('erp_server_url', '${url}');
+        // Auto-asignar local desde la licencia registrada
+        if ('${localIdJs}') {
+          localStorage.setItem('selectedLocalId', '${localIdJs}');
+          localStorage.setItem('selectedLocalName', '${localNameJs}');
+        }
+        const token = sessionStorage.getItem('token');
         if (!token) return Promise.resolve(null);
         return fetch('/api/v1/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
           .then(r => r.json())
           .then(u => {
             if (u.company_id && u.company_id !== 3) {
-              localStorage.removeItem('token');
-              localStorage.removeItem('user');
+              sessionStorage.removeItem('token');
+              sessionStorage.removeItem('user');
               window.location.reload();
               return null;
             }
@@ -432,9 +585,12 @@ function checkServer(url, retries = 5, delay = 1000, requireFrontend = false) {
 }
 
 async function resolveServerUrl(configuredUrl) {
+  // Intentar localhost 8000 primero (prod local), luego 8001 (dev), luego URL configurada
   try {
-    // Intentar localhost solo si TAMBIÉN tiene el frontend buildeado
     return await checkServer('http://127.0.0.1:8000', 2, 500, true);
+  } catch {}
+  try {
+    return await checkServer('http://127.0.0.1:8001', 2, 500, true);
   } catch {
     return await checkServer(configuredUrl, 5, 1500);
   }
@@ -458,6 +614,89 @@ ipcMain.handle('clear-license', () => {
   app.relaunch();
   app.exit(0);
 });
+
+ipcMain.handle('request-license', async () => {
+  const serverUrl = loadConfig().serverUrl || SERVER_URL;
+  const machineId = getMachineId();
+  const { hostname } = require('os');
+  return await requestLicense(serverUrl, machineId, hostname());
+});
+
+ipcMain.handle('poll-license', async () => {
+  const serverUrl = loadConfig().serverUrl || SERVER_URL;
+  const machineId = getMachineId();
+  return await pollLicenseApproval(serverUrl, machineId);
+});
+
+// ─── IPC: sub-ventana (ej: Stock en ventana aparte) ──────────────────────────
+
+// Sync: preload.js lo llama antes de que React monte para obtener el token
+ipcMain.on('get-window-token', (event, wid) => {
+  const widKey = String(wid);
+  event.returnValue = pendingWindowTokens.get(widKey) || null;
+  pendingWindowTokens.delete(widKey);
+});
+
+// Async: el renderer llama a window.__electron.openWindow(path, title)
+ipcMain.handle('open-window', async (event, urlPath, title, token) => {
+  const serverUrl = activeServerUrl || loadConfig().serverUrl || SERVER_URL;
+  log(`open-window: path=${urlPath} serverUrl=${serverUrl} hasToken=${!!token}`);
+
+  const localCfg = loadConfig();
+  const localIdJs  = localCfg.localId  ? String(localCfg.localId)  : '';
+  const localNameJs = (localCfg.localName || '').replace(/'/g, "\\'");
+
+  const newWin = new BrowserWindow({
+    width: 1200, height: 780,
+    minWidth: 900, minHeight: 550,
+    show: false, frame: true,
+    autoHideMenuBar: true,
+    title: (title ? title + ' — ' : '') + APP_NAME,
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false,
+      devTools: true,
+    },
+  });
+  newWin.setMenuBarVisibility(false);
+
+  // Guardar token para que preload.js lo consuma sincrónicamente
+  if (token) {
+    pendingWindowTokens.set(String(newWin.webContents.id), token);
+  }
+
+  // Inyectar localStorage igual que en la ventana principal
+  newWin.webContents.on('did-finish-load', () => {
+    newWin.webContents.executeJavaScript(`
+      (function() {
+        localStorage.setItem('erp_client_mode', 'true');
+        localStorage.setItem('erp_company_id', '3');
+        localStorage.setItem('erp_server_url', '${serverUrl}');
+        if ('${localIdJs}') {
+          localStorage.setItem('selectedLocalId', '${localIdJs}');
+          localStorage.setItem('selectedLocalName', '${localNameJs}');
+        }
+      })()
+    `).catch(() => {});
+  });
+
+  // Cargar la URL con el ID de la ventana como param para que preload obtenga el token
+  const sep = urlPath.includes('?') ? '&' : '?';
+  newWin.loadURL(`${serverUrl}${urlPath}${sep}_wid=${newWin.webContents.id}`);
+
+  newWin.once('ready-to-show', () => {
+    newWin.show();
+    newWin.focus();
+    log(`Sub-ventana abierta: ${urlPath}`);
+  });
+  newWin.on('closed', () => {
+    pendingWindowTokens.delete(String(newWin.webContents.id));
+  });
+});
+
 
 // ─── Auto-Update ──────────────────────────────────────────────────────────────
 function checkForUpdates(serverUrl) {
@@ -710,6 +949,8 @@ app.whenReady().then(async () => {
 
   // Deshabilitar cache HTTP — siempre cargar versión fresca del servidor
   session.defaultSession.clearCache().catch(() => {});
+  // Limpiar también cache del Service Worker y CacheStorage
+  session.defaultSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] }).catch(() => {});
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     details.requestHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate';
     details.requestHeaders['Pragma'] = 'no-cache';
@@ -734,6 +975,7 @@ app.whenReady().then(async () => {
 
   try {
     const resolvedUrl = await resolveServerUrl(serverUrl);
+    activeServerUrl = resolvedUrl;
 
     // Validar licencia contra el servidor
     if (licenseKey && app.isPackaged) {
@@ -745,6 +987,14 @@ app.whenReady().then(async () => {
       if (!validation.valid) {
         showLicenseError(validation.message);
         return;
+      }
+
+      // Guardar local asignado a esta PC para inyectarlo en el frontend
+      if (validation.local_id) {
+        cfg.localId = validation.local_id;
+        cfg.localName = validation.local_name || '';
+        saveConfig(cfg);
+        log(`Local asignado: ${cfg.localName} (id=${cfg.localId})`);
       }
     }
 

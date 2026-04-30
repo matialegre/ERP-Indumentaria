@@ -11,7 +11,7 @@ Fuente de datos: SQL Server 192.168.0.109:9970 / DATOS / VENTAS
 """
 
 from datetime import date, timedelta
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
@@ -85,11 +85,34 @@ class VendedorDetalleOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FacturaItem(BaseModel):
+    descripcion: str
+    cantidad: float
+    precio_unidad: float
+    model_config = {"from_attributes": True}
+
+
+class FacturaDetalleOut(BaseModel):
+    comprobante_numero: str
+    comprobante_tipo: str
+    items: list[FacturaItem]
+    model_config = {"from_attributes": True}
+
+
 # ── Router ────────────────────────────────────────────────────────────────────
 
 router = APIRouter(prefix="/comisiones", tags=["Comisiones"])
 
-_SQL_RESUMEN = """
+
+def _build_sql_resumen(locales: List[str]) -> tuple[str, list]:
+    local_filter = ""
+    extra_params: list = []
+    if locales:
+        placeholders = ",".join("?" * len(locales))
+        local_filter = f"        AND LOCAL IN ({placeholders})\n"
+        extra_params = list(locales)
+
+    sql = f"""
 WITH DetallePorComprobante AS (
     SELECT
         VENDEDOR,
@@ -109,7 +132,7 @@ WITH DetallePorComprobante AS (
         AND VENDEDOR IS NOT NULL 
         AND VENDEDOR <> 'Sin Vendedor'
         AND VENDEDOR <> ''
-    GROUP BY 
+{local_filter}    GROUP BY 
         VENDEDOR, 
         COMPROBANTE_NUMERO, 
         COMPROBANTE_TIPO
@@ -136,8 +159,18 @@ FROM ComisionesCalculadas
 GROUP BY VENDEDOR
 ORDER BY TOTAL_COMISION DESC
 """
+    return sql, extra_params
 
-_SQL_DETALLE = """
+
+def _build_sql_detalle(locales: List[str]) -> tuple[str, list]:
+    local_filter = ""
+    extra_params: list = []
+    if locales:
+        placeholders = ",".join("?" * len(locales))
+        local_filter = f"        AND LOCAL IN ({placeholders})\n"
+        extra_params = list(locales)
+
+    sql = f"""
 WITH DetallePorComprobante AS (
     SELECT
         VENDEDOR,
@@ -157,7 +190,7 @@ WITH DetallePorComprobante AS (
         AND VENDEDOR IS NOT NULL 
         AND VENDEDOR <> 'Sin Vendedor'
         AND VENDEDOR <> ''
-    GROUP BY 
+{local_filter}    GROUP BY 
         VENDEDOR, 
         COMPROBANTE_NUMERO, 
         COMPROBANTE_TIPO
@@ -174,6 +207,7 @@ FROM DetallePorComprobante
 WHERE VENDEDOR = ?
 ORDER BY CantidadArticulos DESC, COMPROBANTE_NUMERO
 """
+    return sql, extra_params
 
 
 @router.get("/resumen", response_model=ComisionesResumenOut)
@@ -267,6 +301,44 @@ def get_comisiones_detalle(
             fecha_hasta=str(fecha_hasta),
             tickets=tickets,
             total_comision=total,
+        )
+    finally:
+        conn.close()
+
+
+@router.get("/factura/{comprobante_numero}", response_model=FacturaDetalleOut)
+def get_factura_detalle(
+    comprobante_numero: str,
+    current_user: User = Depends(get_current_user),
+):
+    conn = _get_conn()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT DESCRIPCION, CANTIDAD, PRECIO_UNIDAD, COMPROBANTE_TIPO
+            FROM VENTAS
+            WHERE COMPROBANTE_NUMERO = ?
+              AND PRECIO_UNIDAD > 10
+            ORDER BY DESCRIPCION
+            """,
+            (comprobante_numero,),
+        )
+        rows = cursor.fetchall()
+        items = []
+        tipo = ""
+        for row in rows:
+            if not tipo and row[3]:
+                tipo = str(row[3]).strip()
+            items.append(FacturaItem(
+                descripcion=str(row[0]).strip() if row[0] else "",
+                cantidad=float(row[1]) if row[1] else 0.0,
+                precio_unidad=float(row[2]) if row[2] else 0.0,
+            ))
+        return FacturaDetalleOut(
+            comprobante_numero=comprobante_numero,
+            comprobante_tipo=tipo,
+            items=items,
         )
     finally:
         conn.close()

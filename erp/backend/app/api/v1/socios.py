@@ -29,6 +29,7 @@ from typing import Optional
 import requests
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 try:
     import pyodbc
@@ -54,6 +55,7 @@ except ImportError:
 SCRIPTS_DIR   = r"D:\ERP MUNDO OUTDOOR\A AGREGAR\OPENCLAW\scripts"
 ESTADO_FILE   = os.path.join(SCRIPTS_DIR, "estado.json")
 LOG_FILE      = os.path.join(SCRIPTS_DIR, "mensajes_log.json")
+MENSAJES_CONFIG_FILE = os.path.join(SCRIPTS_DIR, "mensajes_config.json")
 WA_SCRIPT     = os.path.join(SCRIPTS_DIR, "whatsapp-sender.js")
 WA_SERVER     = "http://localhost:3456"
 
@@ -89,12 +91,21 @@ JS_LEER_TABLA = """
 () => {
     const tabla = document.getElementById("tableEstadisticas");
     if (!tabla) return null;
-    const filas = tabla.querySelectorAll("tr");
+
+    const filas = [...tabla.querySelectorAll("tr")]
+        .map((fila) => [...fila.querySelectorAll("th, td")].map((celda) => celda.innerText.trim()).filter(Boolean))
+        .filter((fila) => fila.length > 0);
+
     if (filas.length < 2) return null;
-    const headers = [...filas[0].querySelectorAll("th")].map(h => h.innerText.trim());
-    const cells   = [...filas[1].querySelectorAll("td")].map(td => td.innerText.trim());
-    const result  = {};
-    headers.forEach((h, i) => { result[h] = cells[i] !== undefined ? cells[i] : "0"; });
+
+    const headers = filas[0];
+    const cells = filas[1];
+    const result = {};
+
+    headers.forEach((header, index) => {
+        result[header] = cells[index] !== undefined ? cells[index] : "0";
+    });
+
     return result;
 }
 """
@@ -112,17 +123,40 @@ def wa_process_running() -> bool:
     return _wa_process.poll() is None
 
 
-def wa_listo() -> bool:
+def wa_server_status() -> dict:
     try:
         r = requests.get(f"{WA_SERVER}/status", timeout=3)
-        return r.json().get("listo", False)
+        if r.status_code != 200:
+            return {
+                "server_reachable": False,
+                "listo": False,
+                "conectandose": False,
+                "tiene_qr": False,
+            }
+        data = r.json()
+        return {
+            "server_reachable": True,
+            "listo": data.get("listo", False),
+            "conectandose": data.get("conectandose", False),
+            "tiene_qr": data.get("tieneQR", False),
+        }
     except Exception:
-        return False
+        return {
+            "server_reachable": False,
+            "listo": False,
+            "conectandose": False,
+            "tiene_qr": False,
+        }
+
+
+def wa_listo() -> bool:
+    return wa_server_status()["listo"]
 
 
 def start_wa_server():
     global _wa_process
-    if wa_process_running():
+    server_status = wa_server_status()
+    if wa_process_running() or server_status["server_reachable"]:
         return {"ok": True, "msg": "Ya estaba corriendo"}
     if not os.path.exists(WA_SCRIPT):
         return {"ok": False, "msg": f"No se encontró {WA_SCRIPT}"}
@@ -130,13 +164,16 @@ def start_wa_server():
         _wa_process = subprocess.Popen(
             ["node", "whatsapp-sender.js"],
             cwd=SCRIPTS_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
         )
-        time.sleep(2)
-        return {"ok": True, "msg": f"Iniciado (PID {_wa_process.pid})"}
+        print(f"[socios] WhatsApp iniciado con PID {_wa_process.pid}")
+        time.sleep(1)
+        return {"ok": True, "msg": f"Iniciado (PID {_wa_process.pid}). Esperando conexión..."}
     except Exception as e:
+        print(f"[socios] Error al iniciar: {e}")
         return {"ok": False, "msg": str(e)}
 
 
@@ -171,6 +208,57 @@ def leer_log() -> list:
         with open(LOG_FILE, encoding="utf-8") as f:
             return json.load(f)
     return []
+
+
+# ══════════════════════════════════════════════════
+#  PLANTILLAS DE MENSAJES WHATSAPP (editables desde el panel)
+# ══════════════════════════════════════════════════
+DEFAULT_MENSAJES_CONFIG = {
+    "msg_positivo": (
+        "Hola {nombre}! 🟢\n\n"
+        "*Socios del mes:* {socios_actuales} de {objetivo_mes}\n"
+        "¡Están cumpliendo el objetivo! Muy bien equipo.\n\n"
+        "_Equipo Mundo Outdoor 🏔️_"
+    ),
+    "msg_neutral": (
+        "Hola {nombre}! 🟡\n\n"
+        "*Socios del mes:* {socios_actuales} de {objetivo_mes}\n"
+        "*Faltan dar de alta:* {faltan} socios\n"
+        "Casi llegan, sigan así! Les quedan {dias_restantes} días.\n\n"
+        "_Equipo Mundo Outdoor 🏔️_"
+    ),
+    "msg_atrasado": (
+        "Hola {nombre}! 🔴\n\n"
+        "*Socios del mes:* {socios_actuales} de {objetivo_mes}\n"
+        "*Faltan dar de alta:* {faltan} socios\n"
+        "Están atrasados, necesitan ponerse las pilas. ¡{dias_restantes} días!\n\n"
+        "_Equipo Mundo Outdoor 🏔️_"
+    ),
+    "bot_auto_reply": (
+        "Hola! Soy solo un bot de notificaciones de Mundo Outdoor. "
+        "Para consultas, contactate con el equipo de ventas."
+    ),
+}
+
+
+class MensajesConfigSchema(BaseModel):
+    msg_positivo: str = ""
+    msg_neutral: str = ""
+    msg_atrasado: str = ""
+    bot_auto_reply: str = ""
+
+
+def leer_mensajes_config() -> dict:
+    if os.path.exists(MENSAJES_CONFIG_FILE):
+        with open(MENSAJES_CONFIG_FILE, encoding="utf-8") as f:
+            stored = json.load(f)
+        return {**DEFAULT_MENSAJES_CONFIG, **stored}
+    return DEFAULT_MENSAJES_CONFIG.copy()
+
+
+def guardar_mensajes_config(config: dict):
+    with open(MENSAJES_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
 
 
 def guardar_estado(locales_datos: list, wa_conectado: bool):
@@ -276,6 +364,7 @@ async def get_socios_mtgpanel(locales: list) -> dict:
 
                     await page.goto("https://www.mtgpanel.com.ar/estadisticas", wait_until="load")
                     await asyncio.sleep(PAUSA)
+                    await page.wait_for_selector("#tableEstadisticas", timeout=15000)
 
                     # Aplicar filtro "Este mes"
                     btn = page.locator("button").filter(has_text=__import__("re").compile(
@@ -292,7 +381,18 @@ async def get_socios_mtgpanel(locales: list) -> dict:
                     await page.click("text=Este mes")
                     await asyncio.sleep(PAUSA)
                     await page.keyboard.press("Escape")
-                    await asyncio.sleep(PAUSA * 1.5)
+                    await page.wait_for_function(
+                        """() => {
+                            const tabla = document.getElementById('tableEstadisticas');
+                            if (!tabla) return false;
+                            const filas = [...tabla.querySelectorAll('tr')]
+                                .map((fila) => [...fila.querySelectorAll('th, td')].map((celda) => celda.innerText.trim()).filter(Boolean))
+                                .filter((fila) => fila.length > 0);
+                            return filas.length >= 2 && filas[1].some((valor) => /\\d/.test(valor));
+                        }""",
+                        timeout=15000,
+                    )
+                    await asyncio.sleep(PAUSA)
 
                     datos = await page.evaluate(JS_LEER_TABLA)
                     total = int(datos.get("Total", 0)) if datos else 0
@@ -302,7 +402,7 @@ async def get_socios_mtgpanel(locales: list) -> dict:
                     await asyncio.sleep(PAUSA)
                 except Exception as e:
                     print(f"[socios] mtgpanel error {email}: {e}")
-                    resultados[email] = {"total": 0, "por_dia": {}}
+                    resultados[email] = {"total": 0, "por_dia": {}, "_error": True}
 
             await browser.close()
     except Exception as e:
@@ -314,7 +414,7 @@ async def get_socios_mtgpanel(locales: list) -> dict:
 # ══════════════════════════════════════════════════
 #  CALCULAR CUMPLIMIENTO
 # ══════════════════════════════════════════════════
-def calcular_cumplimiento(local: dict, tickets_sql: dict, socios_mtg: dict) -> dict:
+def calcular_cumplimiento(local: dict, tickets_sql: dict, socios_mtg: dict, prev: dict | None = None) -> dict:
     hoy            = date.today()
     dias_en_mes    = calendar.monthrange(hoy.year, hoy.month)[1]
     dia_actual     = hoy.day
@@ -323,10 +423,18 @@ def calcular_cumplimiento(local: dict, tickets_sql: dict, socios_mtg: dict) -> d
     tickets_mes  = sum(tickets_sql.get(c, {}).get("tickets_mes",  0) for c in local["sql_codigos"])
     tickets_ayer = sum(tickets_sql.get(c, {}).get("tickets_ayer", 0) for c in local["sql_codigos"])
 
-    objetivo_mes    = round(tickets_mes * 0.15)
-    socios_data     = socios_mtg.get(local["mtgpanel_email"], {})
-    socios_actuales = socios_data.get("total", 0)
-    por_dia         = socios_data.get("por_dia", {})
+    objetivo_mes = round(tickets_mes * 0.15)
+    socios_data  = socios_mtg.get(local["mtgpanel_email"])
+
+    # Si el scraping falló (clave ausente = excepción global; "_error" = excepción por local),
+    # preservar los valores anteriores en lugar de sobreescribir con 0.
+    scraping_failed = socios_data is None or socios_data.get("_error", False)
+    if scraping_failed and prev:
+        socios_actuales = prev.get("socios_actuales", 0)
+        por_dia         = prev.get("por_dia", {})
+    else:
+        socios_actuales = socios_data.get("total", 0) if socios_data else 0
+        por_dia         = socios_data.get("por_dia", {}) if socios_data else {}
 
     faltan          = max(objetivo_mes - socios_actuales, 0)
     ritmo_ideal     = round(objetivo_mes / dias_en_mes, 1)
@@ -348,6 +456,7 @@ def calcular_cumplimiento(local: dict, tickets_sql: dict, socios_mtg: dict) -> d
         "ritmo_necesario":  ritmo_necesario,
         "avance_pct":       avance_pct,
         "por_dia":          por_dia,
+        "scraping_ok":      not scraping_failed,
     }
 
 
@@ -355,27 +464,40 @@ def calcular_cumplimiento(local: dict, tickets_sql: dict, socios_mtg: dict) -> d
 #  OPENAI: generar mensaje
 # ══════════════════════════════════════════════════
 def generar_mensaje(datos: dict) -> str:
-    """Mensaje claro y simple para encargados de local — sin promedios, con emoji de color"""
+    """Mensaje claro y simple para encargados de local — usa plantillas configurables como fallback"""
     pct = datos["avance_pct"]
+    config = leer_mensajes_config()
 
     if pct >= 100:
         emoji_estado = "🟢"
         estado_texto = "¡Están cumpliendo el objetivo!"
+        template_key = "msg_positivo"
     elif pct >= 80:
         emoji_estado = "🟡"
         estado_texto = "Casi llegan, sigan así!"
+        template_key = "msg_neutral"
     else:
         emoji_estado = "🔴"
         estado_texto = "Están atrasados, necesitan ponerse las pilas."
+        template_key = "msg_atrasado"
+
+    vars_plantilla = {
+        "nombre": datos["nombre"],
+        "socios_actuales": datos["socios_actuales"],
+        "objetivo_mes": datos["objetivo_mes"],
+        "faltan": datos["faltan"],
+        "dias_restantes": datos["dias_restantes"],
+        "emoji": emoji_estado,
+    }
+
+    def aplicar_template(tmpl: str) -> str:
+        try:
+            return tmpl.format(**vars_plantilla)
+        except KeyError:
+            return tmpl
 
     if not OPENAI_OK:
-        return (
-            f"Hola {datos['nombre']}! {emoji_estado}\n\n"
-            f"*Socios del mes:* {datos['socios_actuales']} de {datos['objetivo_mes']}\n"
-            f"*Faltan dar de alta:* {datos['faltan']} socios\n\n"
-            f"{estado_texto}\n\n"
-            f"_Equipo Mundo Outdoor 🏔️_"
-        )
+        return aplicar_template(config[template_key])
 
     por_dia_str = "\n".join(f"  {d}: {v}" for d, v in datos["por_dia"].items()) or "  (ninguna)"
 
@@ -412,13 +534,7 @@ DATOS:
         return resp.choices[0].message.content.strip()
     except Exception as e:
         print(f"[socios] OpenAI error: {e}")
-        return (
-            f"Hola {datos['nombre']}! {emoji_estado}\n\n"
-            f"*Socios del mes:* {datos['socios_actuales']} de {datos['objetivo_mes']}\n"
-            f"*Faltan dar de alta:* {datos['faltan']} socios\n\n"
-            f"{estado_texto}\n\n"
-            f"_Equipo Mundo Outdoor 🏔️_"
-        )
+        return aplicar_template(config[template_key])
 
 
 # ══════════════════════════════════════════════════
@@ -438,12 +554,15 @@ def enviar_whatsapp(numero: str, mensaje: str) -> bool:
 async def _task_actualizar():
     """Corre scraping + SQL y actualiza estado.json"""
     print("[socios] Iniciando actualización...")
+    prev_estado = leer_estado()
+    prev_map    = {l["nombre"]: l for l in prev_estado.get("locales", [])}
+
     tickets_sql = get_tickets_sql()
     socios_mtg  = await get_socios_mtgpanel(LOCALES)
 
     todos_datos = []
     for local in LOCALES:
-        datos = calcular_cumplimiento(local, tickets_sql, socios_mtg)
+        datos = calcular_cumplimiento(local, tickets_sql, socios_mtg, prev_map.get(local["nombre"]))
         todos_datos.append(datos)
 
     guardar_estado(todos_datos, wa_listo())
@@ -518,11 +637,15 @@ async def enviar_todos(background_tasks: BackgroundTasks):
 @router.get("/wa/status")
 def wa_status():
     running = wa_process_running()
-    listo   = wa_listo()
+    server_status = wa_server_status()
+    listo = server_status["listo"]
     return {
-        "proceso_corriendo": running,
-        "wa_listo":          listo,
-        "pid":               _wa_process.pid if running and _wa_process else None,
+        "proceso_corriendo": running or server_status["server_reachable"],
+        "wa_listo": listo,
+        "server_reachable": server_status["server_reachable"],
+        "conectandose": server_status["conectandose"],
+        "tiene_qr": server_status["tiene_qr"],
+        "pid": _wa_process.pid if running and _wa_process else None,
     }
 
 
@@ -538,14 +661,116 @@ def wa_stop():
     return result
 
 
+@router.get("/mensajes-config")
+def get_mensajes_config():
+    """Devuelve las plantillas de mensajes WhatsApp configuradas"""
+    return leer_mensajes_config()
+
+
+@router.put("/mensajes-config")
+def put_mensajes_config(config: MensajesConfigSchema):
+    """Guarda las plantillas de mensajes WhatsApp"""
+    data = config.dict()
+    guardar_mensajes_config(data)
+    return {"ok": True, "msg": "Configuración guardada"}
+
+
 @router.get("/wa/qr", response_class=HTMLResponse)
-def wa_qr():
-    """Proxy del QR de whatsapp-sender.js"""
+def get_wa_qr():
+    """Proxy del QR de whatsapp-sender.js con fallback a página de status"""
     try:
-        r = requests.get(f"{WA_SERVER}/qr", timeout=5)
-        return HTMLResponse(content=r.text, status_code=r.status_code)
+        r = requests.get(f"{WA_SERVER}/qr", timeout=3)
+        if r.status_code == 200:
+            return HTMLResponse(content=r.text, status_code=r.status_code)
+    except requests.Timeout:
+        pass
     except Exception:
-        return HTMLResponse(
-            content='<h2 style="font-family:sans-serif;text-align:center;margin-top:80px">⚠️ whatsapp-sender.js no está corriendo.<br><small>Hacé click en "Iniciar WhatsApp" en el ERP.</small></h2>',
-            status_code=503,
-        )
+        pass
+    
+    # Fallback: mostrar estado + instrucciones
+    server_status = wa_server_status()
+    running = wa_process_running() or server_status["server_reachable"]
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>WhatsApp QR</title>
+        <meta http-equiv="refresh" content="3">
+        <style>
+            body {{
+                margin: 0;
+                padding: 20px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #111;
+                color: #fff;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+            }}
+            .container {{
+                text-align: center;
+                max-width: 500px;
+            }}
+            .spinner {{
+                border: 4px solid #333;
+                border-top-color: #25d366;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            }}
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            h2 {{
+                color: #25d366;
+                margin: 20px 0;
+            }}
+            p {{
+                font-size: 1rem;
+                opacity: 0.8;
+                margin: 10px 0;
+            }}
+            .status {{
+                background: rgba(37, 211, 102, 0.1);
+                border: 1px solid #25d366;
+                padding: 15px;
+                border-radius: 8px;
+                margin-top: 20px;
+                font-size: 0.9rem;
+            }}
+            .status.error {{
+                background: rgba(255, 100, 100, 0.1);
+                border-color: #ff6464;
+            }}
+            .status.running {{
+                background: rgba(255, 193, 7, 0.1);
+                border-color: #ffc107;
+            }}
+            small {{
+                opacity: 0.6;
+                display: block;
+                margin-top: 15px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="spinner"></div>
+            <h2>Iniciando WhatsApp...</h2>
+            <p>Por favor espera mientras se conecta el servidor.</p>
+            <div class="status {"error" if not running else "running"}">
+                {'⏳ Servidor en proceso de inicio...' if running else '❌ Servidor no respondiendo'}
+                <br>
+                <small>La página se actualiza automáticamente cada 3 segundos</small>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return HTMLResponse(content=html, status_code=202 if running else 503)
